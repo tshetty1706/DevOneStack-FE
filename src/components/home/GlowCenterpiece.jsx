@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 
 export default function GlowCenterpiece() {
@@ -15,30 +15,14 @@ export default function GlowCenterpiece() {
     setMousePos({ x, y });
   };
 
-  // Touch move handler for mobile screen touch parallax
-  const handleTouchMove = (e) => {
-    if (!containerRef.current || e.touches.length === 0) return;
-    const touch = e.touches[0];
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = (touch.clientX - rect.left) / rect.width - 0.5;
-    const y = (touch.clientY - rect.top) / rect.height - 0.5;
-    setIsHovered(true);
-    setMousePos({ x, y });
-  };
-
   const handleMouseLeave = () => {
     setIsHovered(false);
     setMousePos({ x: 0, y: 0 });
   };
 
-  const handleTouchEnd = () => {
-    setIsHovered(false);
-    setMousePos({ x: 0, y: 0 });
-  };
-
-  // Smooth springs for rotation angles
-  const tiltX = isHovered ? mousePos.y * 38 : 0;
-  const tiltY = isHovered ? -mousePos.x * 38 : 0;
+  // Parallax angles
+  const tiltX = isHovered ? mousePos.y * 32 : 0;
+  const tiltY = isHovered ? -mousePos.x * 32 : 0;
 
   return (
     <div 
@@ -48,133 +32,208 @@ export default function GlowCenterpiece() {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       onTouchStart={() => setIsHovered(true)}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchEnd={handleMouseLeave}
       style={{
-        width: 220,
-        height: 240,
-        cursor: 'grab',
+        width: '320px',
+        height: '320px',
+        cursor: 'pointer',
         perspective: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        position: 'relative',
+        userSelect: 'none'
       }}
     >
-      {/* Background glow specific to the centerpiece */}
+      {/* Soft blurred background radial glow */}
       <motion.div 
         animate={{
-          scale: isHovered ? 1.25 : [1, 1.08, 1],
-          opacity: isHovered ? 0.8 : [0.45, 0.55, 0.45],
+          scale: isHovered ? 1.35 : [1, 1.08, 1],
+          opacity: isHovered ? 0.95 : [0.55, 0.68, 0.55],
         }}
         transition={{
           repeat: isHovered ? 0 : Infinity,
-          duration: 4,
+          duration: 3.5,
           ease: 'easeInOut',
         }}
         style={{
           position: 'absolute',
-          width: 260,
-          height: 260,
+          width: '280px',
+          height: '280px',
           borderRadius: '50%',
           background: 'radial-gradient(circle, var(--accent-color) 0%, rgba(var(--accent-color-rgb), 0) 70%)',
-          filter: 'blur(40px)',
+          filter: 'blur(55px)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
       />
 
-      {/* 3D Rotatable Wrapper */}
+      {/* 3D tilt wrapper */}
       <motion.div
         animate={{
           rotateX: tiltX,
           rotateY: tiltY,
-          scale: isHovered ? 1.06 : 1,
+          scale: isHovered ? 1.08 : 1,
         }}
         transition={{
           type: 'spring',
           stiffness: 140,
-          damping: 16,
+          damping: 15,
         }}
         style={{
-          width: 170,
-          height: 190,
+          width: '200px',
+          height: '240px',
           position: 'relative',
           transformStyle: 'preserve-3d',
           zIndex: 5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        {/* Layer 1: Bottom (Repos & Code) */}
+        {/* Core Glow Line (Vertical laser connector, visible when hovered/touched) */}
         <motion.div
           animate={{
-            y: isHovered ? 36 : 12,
-            opacity: isHovered ? 0.7 : 0.4,
+            scaleY: isHovered ? 1 : 0,
+            opacity: isHovered ? 0.8 : 0,
           }}
-          transition={{ type: 'spring', stiffness: 150, damping: 15 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          style={{
+            position: 'absolute',
+            width: '2px',
+            top: '20px',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(to bottom, transparent, #06b6d4 20%, #a855f7 80%, transparent)',
+            boxShadow: '0 0 12px var(--accent-color)',
+            zIndex: 4,
+            originY: 0.5
+          }}
+        />
+
+        {/* Layer 1: Top Sheet (AI Prompts & Sparkles - Explodes Upward) */}
+        <motion.div
+          animate={{
+            y: isHovered ? -45 : -15,
+            rotate: isHovered ? -2 : [-2, 2, -2],
+          }}
+          transition={isHovered ? {
+            type: 'spring',
+            stiffness: 160,
+            damping: 14
+          } : {
+            rotate: { repeat: Infinity, duration: 5, ease: 'easeInOut' },
+            y: { type: 'spring', stiffness: 100, damping: 15 }
+          }}
           style={{
             position: 'absolute',
             width: '100%',
-            height: '100px',
-            top: '80px',
+            height: '110px',
+            top: '20px',
             transformStyle: 'preserve-3d',
-            color: 'var(--accent-color)',
+            zIndex: 8,
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 170 100" fill="none">
-            {/* Isometric Card Panel */}
-            <path d="M85 10 L155 45 L85 80 L15 45 Z" fill="rgba(var(--accent-color-rgb), 0.04)" stroke="currentColor" strokeWidth="2" />
-            {/* Repository link nodes */}
-            <circle cx="85" cy="45" r="4.5" fill="currentColor" />
-            <path d="M50 30 L85 45 L120 30" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+          <svg width="100%" height="100%" viewBox="0 0 200 110" fill="none">
+            {/* Holographic Isometric Plate */}
+            <path 
+              d="M100 15 L170 50 L100 85 L30 50 Z" 
+              fill="rgba(168, 85, 247, 0.08)" 
+              stroke="#a855f7" 
+              strokeWidth="2.5" 
+              strokeLinejoin="round"
+              style={{ filter: isHovered ? 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))' : 'none', transition: 'filter 0.3s' }}
+            />
+            {/* Sparkle SVG inside plate */}
+            <g transform="translate(100, 50)" fill="#ffffff">
+              <path d="M-6 0 Q0 0 0 -6 Q0 0 6 0 Q0 0 0 6 Q0 0 -6 0 Z" />
+              <circle cx="12" cy="-8" r="1.5" />
+              <circle cx="-12" cy="8" r="1" />
+            </g>
           </svg>
         </motion.div>
 
-        {/* Layer 2: Middle (Docs & Notes) */}
+        {/* Layer 2: Middle Sheet (Docs, Notes & Snippets - Neutral Position) */}
         <motion.div
           animate={{
-            y: isHovered ? 0 : 0,
-            opacity: isHovered ? 0.85 : 0.65,
+            y: 0,
+            rotate: isHovered ? 2 : [2, -2, 2],
           }}
-          transition={{ type: 'spring', stiffness: 150, damping: 15 }}
+          transition={isHovered ? {
+            type: 'spring',
+            stiffness: 160,
+            damping: 14
+          } : {
+            rotate: { repeat: Infinity, duration: 6, ease: 'easeInOut' }
+          }}
           style={{
             position: 'absolute',
             width: '100%',
-            height: '100px',
-            top: '45px',
+            height: '110px',
+            top: '65px',
             transformStyle: 'preserve-3d',
-            color: 'var(--text-color)',
+            zIndex: 6,
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 170 100" fill="none">
-            <path d="M85 10 L155 45 L85 80 L15 45 Z" fill="rgba(var(--text-color-rgb), 0.03)" stroke="currentColor" strokeWidth="2" />
-            {/* Document isometric line traces */}
-            <path d="M60 40 L90 55 M65 33 L110 55 M95 33 L120 45" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+          <svg width="100%" height="100%" viewBox="0 0 200 110" fill="none">
+            {/* Isometric Plate */}
+            <path 
+              d="M100 15 L170 50 L100 85 L30 50 Z" 
+              fill="rgba(99, 102, 241, 0.06)" 
+              stroke="var(--accent-color)" 
+              strokeWidth="2.5" 
+              strokeLinejoin="round"
+              style={{ filter: isHovered ? 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.4))' : 'none', transition: 'filter 0.3s' }}
+            />
+            {/* Text lines tracers */}
+            <g stroke="var(--text-color)" strokeWidth="2" strokeLinecap="round" opacity="0.6">
+              <line x1="75" y1="45" x2="110" y2="60" />
+              <line x1="85" y1="38" x2="125" y2="55" />
+              <line x1="95" y1="48" x2="115" y2="57" />
+            </g>
           </svg>
         </motion.div>
 
-        {/* Layer 3: Top (Prompts & AI Sparkles) */}
+        {/* Layer 3: Bottom Sheet (Repos & Infrastructure - Explodes Downward) */}
         <motion.div
           animate={{
-            y: isHovered ? -36 : -12,
-            opacity: isHovered ? 1.0 : 0.9,
+            y: isHovered ? 45 : 15,
+            rotate: isHovered ? -1 : [-1, 1, -1],
           }}
-          transition={{ type: 'spring', stiffness: 150, damping: 15 }}
+          transition={isHovered ? {
+            type: 'spring',
+            stiffness: 160,
+            damping: 14
+          } : {
+            rotate: { repeat: Infinity, duration: 5.5, ease: 'easeInOut' },
+            y: { type: 'spring', stiffness: 100, damping: 15 }
+          }}
           style={{
             position: 'absolute',
             width: '100%',
-            height: '100px',
-            top: '10px',
+            height: '110px',
+            top: '110px',
             transformStyle: 'preserve-3d',
-            color: 'var(--accent-color)',
+            zIndex: 4,
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 170 100" fill="none">
-            <path d="M85 10 L155 45 L85 80 L15 45 Z" fill="rgba(var(--accent-color-rgb), 0.12)" stroke="currentColor" strokeWidth="2.5" />
-            
-            {/* AI sparkle path inside top card */}
-            <g transform="translate(85, 45)">
-              <path d="M-8 0 Q0 0 0 -8 Q0 0 8 0 Q0 0 0 8 Q0 0 -8 0 Z" fill="currentColor" />
-              <circle cx="-16" cy="-10" r="1.5" fill="currentColor" opacity="0.8" />
-              <circle cx="16" cy="10" r="2.2" fill="currentColor" opacity="0.8" />
+          <svg width="100%" height="100%" viewBox="0 0 200 110" fill="none">
+            {/* Isometric Plate */}
+            <path 
+              d="M100 15 L170 50 L100 85 L30 50 Z" 
+              fill="rgba(6, 182, 212, 0.06)" 
+              stroke="#06b6d4" 
+              strokeWidth="2.5" 
+              strokeLinejoin="round"
+              style={{ filter: isHovered ? 'drop-shadow(0 0 8px rgba(6, 182, 212, 0.4))' : 'none', transition: 'filter 0.3s' }}
+            />
+            {/* Repo / database network nodes */}
+            <g stroke="#06b6d4" strokeWidth="1.8" fill="#06b6d4">
+              <circle cx="100" cy="50" r="3.5" />
+              <circle cx="75" cy="40" r="2.5" />
+              <circle cx="125" cy="60" r="2.5" />
+              <path d="M75 40 L100 50 L125 60" strokeLinecap="round" strokeDasharray="3 3" opacity="0.7" />
             </g>
           </svg>
         </motion.div>

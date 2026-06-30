@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { useTheme } from '../../context/ThemeContext';
 
 // Custom inline SVG icons for 12 tools
 const icons = {
@@ -59,7 +60,7 @@ const icons = {
   ),
   tailwind: (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 6c-2.5-1.25-5-.625-7.5 1.875 3.75 1.25 5 0 7.5-1.875 2.5-1.25 5-.625 7.5 1.875-3.75-1.25-5 0-7.5 1.875Zm-7.5 8.5c2.5-1.25 5-.625 7.5 1.875-3.75-1.25-5 0-7.5-1.875-2.5-1.25-5-.625-7.5 1.875 3.75 1.25 5 0 7.5-1.875Z" stroke="#38BDF8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 6c-2.5-1.25-5-.625-7.5 1.875 3.75 1.25 5 0 7.5-1.875 2.5-1.25 5-.625 7.5 1.875-3.75-1.25-5 0-7.5 1.875Z" stroke="#38BDF8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   figma: (
@@ -67,7 +68,7 @@ const icons = {
       <path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H12v7H8.5A3.5 3.5 0 0 1 5 5.5Z" stroke="#F24E1E" strokeWidth="1.8" />
       <path d="M12 9h3.5a3.5 3.5 0 1 1-3.5 3.5V9Z" stroke="#FF7262" strokeWidth="1.8" />
       <path d="M5 12.5A3.5 3.5 0 0 1 8.5 9H12v7H8.5A3.5 3.5 0 0 1 5 12.5Z" stroke="#A259FF" strokeWidth="1.8" />
-      <path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0Z" stroke="#1ABCFE" stroke-width="1.8" />
+      <path d="M5 19.5A3.5 3.5 0 0 1 8.5 16H12v3.5a3.5 3.5 0 1 1-7 0Z" stroke="#1ABCFE" strokeWidth="1.8" />
       <path d="M12 2h3.5a3.5 3.5 0 1 1 0 7H12V2Z" stroke="#0ACF83" strokeWidth="1.8" />
     </svg>
   ),
@@ -89,80 +90,109 @@ const icons = {
 
 const badgeData = [
   // Outer Cloud
-  { id: 'react', name: 'React', icon: icons.react, style: { top: '8%', left: '8%' }, delay: 0.1, duration: 4.8, yDelta: -12, rDelta: 4 },
-  { id: 'node', name: 'Node.js', icon: icons.node, style: { top: '5%', right: '10%' }, delay: 0.2, duration: 5.6, yDelta: 10, rDelta: -5 },
-  { id: 'mongodb', name: 'MongoDB', icon: icons.mongodb, style: { top: '42%', right: '3%' }, delay: 0.3, duration: 5.0, yDelta: -14, rDelta: 3 },
-  { id: 'docker', name: 'Docker', icon: icons.docker, style: { bottom: '10%', left: '8%' }, delay: 0.4, duration: 5.2, yDelta: 11, rDelta: -6 },
-  { id: 'vscode', name: 'VS Code', icon: icons.vscode, style: { bottom: '8%', right: '9%' }, delay: 0.5, duration: 4.5, yDelta: -9, rDelta: 5 },
-  { id: 'git', name: 'Git', icon: icons.git, style: { top: '45%', left: '2%' }, delay: 0.6, duration: 5.8, yDelta: 13, rDelta: -4 },
+  { id: 'react', name: 'React', icon: icons.react, color: '#61DAFB', style: { top: '8%', left: '8%' }, delay: 0.1, duration: 4.8, yDelta: -12, rDelta: 4 },
+  { id: 'node', name: 'Node.js', icon: icons.node, color: '#68A063', style: { top: '5%', right: '10%' }, delay: 0.2, duration: 5.6, yDelta: 10, rDelta: -5 },
+  { id: 'mongodb', name: 'MongoDB', icon: icons.mongodb, color: '#47A248', style: { top: '42%', right: '3%' }, delay: 0.3, duration: 5.0, yDelta: -14, rDelta: 3 },
+  { id: 'docker', name: 'Docker', icon: icons.docker, color: '#2496ED', style: { bottom: '10%', left: '8%' }, delay: 0.4, duration: 5.2, yDelta: 11, rDelta: -6 },
+  { id: 'vscode', name: 'VS Code', icon: icons.vscode, color: '#007ACC', style: { bottom: '8%', right: '9%' }, delay: 0.5, duration: 4.5, yDelta: -9, rDelta: 5 },
+  { id: 'git', name: 'Git', icon: icons.git, color: '#F05032', style: { top: '45%', left: '2%' }, delay: 0.6, duration: 5.8, yDelta: 13, rDelta: -4 },
   
   // Inner Cloud
-  { id: 'typescript', name: 'TypeScript', icon: icons.typescript, style: { top: '22%', left: '26%' }, delay: 0.7, duration: 4.2, yDelta: -8, rDelta: -3 },
-  { id: 'nextjs', name: 'Next.js', icon: icons.nextjs, style: { top: '18%', right: '23%' }, delay: 0.8, duration: 5.4, yDelta: 9, rDelta: 4 },
-  { id: 'tailwind', name: 'Tailwind CSS', icon: icons.tailwind, style: { bottom: '26%', left: '21%' }, delay: 0.9, duration: 4.6, yDelta: -10, rDelta: -4 },
-  { id: 'figma', name: 'Figma', icon: icons.figma, style: { bottom: '22%', right: '22%' }, delay: 1.0, duration: 4.9, yDelta: 11, rDelta: 5 },
+  { id: 'typescript', name: 'TypeScript', icon: icons.typescript, color: '#3178C6', style: { top: '22%', left: '26%' }, delay: 0.7, duration: 4.2, yDelta: -8, rDelta: -3 },
+  { id: 'nextjs', name: 'Next.js', icon: icons.nextjs, color: '#94a3b8', style: { top: '18%', right: '23%' }, delay: 0.8, duration: 5.4, yDelta: 9, rDelta: 4 },
+  { id: 'tailwind', name: 'Tailwind CSS', icon: icons.tailwind, color: '#38BDF8', style: { bottom: '26%', left: '21%' }, delay: 0.9, duration: 4.6, yDelta: -10, rDelta: -4 },
+  { id: 'figma', name: 'Figma', icon: icons.figma, color: '#A259FF', style: { bottom: '22%', right: '22%' }, delay: 1.0, duration: 4.9, yDelta: 11, rDelta: 5 },
   
   // Top/Bottom Center poles
-  { id: 'python', name: 'Python', icon: icons.python, style: { bottom: '4%', left: '46%' }, delay: 1.1, duration: 5.1, yDelta: -7, rDelta: -3 },
-  { id: 'rust', name: 'Rust', icon: icons.rust, style: { top: '4%', left: '47%' }, delay: 1.2, duration: 5.3, yDelta: 9, rDelta: 3 },
+  { id: 'python', name: 'Python', icon: icons.python, color: '#FFE052', style: { bottom: '4%', left: '46%' }, delay: 1.1, duration: 5.1, yDelta: -7, rDelta: -3 },
+  { id: 'rust', name: 'Rust', icon: icons.rust, color: '#DEA584', style: { top: '4%', left: '47%' }, delay: 1.2, duration: 5.3, yDelta: 9, rDelta: 3 },
 ];
 
 export default function FloatingIcons() {
+  const { theme } = useTheme();
+
   return (
     <>
-      {badgeData.map((badge) => (
-        <motion.div
-          key={badge.id}
-          className="floating-badge"
-          style={{
-            ...badge.style,
-            width: 60,
-            height: 60,
-            borderRadius: 14,
-            cursor: 'pointer',
-          }}
-          // Entrance Scale + Fade-In animation on Load
-          initial={{ opacity: 0, scale: 0.4 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{
-            duration: 0.7,
-            delay: badge.delay,
-            ease: [0.16, 1, 0.3, 1],
-          }}
-          // Micro-Interactions on hover
-          whileHover={{
-            scale: 1.15,
-            borderColor: 'var(--card-hover-border)',
-            boxShadow: '0 10px 25px rgba(var(--accent-color-rgb), calc(0.18 * var(--glow-intensity)))',
-            zIndex: 40,
-            transition: { duration: 0.2 }
-          }}
-          whileTap={{ scale: 0.92 }}
-        >
-          {/* Smooth continuous vertical movement and soft rotational swing */}
+      {badgeData.map((badge) => {
+        const isDark = theme === 'dark';
+        const brandColor = badge.color;
+
+        return (
           <motion.div
-            animate={{
-              y: [0, badge.yDelta, 0],
-              rotate: [0, badge.rDelta, 0],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: badge.duration,
-              ease: 'easeInOut',
-            }}
+            key={badge.id}
+            className="floating-badge"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
+              ...badge.style,
+              width: 58,
+              height: 58,
+              borderRadius: 14,
+              cursor: 'pointer',
+              // Glassmorphism background that matches dark/light mode
+              background: isDark ? 'rgba(9, 9, 11, 0.45)' : 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(12px)',
+              // Borders matching the icon's brand color
+              borderColor: isDark ? `rgba(${hexToRgb(brandColor)}, 0.15)` : `rgba(${hexToRgb(brandColor)}, 0.22)`,
+              // Box shadows matching the brand color glow
+              boxShadow: isDark 
+                ? `0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(${hexToRgb(brandColor)}, 0.08)` 
+                : `0 4px 15px rgba(0, 0, 0, 0.04), 0 0 8px rgba(${hexToRgb(brandColor)}, 0.08)`,
             }}
-            title={badge.name}
+            // Entrance Scale + Fade-In animation on Load
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              duration: 0.7,
+              delay: badge.delay,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            // Micro-Interactions on hover
+            whileHover={{
+              scale: 1.15,
+              borderColor: brandColor,
+              boxShadow: isDark 
+                ? `0 10px 25px rgba(0, 0, 0, 0.6), 0 0 18px rgba(${hexToRgb(brandColor)}, 0.3)`
+                : `0 8px 20px rgba(0, 0, 0, 0.06), 0 0 14px rgba(${hexToRgb(brandColor)}, 0.25)`,
+              zIndex: 40,
+              transition: { duration: 0.2 }
+            }}
+            whileTap={{ scale: 0.92 }}
           >
-            {badge.icon}
+            {/* Smooth continuous vertical movement and soft rotational swing */}
+            <motion.div
+              animate={{
+                y: [0, badge.yDelta, 0],
+                rotate: [0, badge.rDelta, 0],
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: badge.duration,
+                ease: 'easeInOut',
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                height: '100%',
+              }}
+              title={badge.name}
+            >
+              {badge.icon}
+            </motion.div>
           </motion.div>
-        </motion.div>
-      ))}
+        );
+      })}
     </>
   );
+}
+
+// Helper to convert hex colors to RGB values
+function hexToRgb(hex) {
+  // If variable, return indigo rgb
+  if (hex.startsWith('var')) return '99, 102, 241';
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
 }

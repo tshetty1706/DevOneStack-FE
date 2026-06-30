@@ -6,109 +6,160 @@ export default function StartBuildingCTA() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
 
-  // Floating SVGs specific to this CTA section for visual alignment
-  const floatIcons = [
-    { id: 'react', color: '#61DAFB', style: { top: '-25px', left: '12%' }, yDelta: -8, duration: 4.2 },
-    { id: 'git', color: '#F05032', style: { bottom: '-20px', right: '15%' }, yDelta: 10, duration: 5.6 },
-    { id: 'docker', color: '#2496ED', style: { top: '30%', right: '-20px' }, yDelta: -11, duration: 4.5 },
-    { id: 'node', color: '#68A063', style: { bottom: '30%', left: '-15px' }, yDelta: 9, duration: 5.2 },
-  ];
+  // Helper block placeholder component (simulates code lines in 3rd image)
+  const BlockPlaceholder = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+      <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+        <div style={{ height: '6px', width: '30%', borderRadius: '3px', background: 'var(--grid-dot)', opacity: 0.6 }} />
+        <div style={{ height: '6px', width: '50%', borderRadius: '3px', background: 'var(--grid-line)', opacity: 0.4 }} />
+      </div>
+      <div style={{ height: '6px', width: '85%', borderRadius: '3px', background: 'var(--grid-line)', opacity: 0.3 }} />
+      <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+        <div style={{ height: '6px', width: '20%', borderRadius: '3px', background: 'var(--grid-line)', opacity: 0.4 }} />
+        <div style={{ height: '6px', width: '40%', borderRadius: '3px', background: 'var(--grid-dot)', opacity: 0.6 }} />
+      </div>
+    </div>
+  );
 
   return (
-    <section className="cta-section" ref={ref}>
-      {/* Background radial glow */}
+    <section 
+      className="cta-section" 
+      ref={ref}
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'var(--bg-color)',
+        borderTop: '1px dashed var(--grid-line)',
+        borderBottom: '1px dashed var(--grid-line)',
+        padding: '120px 0'
+      }}
+    >
+      {/* Precision corner dots framing CTA section */}
+      <div style={{ position: 'absolute', top: '-2px', left: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+      <div style={{ position: 'absolute', top: '-2px', right: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+      <div style={{ position: 'absolute', bottom: '-2px', left: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+      <div style={{ position: 'absolute', bottom: '-2px', right: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+
+      {/* Flowing background gradient stream */}
+      <div className="hero-background-flow">
+        <div className="glow-orb glow-orb-1" style={{ top: '10%', left: '10%' }} />
+        <div className="glow-orb glow-orb-2" style={{ bottom: '10%', right: '10%' }} />
+      </div>
+
+      {/* Diagonal light-beam gradient sweep (Payload CMS reference) */}
       <div 
         style={{
           position: 'absolute',
-          width: '500px',
-          height: '500px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(var(--accent-color-rgb), 0.08) 0%, rgba(var(--accent-color-rgb), 0) 70%)',
-          filter: 'blur(100px)',
+          top: '-30%',
+          left: '-30%',
+          right: '-30%',
+          bottom: '-30%',
+          background: 'linear-gradient(135deg, transparent 40%, rgba(var(--accent-color-rgb), 0.03) 48%, rgba(var(--accent-color-rgb), 0.07) 50%, rgba(var(--accent-color-rgb), 0.03) 52%, transparent 60%)',
           pointerEvents: 'none',
-          zIndex: 0,
+          zIndex: 1,
         }}
       />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: '100%', display: 'flex', justifyContent: 'center', position: 'relative' }}
+      <div 
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 2fr 1fr',
+          alignItems: 'center',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 10,
+          boxSizing: 'border-box',
+          width: '100%',
+        }}
+        className="cta-grid-container"
       >
-        {/* Floating Icons scattered behind the CTA Glass Card */}
-        {floatIcons.map((ico, idx) => (
-          <motion.div
-            key={ico.id}
-            className="floating-badge"
-            style={{
-              ...ico.style,
-              width: 48,
-              height: 48,
-              zIndex: 1,
-            }}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={isInView ? { opacity: 0.9, scale: 1 } : { opacity: 0, scale: 0.6 }}
-            transition={{ duration: 0.6, delay: 0.2 + idx * 0.15, ease: 'easeOut' }}
-          >
-            <motion.div
-              animate={{ y: [0, ico.yDelta, 0] }}
-              transition={{ repeat: Infinity, duration: ico.duration, ease: 'easeInOut' }}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}
-            >
-              {ico.id === 'react' && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ico.color} strokeWidth="2">
-                  <ellipse cx="12" cy="12" rx="3" ry="9" transform="rotate(30 12 12)" />
-                  <ellipse cx="12" cy="12" rx="3" ry="9" transform="rotate(90 12 12)" />
-                  <ellipse cx="12" cy="12" rx="3" ry="9" transform="rotate(150 12 12)" />
-                </svg>
-              )}
-              {ico.id === 'git' && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ico.color} strokeWidth="2">
-                  <path d="M16 11.5L9.5 5M9.5 5a2.5 2.5 0 1 0 0 5M9.5 5v11" />
-                </svg>
-              )}
-              {ico.id === 'docker' && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ico.color} strokeWidth="2">
-                  <path d="M2 14c0-2 2-3 5-3h11c2.5 0 4 1.5 4 4s-2 3-5 3H5" />
-                </svg>
-              )}
-              {ico.id === 'node' && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ico.color} strokeWidth="2">
-                  <path d="M12 3L4 7.5v9L12 21l8-4.5v-9z" />
-                </svg>
-              )}
-            </motion.div>
-          </motion.div>
-        ))}
+        {/* Left Column: Grid box placeholders (3rd image reference) */}
+        <div className="cta-side-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '0 24px' }}>
+          <div style={{ border: '1px dashed var(--grid-line)', borderRadius: '8px', padding: '20px', background: 'rgba(var(--text-color-rgb), 0.01)' }}>
+            <BlockPlaceholder />
+          </div>
+          <div style={{ border: '1px dashed var(--grid-line)', borderRadius: '8px', padding: '20px', background: 'rgba(var(--text-color-rgb), 0.01)', opacity: 0.6 }}>
+            <BlockPlaceholder />
+          </div>
+        </div>
 
-        {/* CTA Glass Card (reusing premium-card) */}
-        <Card className="premium-card cta-glass-card">
-          <h2 className="cta-headline">Start building your stack with DevOneStack</h2>
-          <p className="cta-subtext">Zero scattered tabs, zero forgotten bookmarks.</p>
-          <Button
-            type="primary"
-            size="large"
-            style={{
-              background: 'var(--accent-color)',
-              borderColor: 'var(--accent-color)',
-              height: 48,
-              padding: '0 28px',
-              fontSize: 16,
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-            onClick={() => console.log('CTA: Create First Space clicked')}
+        {/* Center Column: CTA Glass Card */}
+        <div style={{ padding: '0 24px' }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            Create your first tool space
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </Button>
-        </Card>
-      </motion.div>
+            <Card 
+              className="premium-card cta-glass-card"
+              style={{
+                background: 'var(--card-bg)',
+                border: '1px dashed var(--grid-line)',
+                boxShadow: 'var(--shadow-elevation)',
+                backdropFilter: 'blur(16px)',
+                textAlign: 'center',
+                padding: '60px 30px',
+                borderRadius: '16px'
+              }}
+            >
+              <h2 className="cta-headline" style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.02em' }}>
+                Start building your stack with DevOneStack
+              </h2>
+              <p className="cta-subtext" style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '32px' }}>
+                Zero scattered tabs. Zero forgotten bookmarks.
+              </p>
+              
+              <Button
+                type="primary"
+                size="large"
+                style={{
+                  background: '#ffffff',
+                  borderColor: '#ffffff',
+                  color: '#000000',
+                  height: 48,
+                  padding: '0 28px',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  borderRadius: '24px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 15px rgba(255, 255, 255, 0.1)'
+                }}
+                onClick={() => console.log('CTA: Create First Space clicked')}
+              >
+                Create your first tool space
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </Button>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Right Column: Grid box placeholders (3rd image reference) */}
+        <div className="cta-side-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '0 24px' }}>
+          <div style={{ border: '1px dashed var(--grid-line)', borderRadius: '8px', padding: '20px', background: 'rgba(var(--text-color-rgb), 0.01)' }}>
+            <BlockPlaceholder />
+          </div>
+          <div style={{ border: '1px dashed var(--grid-line)', borderRadius: '8px', padding: '20px', background: 'rgba(var(--text-color-rgb), 0.01)', opacity: 0.6 }}>
+            <BlockPlaceholder />
+          </div>
+        </div>
+      </div>
+
+      {/* Responsive media overrides for CTA grid */}
+      <style>{`
+        @media (max-width: 768px) {
+          .cta-grid-container {
+            grid-template-columns: 1fr !important;
+          }
+          .cta-side-column {
+            display: none !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

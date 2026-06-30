@@ -12,7 +12,19 @@ export default function Footer() {
   };
 
   return (
-    <footer className="footer">
+    <footer 
+      className="footer"
+      style={{
+        position: 'relative',
+        borderTop: '1px dashed var(--grid-line)',
+        padding: '80px 24px 40px 24px',
+        background: 'var(--bg-color)',
+      }}
+    >
+      {/* Precision corner-dot accents framing footer border */}
+      <div style={{ position: 'absolute', top: '-2px', left: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+      <div style={{ position: 'absolute', top: '-2px', right: '10%', width: '4px', height: '4px', background: 'var(--grid-dot)', zIndex: 5 }} />
+
       <div className="footer-container">
         <div className="footer-grid">
           {/* Column 1: Logo & Email subscription */}
@@ -36,7 +48,7 @@ export default function Footer() {
               <span>DevOneStack</span>
             </div>
             <p className="footer-tagline">
-              One workspace for every tool you learn. Organize your developer knowledge loop.
+              One workspace for every tool you learn.
             </p>
             <form className="footer-email-form" onSubmit={handleSubscribe}>
               <input
@@ -46,6 +58,10 @@ export default function Footer() {
                 className="footer-email-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  background: 'var(--badge-bg)',
+                  borderColor: 'var(--card-border)',
+                }}
               />
               <Button 
                 type="primary" 
@@ -54,6 +70,7 @@ export default function Footer() {
                   background: 'var(--accent-color)',
                   borderColor: 'var(--accent-color)',
                   height: 38,
+                  borderRadius: '6px',
                 }}
               >
                 Notify me
@@ -68,7 +85,6 @@ export default function Footer() {
               <li><a href="#features" className="footer-link">Features</a></li>
               <li><a href="#pricing" className="footer-link">Pricing</a></li>
               <li><a href="#changelog" className="footer-link">Changelog</a></li>
-              <li><a href="#roadmap" className="footer-link">Roadmap</a></li>
             </ul>
           </div>
 
@@ -79,7 +95,6 @@ export default function Footer() {
               <li><a href="#docs" className="footer-link">Docs</a></li>
               <li><a href="#blog" className="footer-link">Blog</a></li>
               <li><a href="#community" className="footer-link">Community</a></li>
-              <li><a href="#help" className="footer-link">Help Center</a></li>
             </ul>
           </div>
 
@@ -90,13 +105,15 @@ export default function Footer() {
               <li><a href="#about" className="footer-link">About</a></li>
               <li><a href="#careers" className="footer-link">Careers</a></li>
               <li><a href="#contact" className="footer-link">Contact</a></li>
-              <li><a href="#privacy" className="footer-link">Privacy Policy</a></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom copyright & socials */}
-        <div className="footer-bottom">
+        <div className="footer-bottom" style={{ borderTop: '1px dashed var(--grid-line)', position: 'relative' }}>
+          {/* Internal separator corner-dot accent */}
+          <div style={{ position: 'absolute', top: '-2px', left: '50%', transform: 'translateX(-50%)', width: '3.5px', height: '3.5px', background: 'var(--grid-dot)', zIndex: 5 }} />
+
           <div className="footer-copy">
             &copy; {new Date().getFullYear()} DevOneStack Inc. All rights reserved.
           </div>

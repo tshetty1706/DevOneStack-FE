@@ -38,8 +38,8 @@ export const ThemeProvider = ({ children }) => {
       colorPrimary: theme === 'dark' ? '#6366f1' : '#4f46e5',
       fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       borderRadius: 8,
-      colorBgContainer: theme === 'dark' ? 'rgba(20, 20, 25, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-      colorBorderSecondary: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)',
+      colorBgContainer: theme === 'dark' ? '#09090b' : '#ffffff',
+      colorBorderSecondary: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.08)',
     },
     components: {
       Button: {
@@ -47,8 +47,8 @@ export const ThemeProvider = ({ children }) => {
         fontWeight: 500,
       },
       Card: {
-        colorBgContainer: theme === 'dark' ? 'rgba(20, 20, 25, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-        colorBorderSecondary: theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)',
+        colorBgContainer: theme === 'dark' ? '#09090b' : '#ffffff',
+        colorBorderSecondary: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.08)',
       }
     }
   };

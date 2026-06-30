@@ -9,6 +9,7 @@ import ThemeToggle from '../components/layout/ThemeToggle';
 // Home section components
 import Hero from '../components/home/Hero';
 import LogoStrip from '../components/home/LogoStrip';
+import PullQuote from '../components/home/PullQuote';
 import StatsSection from '../components/home/StatsSection';
 import StepsSection from '../components/home/StepsSection';
 import FeaturesSection from '../components/home/FeaturesSection';
@@ -50,6 +51,7 @@ export default function Home() {
       <main style={{ flex: 1 }}>
         <Hero />
         <LogoStrip />
+        <PullQuote />
         <StatsSection />
         <StepsSection />
         <FeaturesSection />

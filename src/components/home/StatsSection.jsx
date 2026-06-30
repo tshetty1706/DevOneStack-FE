@@ -53,7 +53,7 @@ export default function StatsSection() {
           animate={isMainInView ? { opacity: 0.85, y: 0 } : { opacity: 0, y: 15 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
         >
-          resource types tracked per tool — notes, links, snippets, repos, prompts, communities, and more
+          resource types tracked per tool — notes, links, snippets, boilerplate, repos, prompts, and communities, all in one page
         </motion.p>
       </div>
 
