@@ -7,13 +7,16 @@ dist/
 dist-ssr/
 build/
 
-# Local env files (highly critical to avoid pushing keys to GitHub)
+# Local env files (NEVER push — contains VITE_SERVER_URL and any future secrets)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.local
+
+# Keep the template safe to commit
+!.env.example
 
 # Logs
 logs

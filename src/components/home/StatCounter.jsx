@@ -1,54 +1,51 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useInView } from 'motion/react';
 
 export default function StatCounter({ value, label, suffix = '' }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: '-80px' });
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
 
   useEffect(() => {
     if (!isInView) return;
 
-    // Remove commas to parse raw integer
-    const rawVal = parseInt(value.toString().replace(/,/g, ''), 10);
-    if (isNaN(rawVal)) {
+    const numericValue = parseFloat(value.toString().replace(/,/g, ''));
+    if (isNaN(numericValue)) {
       setCount(value);
       return;
     }
 
-    const duration = 1800; // Duration of count-up in ms
-    const frameRate = 1000 / 60; // 60 FPS
-    const totalFrames = Math.round(duration / frameRate);
-    let frame = 0;
+    let startTimestamp = null;
+    const duration = 2000; // 2 seconds animation duration
 
-    const easeOutQuad = (t) => t * (2 - t);
-
-    const timer = setInterval(() => {
-      frame++;
-      const progress = frame / totalFrames;
-      const current = Math.round(rawVal * easeOutQuad(progress));
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
       
-      // format with locale strings if needed
-      if (value.toString().includes(',')) {
-        setCount(current.toLocaleString());
+      // Easing out quad formula: f(t) = t * (2 - t)
+      const easeProgress = progress * (2 - progress);
+      const currentVal = Math.floor(easeProgress * numericValue);
+      
+      setCount(currentVal);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
       } else {
-        setCount(current);
+        setCount(numericValue);
       }
+    };
 
-      if (frame === totalFrames) {
-        clearInterval(timer);
-        setCount(value);
-      }
-    }, frameRate);
-
-    return () => clearInterval(timer);
+    window.requestAnimationFrame(step);
   }, [isInView, value]);
 
+  const displayCount = typeof count === 'number' 
+    ? count.toLocaleString() 
+    : count;
+
   return (
-    <div className="stat-counter-card" ref={ref}>
+    <div ref={ref} className="stat-counter-card">
       <div className="stat-counter-val">
-        {count}
-        {suffix}
+        {displayCount}{suffix}
       </div>
       <div className="stat-counter-lbl">{label}</div>
     </div>

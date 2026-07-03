@@ -1,71 +1,108 @@
 import React from 'react';
 import { Button } from 'antd';
-import ViewCounter from './ViewCounter';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Navbar() {
-  const navLinks = ['Product', 'Docs', 'Solutions', 'Pricing', 'Company'];
+  const navigate = useNavigate();
+
+  const handleNavClick = (e, label) => {
+    e.preventDefault();
+    console.log(`Navigation click: ${label}`);
+    if (label === 'Login') {
+      navigate('/login');
+    } else if (label === 'Signup') {
+      navigate('/signup');
+    }
+  };
 
   return (
-    <header className="navbar" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 900 }}>
-
+    <nav className="navbar">
       <div className="navbar-container">
-        {/* Left: Logo */}
-        <div className="navbar-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <Link to="/" className="navbar-logo">
+          {/* Custom SVG Logo Mark */}
           <svg
-            width="26"
-            height="26"
-            viewBox="0 0 24 24"
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ color: 'var(--accent-color)' }}
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ display: 'block' }}
           >
-            <path d="M12 2L2 7l10 5 10-5-10-5Z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
+            <path
+              d="M16 2L6 7L16 12L26 7L16 2Z"
+              fill="var(--accent-color)"
+              stroke="var(--accent-color)"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6 13L16 18L26 13"
+              stroke="var(--accent-color)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.8"
+            />
+            <path
+              d="M6 19L16 24L26 19"
+              stroke="var(--accent-color)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.5"
+            />
           </svg>
           <span>DevOneStack</span>
-        </div>
+        </Link>
 
-        {/* Center: Nav links & View Counter */}
-        <nav className="navbar-menu">
-          {navLinks.map((link) => (
+        <div className="navbar-menu">
+          {['Product', 'Resources', 'Solutions', 'Pricing', 'Company'].map((item) => (
             <a
-              key={link}
-              href={`#${link.toLowerCase()}`}
+              key={item}
+              href={`#${item.toLowerCase()}`}
               className="navbar-link"
-              onClick={(e) => {
-                e.preventDefault();
-                const section = document.getElementById(link.toLowerCase());
-                if (section) {
-                  section.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                  console.log(`Navigate to placeholder section: ${link}`);
-                }
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={(e) => handleNavClick(e, item)}
             >
-              {link}
-              {link === 'Product' && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              )}
+              {item}
             </a>
           ))}
-          <ViewCounter />
-        </nav>
+        </div>
 
-        {/* Right: Auth buttons */}
         <div className="navbar-actions">
+          {/* Viewer count with eye icon */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--text-secondary)',
+              fontSize: '13px',
+              fontWeight: 500,
+              marginRight: '8px',
+              userSelect: 'none',
+            }}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>43.3k</span>
+          </div>
+
           <Button
             type="text"
-            style={{
-              color: 'var(--text-color)',
-            }}
-            onClick={() => console.log('Auth: Log in button clicked')}
+            className="navbar-link"
+            style={{ border: 'none', background: 'transparent' }}
+            onClick={(e) => handleNavClick(e, 'Login')}
           >
             Log in
           </Button>
@@ -74,14 +111,14 @@ export default function Navbar() {
             style={{
               background: 'var(--accent-color)',
               borderColor: 'var(--accent-color)',
-              borderRadius: '24px', // pill shape
+              color: '#ffffff',
             }}
-            onClick={() => console.log('Auth: Sign up button clicked')}
+            onClick={(e) => handleNavClick(e, 'Signup')}
           >
             Sign up
           </Button>
         </div>
       </div>
-    </header>
+    </nav>
   );
 }
