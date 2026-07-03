@@ -33,6 +33,18 @@ Project1/
 │   ├── components/
 │   │   ├── auth/
 │   │   │   └── ProtectedRoute.jsx  # Redirects to /login if not authenticated
+│   │   ├── dashboard/              # Dashboard-specific subcomponents
+│   │   │   ├── CommandPalette.jsx  # Floating quick navigation palette
+│   │   │   ├── DashboardNavbar.jsx # Navbar specific to dashboard views
+│   │   │   ├── PinnedBoilerplates.jsx # Quick link access for pinned boilerplates
+│   │   │   ├── ProfileDropdown.jsx # User actions & settings popup
+│   │   │   ├── QuickInbox.jsx      # Sticky notes/inbox feed scanner
+│   │   │   ├── RecentActivity.jsx  # List feed of latest logs and user actions
+│   │   │   ├── StackHealthScanner.jsx # Simulated microservice health monitor
+│   │   │   ├── StatsCards.jsx      # Key metrics visualization
+│   │   │   ├── TodaysFocus.jsx     # User focus tasks checklist
+│   │   │   ├── ToolSpaceCard.jsx   # Individual active space tile
+│   │   │   └── ToolSpacesGrid.jsx  # Spaces grid shell layout
 │   │   ├── home/
 │   │   │   ├── DashboardMockup.jsx
 │   │   │   ├── FeaturesSection.jsx
@@ -52,10 +64,21 @@ Project1/
 │   ├── context/
 │   │   ├── AuthContext.jsx          # Auth state (user, setUser, loading, logout)
 │   │   └── ThemeContext.jsx         # Dark/Light theme provider
+│   ├── hooks/                       # Custom React hooks
+│   │   ├── useSpaces.js            # Active toolspaces fetching hook
+│   │   └── useStats.js             # User statistics fetching hook
+│   ├── mock/                        # Mock utility datasets
+│   │   └── data.js                 # Dummy data for UI building
 │   ├── pages/
 │   │   ├── Home.jsx
-│   │   ├── Login.jsx                # Wired to backend — email/password + OAuth
-│   │   ├── Signup.jsx               # Wired to backend — email/password + OAuth
+│   │   ├── Login.jsx                # Email/password + OAuth login
+│   │   ├── Signup.jsx               # Email/password + OAuth signup
+│   │   ├── Dashboard.jsx            # Developer dashboard layout
+│   │   ├── ForgotPassword.jsx       # Password reset request page
+│   │   ├── OAuthCallback.jsx        # Catch-all callback handler
+│   │   ├── Profile.jsx              # Detailed account settings & profile page
+│   │   ├── ResetPassword.jsx        # Secure password reset entry
+│   │   ├── VerifyEmail.jsx          # Instant email token validation page
 │   │   └── auth.css
 │   ├── App.jsx                      # Root — ThemeProvider > AuthProvider > Router
 │   ├── App.css
@@ -165,15 +188,19 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 `ProtectedRoute` shows a spinner while auth loads, then redirects to `/login` if there's no user.
 
----
-
 ## Routes
 
-| Path       | Page    | Protected | Description                        |
-| ---------- | ------- | --------- | ---------------------------------- |
-| `/`        | Home    | No        | Landing page with all sections     |
-| `/login`   | Login   | No        | Email/password + OAuth login       |
-| `/signup`  | Signup  | No        | Email/password + OAuth signup      |
+| Path | Page | Protected | Description |
+| :--- | :--- | :--- | :--- |
+| `/` | Home | No | Landing page with key sections and animations |
+| `/login` | Login | No | Email/password + OAuth login form |
+| `/signup` | Signup | No | Email/password + OAuth signup form |
+| `/oauth/callback`| OAuthCallback| No | Post-login redirect hook parsing JWT from URL hash |
+| `/verify-email/:token`| VerifyEmail| No | Instant account activation page |
+| `/forgot-password`| ForgotPassword| No | Trigger password recovery email flow |
+| `/reset-password/:token`| ResetPassword| No | Enter and save new password |
+| `/dashboard` | Dashboard | **Yes** | Main dashboard with scanner, focus tasks, quick inbox & activity feed |
+| `/profile` | Profile | **Yes** | User profile settings, space details, and theme toggling |
 
 ---
 
@@ -182,20 +209,24 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 ### Production
 
 ```bash
-npm install antd axios lenis motion react react-dom react-icons react-router-dom swiper
+npm install antd axios lenis motion react react-dom react-icons react-router-dom swiper react-hook-form @hookform/resolvers @tanstack/react-query zod
 ```
 
-| Package            | Version   | Purpose                                               |
-| ------------------ | --------- | ----------------------------------------------------- |
-| `react`            | ^19.2.7   | Core UI library                                       |
-| `react-dom`        | ^19.2.7   | React DOM renderer                                    |
-| `antd`             | ^6.5.0    | UI components (Button, Card, ConfigProvider + theming)|
-| `react-router-dom` | ^7.18.0   | Client-side routing, ProtectedRoute navigation        |
-| `motion`           | ^12.42.0  | Scroll-triggered animations (motion, useInView)       |
-| `react-icons`      | ^5.7.0    | Icon packs — Google, GitHub, tech stack icons         |
-| `axios`            | ^1.18.1   | HTTP client with `withCredentials` + 401 interceptor  |
-| `lenis`            | ^1.3.25   | Smooth scroll engine                                  |
-| `swiper`           | ^14.0.0   | Autoplay carousel for LogoStrip                       |
+| Package | Version | Purpose |
+| :--- | :--- | :--- |
+| `react` | ^19.2.7 | Core UI library |
+| `react-dom` | ^19.2.7 | React DOM renderer |
+| `antd` | ^6.5.0 | UI components (Button, Card, ConfigProvider + theming) |
+| `react-router-dom` | ^7.18.0 | Client-side routing, ProtectedRoute navigation |
+| `motion` | ^12.42.0 | Scroll-triggered animations (motion, useInView) |
+| `react-icons` | ^5.7.0 | Icon packs — Google, GitHub, tech stack icons |
+| `axios` | ^1.18.1 | HTTP client with `withCredentials` + 401 interceptor |
+| `lenis` | ^1.3.25 | Smooth scroll engine |
+| `swiper` | ^14.0.0 | Autoplay carousel for LogoStrip |
+| `react-hook-form` | ^7.80.0 | Performant, flexible forms with validation |
+| `@hookform/resolvers`| ^5.4.0 | Validation resolvers (connects react-hook-form to zod) |
+| `@tanstack/react-query`| ^5.101.2 | Async state management and data fetching |
+| `zod` | ^4.4.3 | TypeScript-first schema validation |
 
 ### Dev
 
@@ -203,16 +234,14 @@ npm install antd axios lenis motion react react-dom react-icons react-router-dom
 npm install -D @types/react @types/react-dom @vitejs/plugin-react oxlint vite
 ```
 
-| Package                | Version   | Purpose                                   |
-| ---------------------- | --------- | ----------------------------------------- |
-| `vite`                 | ^8.1.0    | Build tool and dev server                 |
-| `@vitejs/plugin-react` | ^6.0.2    | React support (JSX transform, HMR)        |
-| `oxlint`               | ^1.69.0   | Fast linter                               |
-| `@types/react`         | ^19.2.17  | TypeScript types for React                |
-| `@types/react-dom`     | ^19.2.3   | TypeScript types for ReactDOM             |
+| Package | Version | Purpose |
+| :--- | :--- | :--- |
+| `vite` | ^8.1.0 | Build tool and dev server |
+| `@vitejs/plugin-react` | ^6.0.2 | React support (JSX transform, HMR) |
+| `oxlint` | ^1.69.0 | Fast linter |
+| `@types/react` | ^19.2.17 | TypeScript types for React |
+| `@types/react-dom` | ^19.2.3 | TypeScript types for ReactDOM |
 
 ---
 
-## License
 
-Private.

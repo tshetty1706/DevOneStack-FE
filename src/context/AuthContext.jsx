@@ -7,22 +7,46 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: silently check if a valid session cookie already exists.
-  // This keeps the user logged in across page refreshes.
+  const hydrateUser = async () => {
+    const token = localStorage.getItem('dos_access_token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await getCurrentUser();
+      setUser(data.user);
+    } catch (err) {
+      localStorage.removeItem('dos_access_token');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getCurrentUser()
-      .then((data) => setUser(data.user))
-      .catch(() => setUser(null))  // 401 means no session — not an error
-      .finally(() => setLoading(false));
+    hydrateUser();
   }, []);
 
+  const loginUser = (token, userData) => {
+    localStorage.setItem('dos_access_token', token);
+    setUser(userData);
+  };
+
   const logout = async () => {
-    await logoutApi();
-    setUser(null);
+    try {
+      await logoutApi();
+    } catch (err) {
+      console.error("Logout API error:", err);
+    } finally {
+      localStorage.removeItem('dos_access_token');
+      setUser(null);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, logout, login: loginUser }}>
       {children}
     </AuthContext.Provider>
   );

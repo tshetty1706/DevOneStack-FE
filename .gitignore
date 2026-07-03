@@ -9,23 +9,21 @@ build/
 
 # Local env files (NEVER push — contains VITE_SERVER_URL and any future secrets)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.local
-
-# Keep the template safe to commit
+.env.*
 !.env.example
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Test Coverage
+coverage/
+.nyc_output/
 
 # Caches
 .vite/
@@ -37,6 +35,7 @@ lerna-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+desktop.ini
 *.suo
 *.ntvs*
 *.njsproj

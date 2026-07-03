@@ -1,9 +1,11 @@
 import React from 'react';
 import { Button } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleNavClick = (e, label) => {
     e.preventDefault();
@@ -98,25 +100,41 @@ export default function Navbar() {
             <span>43.3k</span>
           </div>
 
-          <Button
-            type="text"
-            className="navbar-link"
-            style={{ border: 'none', background: 'transparent' }}
-            onClick={(e) => handleNavClick(e, 'Login')}
-          >
-            Log in
-          </Button>
-          <Button
-            type="primary"
-            style={{
-              background: 'var(--accent-color)',
-              borderColor: 'var(--accent-color)',
-              color: '#ffffff',
-            }}
-            onClick={(e) => handleNavClick(e, 'Signup')}
-          >
-            Sign up
-          </Button>
+          {user ? (
+            <Button
+              type="primary"
+              style={{
+                background: 'var(--accent-color)',
+                borderColor: 'var(--accent-color)',
+                color: '#ffffff',
+              }}
+              onClick={() => navigate('/dashboard')}
+            >
+              Go to Dashboard
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="text"
+                className="navbar-link"
+                style={{ border: 'none', background: 'transparent' }}
+                onClick={(e) => handleNavClick(e, 'Login')}
+              >
+                Log in
+              </Button>
+              <Button
+                type="primary"
+                style={{
+                  background: 'var(--accent-color)',
+                  borderColor: 'var(--accent-color)',
+                  color: '#ffffff',
+                }}
+                onClick={(e) => handleNavClick(e, 'Signup')}
+              >
+                Sign up
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </nav>

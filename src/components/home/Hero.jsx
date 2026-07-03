@@ -1,9 +1,14 @@
 import React from 'react';
 import { Button } from 'antd';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import DashboardMockup from './DashboardMockup';
 
 export default function Hero() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const handleScrollToSteps = (e) => {
     e.preventDefault();
     const stepsElement = document.getElementById('how-it-works');
@@ -64,9 +69,9 @@ export default function Hero() {
                 gap: '8px',
                 color: '#ffffff',
               }}
-              onClick={() => console.log('CTA Clicked: Get started for free')}
+              onClick={() => navigate(user ? '/dashboard' : '/signup')}
             >
-              Get started for free
+              {user ? 'Go to Dashboard' : 'Get started for free'}
               <svg
                 width="16"
                 height="16"
