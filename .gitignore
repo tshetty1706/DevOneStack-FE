@@ -40,3 +40,7 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Agent / IDE config & temp files
+.agents/
+.gemini/

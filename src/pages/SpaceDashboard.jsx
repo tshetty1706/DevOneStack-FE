@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tooltip, message } from 'antd';
 import { useTheme } from '../context/ThemeContext';
@@ -15,7 +15,15 @@ import {
   RiSettings3Line, RiAddLine, RiHistoryLine,
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
-import OnlyLogo from '../components/layout/OnlyLogo'
+import OnlyLogo from '../components/layout/OnlyLogo';
+import DocsSection from '../components/spaces/DocsSection';
+import NotesSection from '../components/spaces/NotesSection';
+import SnippetsSection from '../components/spaces/SnippetsSection';
+import ReposSection from '../components/spaces/ReposSection';
+import PromptsSection from '../components/spaces/PromptsSection';
+import CommunitiesSection from '../components/spaces/CommunitiesSection';
+import TagsSection from '../components/spaces/TagsSection';
+import SettingsSection from '../components/spaces/SettingsSection';
 
 const SIDEBAR_ITEMS = [
   { id: 'home', icon: RiHome4Line, label: 'Home' },
@@ -71,51 +79,14 @@ function EmptySection({ icon: Icon, title, body, btnLabel, accent }) {
 
 // ── Section content per tab ───────────────────────────────────────────────────
 const SECTIONS = {
-  docs: () => <EmptySection icon={RiFileTextLine} title="No docs yet" body="Add official docs, guides, or reference links for this stack." btnLabel="Add your first doc" />,
-  notes: () => <EmptySection icon={RiStickyNoteLine} title="No notes yet" body="Capture your thoughts, learnings, and important findings here." btnLabel="Create a note" />,
-  snippets: () => <EmptySection icon={RiCodeSSlashLine} title="No snippets yet" body="Save reusable code, starter templates, and patterns." btnLabel="Add your first snippet" />,
-  repos: () => <EmptySection icon={RiGitRepositoryLine} title="No repos linked yet" body="Link GitHub or GitLab repos related to this stack." btnLabel="Link a repo" />,
-  prompts: () => <EmptySection icon={RiRobot2Line} title="No prompts saved yet" body="Collect AI prompts that help you work faster with this tool." btnLabel="Save a prompt" />,
-  communities: () => <EmptySection icon={RiTeamLine} title="No communities added yet" body="Add Discord servers, subreddits, newsletters for this stack." btnLabel="Add a community" />,
-  tags: () => <EmptySection icon={RiPriceTag3Line} title="No tags yet" body="Tags appear automatically as you add notes and snippets." />,
-  settings: ({ space, isLight }) => (
-    <div style={{ maxWidth: '520px', padding: '8px 0' }}>
-      <h3 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Space Settings
-      </h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <label style={{ fontSize: '11px', color: isLight ? '#666666' : '#888888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
-            Space Name
-          </label>
-          <input
-            defaultValue={space?.name || ''}
-            readOnly
-            style={{
-              width: '100%', padding: '9px 12px', borderRadius: '8px',
-              border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-              background: isLight ? '#f9f9f9' : '#1a1a1a',
-              color: isLight ? '#333333' : '#cccccc',
-              fontSize: '14px', fontFamily: 'var(--font-body)',
-              outline: 'none', cursor: 'not-allowed', opacity: 0.8,
-            }}
-          />
-        </div>
-        <div style={{ marginTop: '32px', padding: '16px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444', margin: '0 0 6px' }}>Danger Zone</p>
-          <p style={{ fontSize: '12px', color: isLight ? '#666666' : '#888888', margin: '0 0 12px' }}>Deleting this space is permanent and cannot be undone.</p>
-          <button style={{
-            padding: '7px 16px', borderRadius: '8px',
-            border: '1px solid rgba(239,68,68,0.4)', background: 'transparent',
-            color: '#ef4444', fontSize: '12px', fontWeight: 600,
-            cursor: 'default', fontFamily: 'var(--font-body)',
-          }}>
-            Delete this space
-          </button>
-        </div>
-      </div>
-    </div>
-  ),
+  docs: ({ space, isLight, highlightId }) => <DocsSection space={space} isLight={isLight} highlightId={highlightId} />,
+  notes: ({ space, isLight, openNoteId }) => <NotesSection space={space} isLight={isLight} openNoteId={openNoteId} />,
+  snippets: ({ space, isLight, highlightId }) => <SnippetsSection space={space} isLight={isLight} highlightId={highlightId} />,
+  repos: ({ space, isLight, highlightId }) => <ReposSection space={space} isLight={isLight} highlightId={highlightId} />,
+  prompts: ({ space, isLight, highlightId }) => <PromptsSection space={space} isLight={isLight} highlightId={highlightId} />,
+  communities: ({ space, isLight, highlightId }) => <CommunitiesSection space={space} isLight={isLight} highlightId={highlightId} />,
+  tags: ({ space, isLight }) => <TagsSection space={space} isLight={isLight} />,
+  settings: ({ space, isLight }) => <SettingsSection space={space} isLight={isLight} />,
 };
 
 // ── CountUp animation hook ────────────────────────────────────────────────────
@@ -195,6 +166,28 @@ export default function SpaceDashboard() {
   const [activeSection, setActiveSection] = useState('home');
   const [userName, setUserName] = useState('Developer');
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
+  const [openNoteId, setOpenNoteId] = useState(null);
+  const [highlightId, setHighlightId] = useState(null);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      api.patch(`/api/spaces/${spaceId}/recount`)
+        .then(r => console.log('Recount result:', r.data.counts))
+        .catch(err => console.error('Recount error:', err));
+    }
+  }, [spaceId]);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const noteId  = searchParams.get('noteId');
+    const id      = searchParams.get('id');
+
+    if (section) setActiveSection(section);
+    if (noteId)  setOpenNoteId(noteId);
+    if (id)      setHighlightId(id);
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {
@@ -212,10 +205,10 @@ export default function SpaceDashboard() {
   });
 
   const { data: activity = [] } = useQuery({
-    queryKey: ['history'],
+    queryKey: ['history', spaceId],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/api/history');
+        const { data } = await api.get(`/api/history?spaceId=${spaceId}`);
         return data.slice(0, 5);
       } catch { return []; }
     },
@@ -278,6 +271,7 @@ export default function SpaceDashboard() {
       <aside style={{
         width: collapsed ? '56px' : '200px',
         transition: 'width 250ms ease',
+        height: '100vh',
         overflow: 'hidden',
         flexShrink: 0,
         background: sidebarBg,
@@ -300,7 +294,7 @@ export default function SpaceDashboard() {
 
 
         {/* Nav items */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '2px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none', padding: '2px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
           {SIDEBAR_ITEMS.map(item => {
             const isActive = activeSection === item.id;
             const Icon = item.icon;
@@ -363,7 +357,7 @@ export default function SpaceDashboard() {
       </aside>
 
       {/* ── Main area ────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: mainBg }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: mainBg }}>
 
         {/* Top bar */}
         <header style={{
@@ -416,7 +410,17 @@ export default function SpaceDashboard() {
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
+        <main
+          data-lenis-prevent
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '24px',
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          }}
+        >
           <AnimatePresence mode="wait">
 
             {/* ── Home ── */}
@@ -502,15 +506,11 @@ export default function SpaceDashboard() {
                       : activeSection === 'settings' ? 'Settings'
                         : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                   </h2>
-                  {!['tags', 'settings'].includes(activeSection) && (
-                    <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 15px', borderRadius: '8px', border: 'none', background: accent, color: '#ffffff', fontSize: '12px', fontWeight: 600, cursor: 'default', fontFamily: 'var(--font-body)' }}>
-                      <RiAddLine size={14} /> Add {activeSection.slice(0, -1).charAt(0).toUpperCase() + activeSection.slice(0, -1).slice(1) || activeSection}
-                    </button>
-                  )}
+
                 </div>
 
                 <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', minHeight: '300px', padding: activeSection === 'settings' ? '24px' : '0' }}>
-                  {SectionComp && <SectionComp space={space} isLight={isLight} />}
+                  {SectionComp && <SectionComp space={space} isLight={isLight} openNoteId={openNoteId} highlightId={highlightId} />}
                 </div>
               </motion.div>
             )}

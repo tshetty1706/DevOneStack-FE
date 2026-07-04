@@ -76,11 +76,16 @@ src/
 ## Key Features
 
 - **Spaces** — Create and manage tool workspaces (React, Node.js, Docker, etc.)
-- **Space Dashboard** — Full-page workspace with sidebar: Docs, Notes, Snippets, Repos, Prompts, Communities, Tags
-- **Profile** — Edit profile, manage spaces, view overview
-- **Recent Activity** — Live history feed from backend
-- **Theme** — Dark/light mode toggle persisted across sessions
-- **Auth** — httpOnly cookie-based JWT, auto token refresh, Google + GitHub OAuth
+- **Space Dashboard** — Workspace with sidebar sections: Docs, Notes, Snippets, Repos, Prompts, Communities, Tags. 
+  - **Universal Pinning**: Pin notes, snippets, docs, repos, prompts, and communities directly.
+  - **Deep-linking & Highlighting**: URL parameter query selection (`?section=notes&noteId=ID`) to navigate and highlight specific resources.
+  - **PDF & Image Previews**: View uploaded PDFs inline in a new tab, and raw images in popup previews.
+- **Scroll & Layout Improvements** — Custom scroll bars, modal vertical overflow settings, and `data-lenis-prevent` smooth scroll boundary configuration.
+- **Tags Cloud** — Dynamic tag cloud with frequency-based sizing and click navigation.
+- **Overhauled Pinned Widget** — Horizontal scrolling track displaying pinned resources with copying options, syntax-highlighted code preview modal, and external redirect buttons.
+- **Isolated Space Activity Feed** — Recent activity under the space view shows actions related to that specific space only.
+- **Theme** — Dark/light mode toggle persisted across sessions, with refined tag colors in dark mode.
+- **Auth** — httpOnly cookie-based JWT, auto token refresh, Google + GitHub OAuth.
 
 ---
 

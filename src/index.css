@@ -1440,3 +1440,12 @@ body.light-mode .testimonial-author-title {
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   }
 }
+
+/* Thin scrollbar for all scrollable areas */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333333; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #555555; }
+
+/* Prevent body scroll bleed */
+html, body, #root { height: 100%; overflow: hidden; }
