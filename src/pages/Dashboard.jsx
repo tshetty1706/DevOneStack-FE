@@ -8,10 +8,12 @@ import PinnedBoilerplates from '../components/dashboard/PinnedBoilerplates';
 import QuickInbox from '../components/dashboard/QuickInbox';
 import StackHealthScanner from '../components/dashboard/StackHealthScanner';
 import ThemeToggle from '../components/layout/ThemeToggle';
+import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 
 function DashboardContent() {
   const { theme } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [newSpaceOpen, setNewSpaceOpen] = useState(false);
 
   const isLight = theme === 'light';
   const bg = 'var(--bg-color)';
@@ -20,7 +22,7 @@ function DashboardContent() {
 
   return (
     <div style={{ minHeight: '100vh', background: bg, transition: 'background 0.3s ease', position: 'relative', overflow: 'hidden' }}>
-      
+
       {/* Background Flowing Orbs */}
       <div className="hero-background-flow">
         <div className="glow-orb glow-orb-1" />
@@ -28,7 +30,7 @@ function DashboardContent() {
         <div className="glow-orb glow-orb-3" />
       </div>
 
-      <DashboardNavbar onSearchOpen={() => setPaletteOpen(true)} />
+      <DashboardNavbar onSearchOpen={() => setPaletteOpen(true)} onNewSpaceClick={() => setNewSpaceOpen(true)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       <motion.main
@@ -54,11 +56,7 @@ function DashboardContent() {
             fontFamily: 'var(--font-display)',
             letterSpacing: '-0.02em',
             marginBottom: '4px',
-            background: isLight 
-              ? 'linear-gradient(180deg, #16161a 0%, #4b5563 100%)' 
-              : 'linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: isLight ? "#16161a" : "#fff"
           }}>
             Dashboard
           </h1>
@@ -67,13 +65,7 @@ function DashboardContent() {
           </p>
         </div>
 
-        {/* YOUR WORKSPACE label */}
-        <p style={{
-          fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.12em',
-          color: textMuted, fontWeight: 600, margin: '4px 0 2px',
-        }}>
-          Your Workspace
-        </p>
+
 
         {/* Widget 1 — full width horizontal scroll boilerplates */}
         <PinnedBoilerplates />
@@ -91,8 +83,9 @@ function DashboardContent() {
         <RecentActivity />
       </motion.main>
 
-      {/* Single ThemeToggle — same component used on homepage */}
       <ThemeToggle />
+
+      <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
     </div>
   );
 }

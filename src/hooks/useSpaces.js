@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { MOCK_SPACES } from '../mock/data';
+import api from '../api/axios';
 
-// Returns mock spaces — swap the queryFn with a real API call when backend is ready
 export function useSpaces() {
   return useQuery({
     queryKey: ['spaces'],
     queryFn: async () => {
-      // TODO: replace with → api.get('/spaces').then(r => r.data)
-      return MOCK_SPACES;
+      const { data } = await api.get('/api/spaces');
+      return data;
     },
     staleTime: 1000 * 60 * 5, // 5 min
   });

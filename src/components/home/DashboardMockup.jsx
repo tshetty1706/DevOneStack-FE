@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 
 // Custom icons for the Sidebar Menu
 const menuIcons = {

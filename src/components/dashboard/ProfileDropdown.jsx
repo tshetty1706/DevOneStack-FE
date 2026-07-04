@@ -55,7 +55,7 @@ export default function ProfileDropdown({ onClose }) {
     if (label === 'Profile') {
       navigate('/profile');
     } else if (label === 'My Spaces') {
-      navigate('/dashboard');
+      navigate('/profile?tab=spaces');
     }
   };
 

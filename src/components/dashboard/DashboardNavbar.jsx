@@ -6,11 +6,12 @@ import {
   RiStackLine, RiBookmarkLine, RiCompassLine, RiAddLine,
   RiNotification3Line, RiSearchLine,
 } from 'react-icons/ri';
+import Logo from '../layout/Logo';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import ProfileDropdown from './ProfileDropdown';
 
-export default function DashboardNavbar({ onSearchOpen }) {
+export default function DashboardNavbar({ onSearchOpen, onNewSpaceClick }) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function DashboardNavbar({ onSearchOpen }) {
   }, [user]);
 
   const nameParts = userName.trim().split(/\s+/);
-  const initials = nameParts.length > 1 
+  const initials = nameParts.length > 1
     ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
     : (nameParts[0][0] || 'YD').toUpperCase();
 
@@ -93,12 +94,10 @@ export default function DashboardNavbar({ onSearchOpen }) {
         <Link to="/" style={{
           display: 'flex', alignItems: 'center', gap: '7px',
           fontFamily: 'var(--font-display)', fontWeight: 700,
-          fontSize: '15px', letterSpacing: '-0.02em',
-          color: isLight ? '#111111' : '#ffffff',
+          fontSize: '20px',
           textDecoration: 'none', flexShrink: 0,
         }}>
-          <RiStackLine size={20} style={{ color: isLight ? '#333333' : '#E5E5E5' }} />
-          DevOneStack
+          <Logo />
         </Link>
 
         {/* Center: Search */}
@@ -135,11 +134,12 @@ export default function DashboardNavbar({ onSearchOpen }) {
           {[
             { icon: <RiBookmarkLine />, tip: 'Saved' },
             { icon: <RiCompassLine />, tip: 'Discover — coming soon' },
-            { icon: <RiAddLine />, tip: 'New Space' },
+            { icon: <RiAddLine />, tip: 'New Space', onClick: onNewSpaceClick },
             { icon: <RiNotification3Line />, tip: 'Notifications' },
-          ].map(({ icon, tip }) => (
+          ].map(({ icon, tip, onClick }) => (
             <Tooltip key={tip} title={tip} placement="bottom">
               <button
+                onClick={onClick}
                 style={iconBtnStyle}
                 onMouseEnter={e => {
                   e.currentTarget.style.background = isLight ? '#f0f0f0' : '#1a1a1a';

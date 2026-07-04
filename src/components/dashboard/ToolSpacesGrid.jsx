@@ -4,7 +4,7 @@ import { RiAddCircleLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
 import ToolSpaceCard from './ToolSpaceCard';
 
-export default function ToolSpacesGrid({ spaces }) {
+export default function ToolSpacesGrid({ spaces, onAddSpaceClick }) {
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
@@ -27,11 +27,12 @@ export default function ToolSpacesGrid({ spaces }) {
         gap: '12px',
       }}>
         {spaces.map((space, i) => (
-          <ToolSpaceCard key={space.id} space={space} index={i} />
+          <ToolSpaceCard key={space._id || space.id} space={space} index={i} />
         ))}
 
         {/* Add tool space card */}
         <motion.div
+          onClick={onAddSpaceClick}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 + spaces.length * 0.08, duration: 0.4 }}

@@ -2,12 +2,12 @@
 node_modules/
 .pnpm-store/
 
-# Production builds
+# Production build
 dist/
 dist-ssr/
 build/
 
-# Local env files (NEVER push — contains VITE_SERVER_URL and any future secrets)
+# Environment variables — NEVER commit
 .env
 .env.*
 !.env.example
@@ -19,23 +19,22 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
 # Test Coverage
 coverage/
 .nyc_output/
 
-# Caches
+# Vite cache
 .vite/
 .eslintcache
 
-# IDEs, Editors & OS Files
-.vscode/
-!.vscode/extensions.json
-.idea/
+# OS / Editor
 .DS_Store
 Thumbs.db
 desktop.ini
+.vscode/
+!.vscode/extensions.json
+.idea/
 *.suo
 *.ntvs*
 *.njsproj

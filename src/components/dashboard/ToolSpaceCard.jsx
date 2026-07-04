@@ -1,17 +1,27 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { SiReact, SiDocker, SiNodedotjs, SiMongodb } from 'react-icons/si';
+import { SiReact, SiDocker, SiNodedotjs, SiMongodb, SiPython, SiKubernetes, SiGo, SiRust, SiTailwindcss } from 'react-icons/si';
+import { FaAws } from 'react-icons/fa';
+import { RiTerminalBoxLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 const ICON_MAP = {
   react: <SiReact />,
   docker: <SiDocker />,
   nodejs: <SiNodedotjs />,
   mongodb: <SiMongodb />,
+  python: <SiPython />,
+  kubernetes: <SiKubernetes />,
+  aws: <FaAws />,
+  go: <SiGo />,
+  rust: <SiRust />,
+  tailwind: <SiTailwindcss />,
 };
 
 export default function ToolSpaceCard({ space, index }) {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const isLight = theme === 'light';
 
   const cardBg = isLight ? '#ffffff' : '#111111';
@@ -23,8 +33,12 @@ export default function ToolSpaceCard({ space, index }) {
   const tagBorder = isLight ? '#e5e5e5' : '#222222';
   const iconColor = isLight ? '#333333' : '#B2B2B2';
 
+  const metaText = space.meta || 
+    `${space.notesCount || 0} notes · ${space.snippetsCount || 0} snippets · ${space.docsCount || 0} docs`;
+
   return (
     <motion.div
+      onClick={() => navigate(`/spaces/${space._id || space.id}`)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + index * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -52,10 +66,9 @@ export default function ToolSpaceCard({ space, index }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
         <span style={{
           fontSize: '20px', color: iconColor, display: 'flex',
-          // Override brand colors — use currentColor only
           filter: isLight ? 'grayscale(1) brightness(0.4)' : 'grayscale(1) brightness(1.8)',
         }}>
-          {ICON_MAP[space.icon]}
+          {ICON_MAP[space.icon] || <RiTerminalBoxLine />}
         </span>
         <span style={{
           fontSize: '14px', fontWeight: 600, color: textPrimary,
@@ -70,12 +83,12 @@ export default function ToolSpaceCard({ space, index }) {
         fontSize: '12px', color: textMuted, marginBottom: '14px',
         lineHeight: 1.4,
       }}>
-        {space.meta}
+        {metaText}
       </p>
 
       {/* Tags */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-        {space.tags.map(tag => (
+        {space.tags && space.tags.map(tag => (
           <span key={tag} style={{
             fontSize: '11px', fontWeight: 500,
             padding: '2px 8px', borderRadius: '20px',
