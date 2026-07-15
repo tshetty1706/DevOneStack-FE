@@ -61,6 +61,7 @@ function AppContent() {
   }, []);
 
   return (
+    //ConfigProvider: it is used because it provides the theme to the entire application
     <ConfigProvider
       theme={{
         algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
@@ -72,7 +73,10 @@ function AppContent() {
       }}
     >
       <Router>
-        <ScrollToTop />
+        <ScrollToTop />{/*Its a function used to scroll to top of the page when the route(page) changes */}
+        {/* /if we remove it then the page will not scroll to top when the route changes and will not look good, it will just keep on scrolling from where it left off*/}
+
+
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

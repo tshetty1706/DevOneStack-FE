@@ -1,83 +1,75 @@
 import React, { useState } from 'react';
-import { Button } from 'antd';
+import GetStarted from './GetStarted';
+import OnlyLogo from './OnlyLogo'
 
 export default function Footer() {
-  const [email, setEmail] = useState('');
-
-  const handleNotifySubmit = (e) => {
-    e.preventDefault();
-    console.log(`Notify request submitted for: ${email}`);
-    setEmail('');
-  };
-
   const handleAiSummary = (e) => {
     e.preventDefault();
     alert('DevOneStack is a unified developer workspace manager. It integrates your documentation, code snippets, notes, task boards, repositories, prompts, and developer communities into organized, tool-specific workspaces. This page demonstrates our minimal, premium landing page, complete with a floating-icon visual centerpiece, tool compatibility strip, dynamic stats counter, and structural product walkthrough.');
   };
 
   return (
-    <footer className="footer">
+    <footer className="footer" id="contact">
       <div className="footer-container">
+        {/* Centerpiece Separator Section */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '24px',
+          marginBottom: '50px',
+          width: '100%',
+        }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--card-border)' }} />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexShrink: 0,
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.15)',
+              color: '#818cf8',
+              fontSize: '22px',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              userSelect: 'none',
+              paddingTop: '6px'
+            }}>
+              “
+            </div>
+            <span style={{
+              fontSize: '15px',
+              fontWeight: 600,
+              color: 'var(--text-color)',
+              fontFamily: 'var(--font-body)',
+              letterSpacing: '-0.01em'
+            }}>
+              Build better. Stay organized.
+            </span>
+          </div>
+          <div style={{ flex: 1, height: '1px', background: 'var(--card-border)' }} />
+        </div>
+
         <div className="footer-grid">
           <div className="footer-logo-col">
             <div className="footer-logo">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M16 2L6 7L16 12L26 7L16 2Z"
-                  fill="var(--accent-color)"
-                  stroke="var(--accent-color)"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M6 13L16 18L26 13"
-                  stroke="var(--accent-color)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.8"
-                />
-                <path
-                  d="M6 19L16 24L26 19"
-                  stroke="var(--accent-color)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.5"
-                />
-              </svg>
+              <OnlyLogo className='footer-only-logo' />
               <span>DevOneStack</span>
             </div>
             <p className="footer-tagline">
               One workspace for every tool you learn.
             </p>
-            <form onSubmit={handleNotifySubmit} className="footer-email-form">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="footer-email-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Button
-                type="primary"
-                htmlType="submit"
-                style={{
-                  background: 'var(--accent-color)',
-                  borderColor: 'var(--accent-color)',
-                  color: '#ffffff',
-                }}
-              >
-                Notify me
-              </Button>
-            </form>
+
+            <GetStarted />
+
           </div>
 
           <div className="footer-links-col">

@@ -1,14 +1,10 @@
-import React from 'react';
-import { Button } from 'antd';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import DashboardMockup from './DashboardMockup';
+import GetStarted from '../layout/GetStarted'
 
 export default function Hero() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  
+
+
   const handleScrollToSteps = (e) => {
     e.preventDefault();
     const stepsElement = document.getElementById('how-it-works');
@@ -55,52 +51,10 @@ export default function Hero() {
           </p>
 
           <div className="hero-ctas">
-            <Button
-              type="primary"
-              size="large"
-              style={{
-                background: 'var(--accent-color)',
-                borderColor: 'var(--accent-color)',
-                height: '48px',
-                padding: '0 24px',
-                fontSize: '15px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                color: '#ffffff',
-              }}
-              onClick={() => navigate(user ? '/dashboard' : '/signup')}
-            >
-              {user ? 'Go to Dashboard' : 'Get started for free'}
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </Button>
+            <GetStarted />
 
-            <Button
-              type="default"
-              size="large"
-              style={{
-                height: '48px',
-                padding: '0 24px',
-                fontSize: '15px',
-                background: 'transparent',
-                borderColor: 'var(--card-border)',
-                color: 'var(--text-color)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
+            <button
+              className="btn-secondary"
               onClick={handleScrollToSteps}
             >
               See how it works
@@ -117,22 +71,7 @@ export default function Hero() {
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="10 8 16 12 10 16 10 8" />
               </svg>
-            </Button>
-          </div>
-
-          {/* Social Proof Stars */}
-          <div className="hero-social-proof">
-            <div className="hero-avatars">
-              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80" alt="Developer Avatar 1" className="hero-avatar" />
-              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80" alt="Developer Avatar 2" className="hero-avatar" />
-              <img src="https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=100&h=100&q=80" alt="Developer Avatar 3" className="hero-avatar" />
-            </div>
-            <div className="hero-rating-info">
-              <div className="hero-stars">
-                {'★'.repeat(5)}
-              </div>
-              <div className="hero-rating-text">Loved by 25,000+ developers</div>
-            </div>
+            </button>
           </div>
         </motion.div>
 

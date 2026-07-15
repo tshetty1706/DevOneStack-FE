@@ -1,19 +1,31 @@
-import React from 'react';
-import { Button } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Logo from '../layout/Logo'
+import Logo from '../layout/Logo';
+
+const MENU_ITEMS = [
+  { label: 'How It Works', id: 'how-it-works' },
+  { label: 'Features', id: 'features' },
+  { label: 'Contact', id: 'contact' }
+];
+
 export default function Navbar() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const handleNavClick = (e, label) => {
+  const handleNavClick = (e, target) => {
     e.preventDefault();
-    console.log(`Navigation click: ${label}`);
-    if (label === 'Login') {
-      navigate('/login');
-    } else if (label === 'Signup') {
-      navigate('/signup');
+    if (target === 'login' || target === 'signup') {
+      navigate(`/${target}`);
+      return;
+    }
+
+    if (window.location.pathname === '/') {
+      const element = document.getElementById(target);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate('/', { state: { scrollToId: target } });
     }
   };
 
@@ -26,14 +38,14 @@ export default function Navbar() {
         </Link>
 
         <div className="navbar-menu">
-          {['Product', 'Resources', 'Solutions', 'Pricing', 'Company'].map((item) => (
+          {MENU_ITEMS.map((item) => (
             <a
-              key={item}
-              href={`#${item.toLowerCase()}`}
+              key={item.id}
+              href={`#${item.id}`}
               className="navbar-link"
-              onClick={(e) => handleNavClick(e, item)}
+              onClick={(e) => handleNavClick(e, item.id)}
             >
-              {item}
+              {item.label}
             </a>
           ))}
         </div>
@@ -69,38 +81,26 @@ export default function Navbar() {
           </div>
 
           {user ? (
-            <Button
-              type="primary"
-              style={{
-                background: 'var(--accent-color)',
-                borderColor: 'var(--accent-color)',
-                color: '#ffffff',
-              }}
+            <button
+              className="navbar-btn-primary"
               onClick={() => navigate('/dashboard')}
             >
               Go to Dashboard
-            </Button>
+            </button>
           ) : (
             <>
-              <Button
-                type="text"
-                className="navbar-link"
-                style={{ border: 'none', background: 'transparent' }}
-                onClick={(e) => handleNavClick(e, 'Login')}
+              <button
+                className="navbar-btn-text"
+                onClick={(e) => handleNavClick(e, 'login')}
               >
                 Log in
-              </Button>
-              <Button
-                type="primary"
-                style={{
-                  background: 'var(--accent-color)',
-                  borderColor: 'var(--accent-color)',
-                  color: '#ffffff',
-                }}
-                onClick={(e) => handleNavClick(e, 'Signup')}
+              </button>
+              <button
+                className="navbar-btn-primary"
+                onClick={(e) => handleNavClick(e, 'signup')}
               >
                 Sign up
-              </Button>
+              </button>
             </>
           )}
         </div>

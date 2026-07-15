@@ -27,24 +27,8 @@ export default function Testimonial() {
         </div>
 
         <p className="testimonial-quote-text">
-          "If you are building code workspaces for software you learn, DevOneStack is what it should look like."
+          "Every technology deserves its own workspace. Every developer deserves a better way to organize knowledge."
         </p>
-
-        <div className="testimonial-author">
-          <img
-            src="/trisha_avatar.png"
-            alt="Trisha V Shetty"
-            className="testimonial-author-img"
-            onError={(e) => {
-              // Fallback if image fails to load
-              e.target.src = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=150&auto=format&fit=crop";
-            }}
-          />
-          <div className="testimonial-author-info">
-            <span className="testimonial-author-title">Built By</span>
-            <span className="testimonial-author-name">Trisha V Shetty</span>
-          </div>
-        </div>
       </motion.div>
 
       {/* Right vertical boundary line */}
