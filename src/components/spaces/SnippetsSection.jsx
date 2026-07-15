@@ -5,6 +5,7 @@ import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import api from '../../api/axios';
+import SnippetViewModal from './modals/SnippetViewModal';
 
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -33,18 +34,8 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
   const [viewSnippetCode, setViewSnippetCode] = useState('');
   const [loadingViewCode, setLoadingViewCode] = useState(false);
 
-  const handleOpenViewModal = async (snip) => {
+  const handleOpenViewModal = (snip) => {
     setViewSnippet(snip);
-    setLoadingViewCode(true);
-    try {
-      const { data } = await api.get(`/api/spaces/${space._id}/snippets/${snip._id}/content`);
-      setViewSnippetCode(data.code || '');
-    } catch {
-      message.error('Failed to retrieve code content');
-      setViewSnippet(null);
-    } finally {
-      setLoadingViewCode(false);
-    }
   };
 
   const PinButton = ({ isPinned, onToggle }) => (
@@ -101,7 +92,7 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
     if (highlightId && snippets && snippets.length > 0) {
       const target = snippets.find(s => s._id === highlightId);
       if (target) {
-        openEditModal(target);
+        handleOpenViewModal(target);
       }
     }
   }, [highlightId, snippets]);
@@ -292,11 +283,27 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
           {snippets.map((snip) => (
             <div
               key={snip._id}
+              onClick={() => handleOpenViewModal(snip)}
               style={{
-                background: isLight ? '#f9f9fc' : '#161616',
-                border: `1px solid ${isLight ? '#ebebeb' : '#242424'}`,
-                borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column',
-                justifyContent: 'space-between', minHeight: '200px', position: 'relative'
+                background:   'var(--card)',
+                border:       '1px solid var(--border)',
+                borderRadius: 10,
+                padding:      '14px 16px',
+                display:      'flex',
+                flexDirection:'column',
+                justifyContent:'space-between',
+                minHeight:    '200px',
+                position:     'relative',
+                cursor:       'pointer',
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background  = 'var(--card-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background  = 'var(--card)';
               }}
             >
               {/* Pin indicator */}
@@ -362,7 +369,7 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#666' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => handleCopy(snip._id)}
                       style={{
@@ -377,7 +384,7 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
                     {snip.usedCount > 0 && <span>Used {snip.usedCount} times</span>}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => handleOpenViewModal(snip)}
                       style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#6366f1', cursor: 'pointer', marginRight: '8px' }}
@@ -417,7 +424,18 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
         okText={editingSnippet ? 'Update Snippet' : 'Save Snippet'}
         cancelText="Cancel"
         width={600}
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' } }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <div>
@@ -465,7 +483,11 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
                 fontSize: '13px',
                 background: isLight ? '#f9f9f9' : '#141414',
                 color: isLight ? '#000' : '#fff',
-                borderColor: isLight ? '#d9d9d9' : '#333'
+                borderColor: isLight ? '#d9d9d9' : '#333',
+                height: 240,
+                resize: 'vertical',
+                maxHeight: 400,
+                overflowY: 'auto'
               }}
             />
             <span style={{ fontSize: '11px', color: '#666', marginTop: '4px', display: 'block' }}>
@@ -476,27 +498,13 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
       </Modal>
 
       {/* Code Viewer Modal */}
-      <Modal
-        title={`Snippet Code: ${viewSnippet?.name}`}
+      <SnippetViewModal
         open={!!viewSnippet}
-        onCancel={() => { setViewSnippet(null); setViewSnippetCode(''); }}
-        footer={[
-          <Button key="close" onClick={() => { setViewSnippet(null); setViewSnippetCode(''); }}>
-            Close
-          </Button>
-        ]}
-        width={720}
-      >
-        <div style={{ borderRadius: '8px', overflow: 'hidden', fontSize: '12px', marginTop: '16px' }}>
-          <SyntaxHighlighter
-            language={viewSnippet?.language || 'javascript'}
-            style={isLight ? coy : vscDarkPlus}
-            customStyle={{ margin: 0, padding: '12px' }}
-          >
-            {loadingViewCode ? 'Loading code content...' : viewSnippetCode || 'No code preview available'}
-          </SyntaxHighlighter>
-        </div>
-      </Modal>
+        snippet={viewSnippet}
+        spaceId={space._id}
+        onClose={() => { setViewSnippet(null); }}
+        onEdit={(s) => openEditModal(s)}
+      />
     </div>
   );
 }

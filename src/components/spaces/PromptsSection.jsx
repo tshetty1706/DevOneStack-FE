@@ -251,11 +251,27 @@ export default function PromptsSection({ space, isLight, highlightId }) {
           {prompts.map((prompt) => (
             <div
               key={prompt._id}
+              onClick={() => setViewPrompt(prompt)}
               style={{
-                background: isLight ? '#f9f9fc' : '#161616',
-                border: `1px solid ${isLight ? '#ebebeb' : '#242424'}`,
-                borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column',
-                justifyContent: 'space-between', minHeight: '180px', position: 'relative'
+                background:   'var(--card)',
+                border:       '1px solid var(--border)',
+                borderRadius: 10,
+                padding:      '14px 16px',
+                display:      'flex',
+                flexDirection:'column',
+                justifyContent:'space-between',
+                minHeight:    '180px',
+                position:     'relative',
+                cursor:       'pointer',
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background  = 'var(--card-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background  = 'var(--card)';
               }}
             >
               {/* Pin indicator */}
@@ -318,7 +334,7 @@ export default function PromptsSection({ space, isLight, highlightId }) {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#666' }}>
                   <button
-                    onClick={() => handleCopy(prompt)}
+                    onClick={(e) => { e.stopPropagation(); handleCopy(prompt); }}
                     style={{
                       background: isLight ? '#e5e7eb' : '#222', border: `1px solid ${isLight ? '#ccc' : '#444'}`,
                       color: isLight ? '#111' : '#fff', cursor: 'pointer', padding: '4px 12px',
@@ -329,7 +345,7 @@ export default function PromptsSection({ space, isLight, highlightId }) {
                     Copy Prompt
                   </button>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => setViewPrompt(prompt)}
                       style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#6366f1', cursor: 'pointer', marginRight: '8px' }}
@@ -368,7 +384,18 @@ export default function PromptsSection({ space, isLight, highlightId }) {
         onOk={handleSubmit}
         okText={editingPrompt ? 'Update Prompt' : 'Save Prompt'}
         cancelText="Cancel"
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' } }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <div>
@@ -423,6 +450,12 @@ export default function PromptsSection({ space, isLight, highlightId }) {
               onChange={(e) => setBody(e.target.value)}
               maxLength={5000}
               rows={8}
+              style={{
+                height: 240,
+                resize: 'vertical',
+                maxHeight: 400,
+                overflowY: 'auto'
+              }}
             />
           </div>
         </div>
@@ -439,6 +472,18 @@ export default function PromptsSection({ space, isLight, highlightId }) {
           </Button>
         ]}
         width={650}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
           <div>

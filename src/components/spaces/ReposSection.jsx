@@ -262,10 +262,23 @@ export default function ReposSection({ space, isLight, highlightId }) {
             <div
               key={repo._id}
               style={{
-                background: isLight ? '#f9f9fc' : '#161616',
-                border: `1px solid ${isLight ? '#ebebeb' : '#242424'}`,
-                borderRadius: '10px', padding: '12px 16px', display: 'flex',
-                alignItems: 'center', justifyContent: 'space-between', gap: '16px'
+                background:   'var(--card)',
+                border:       '1px solid var(--border)',
+                borderRadius: 10,
+                padding:      '12px 16px',
+                display:      'flex',
+                alignItems:   'center',
+                justifyContent: 'space-between',
+                gap:          '16px',
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background  = 'var(--card-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background  = 'var(--card)';
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
@@ -353,7 +366,18 @@ export default function ReposSection({ space, isLight, highlightId }) {
         onOk={handleSubmit}
         okText={editingRepo ? 'Update Repository' : 'Link Repository'}
         cancelText="Cancel"
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' } }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <div>

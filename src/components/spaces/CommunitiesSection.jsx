@@ -180,12 +180,12 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
   const detectPlatform = (inputUrl) => {
     if (!inputUrl) return;
     let detected = 'other';
-    if (/discord\.(gg|com)/.test(inputUrl))     detected = 'discord';
-    else if (/reddit\.com/.test(inputUrl))           detected = 'reddit';
-    else if (/(twitter|x)\.com/.test(inputUrl))      detected = 'twitter';
-    else if (/youtube\.com/.test(inputUrl))          detected = 'youtube';
-    else if (/github\.com/.test(inputUrl))           detected = 'github';
-    else if (/slack\.com/.test(inputUrl))            detected = 'slack';
+    if (/discord\.(gg|com)/.test(inputUrl)) detected = 'discord';
+    else if (/reddit\.com/.test(inputUrl)) detected = 'reddit';
+    else if (/(twitter|x)\.com/.test(inputUrl)) detected = 'twitter';
+    else if (/youtube\.com/.test(inputUrl)) detected = 'youtube';
+    else if (/github\.com/.test(inputUrl)) detected = 'github';
+    else if (/slack\.com/.test(inputUrl)) detected = 'slack';
     setPlatform(detected);
   };
 
@@ -256,10 +256,24 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
             <div
               key={comm._id}
               style={{
-                background: isLight ? '#f9f9fc' : '#161616',
-                border: `1px solid ${isLight ? '#ebebeb' : '#242424'}`,
-                borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column',
-                justifyContent: 'space-between', minHeight: '150px', position: 'relative'
+                background:   'var(--card)',
+                border:       '1px solid var(--border)',
+                borderRadius: 10,
+                padding:      '14px 16px',
+                display:      'flex',
+                flexDirection:'column',
+                justifyContent:'space-between',
+                minHeight:    '150px',
+                position:     'relative',
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background  = 'var(--card-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background  = 'var(--card)';
               }}
             >
               {/* Pin indicator */}
@@ -308,7 +322,7 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
                 {comm.tags && comm.tags.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
                     {comm.tags.map(t => (
-                      <Tag key={t} color={isLight ? 'default' : 'inverse'} style={{ fontSize: '10px' }}>{t}</Tag>
+                      <Tag key={t} color={isLight ? 'blue' : 'blue'} style={{ fontSize: '10px' }}>{t}</Tag>
                     ))}
                   </div>
                 )}
@@ -345,7 +359,18 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
         onOk={handleSubmit}
         okText={editingCommunity ? 'Update Connection' : 'Add Community'}
         cancelText="Cancel"
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' } }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiSaveLine } from 'react-icons/ri';
+import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiSaveLine, RiCloseLine, RiStickyNoteLine } from 'react-icons/ri';
 import MDEditor from '@uiw/react-md-editor';
 import api from '../../api/axios';
 
@@ -94,9 +94,19 @@ export default function NotesSection({ space, isLight, openNoteId }) {
     }
   }, [selectedNoteId, contentData, notes]);
 
+  const hasAutoSelectedRef = useRef(false);
+
   useEffect(() => {
-    if (!selectedNoteId && notes && notes.length > 0) {
+    if (openNoteId) {
+      setSelectedNoteId(openNoteId);
+      hasAutoSelectedRef.current = true;
+    }
+  }, [openNoteId]);
+
+  useEffect(() => {
+    if (!hasAutoSelectedRef.current && !selectedNoteId && notes && notes.length > 0) {
       setSelectedNoteId(notes[0]._id);
+      hasAutoSelectedRef.current = true;
     }
   }, [notes, selectedNoteId]);
 
@@ -307,11 +317,30 @@ export default function NotesSection({ space, isLight, openNoteId }) {
                   paddingBottom: '6px'
                 }}
               />
-              <div style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <RiSaveLine size={14} style={{ color: saveStatus === 'saving' ? '#eab308' : (saveStatus === 'error' ? '#ef4444' : '#22c55e') }} />
-                <span style={{ color: saveStatus === 'saving' ? '#eab308' : (saveStatus === 'error' ? '#ef4444' : '#22c55e'), fontWeight: 600 }}>
-                  {saveStatus === 'saving' ? 'Saving...' : (saveStatus === 'error' ? 'Save Error' : 'Saved')}
-                </span>
+              <div style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <RiSaveLine size={14} style={{ color: saveStatus === 'saving' ? '#eab308' : (saveStatus === 'error' ? '#ef4444' : '#22c55e') }} />
+                  <span style={{ color: saveStatus === 'saving' ? '#eab308' : (saveStatus === 'error' ? '#ef4444' : '#22c55e'), fontWeight: 600 }}>
+                    {saveStatus === 'saving' ? 'Saving...' : (saveStatus === 'error' ? 'Save Error' : 'Saved')}
+                  </span>
+                </div>
+                
+                <Tooltip title="Close note">
+                  <button
+                    onClick={() => setSelectedNoteId(null)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 28, height: 28, borderRadius: 6,
+                      border: '1px solid var(--border)', background: 'none',
+                      cursor: 'pointer', color: '#666',
+                      transition: 'color 0.15s, border-color 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = isLight ? '#111' : '#fff'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#666'}
+                  >
+                    <RiCloseLine size={16} />
+                  </button>
+                </Tooltip>
               </div>
             </div>
 
@@ -340,13 +369,17 @@ export default function NotesSection({ space, isLight, openNoteId }) {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#666', gap: '8px' }}>
-            <span>Select a note from the explorer or create a new one to begin editing.</span>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)' }}>
+            <RiStickyNoteLine size={48} style={{ opacity: 0.2 }} />
+            <p style={{ marginTop: 12, fontSize: 14 }}>Select a note to open it</p>
+            <p style={{ fontSize: 12, marginTop: 4 }}>or create a new one</p>
             <Button
               type="dashed"
               icon={<RiAddLine />}
               onClick={() => createMutation.mutate()}
-              style={{ color: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1' }}
+              style={{ marginTop: 16, color: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1' }}
             >
               New Concept Note
             </Button>

@@ -14,6 +14,7 @@ import { Modal, Button, Tag, Tooltip, message } from 'antd';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import api from '../../api/axios';
+import SnippetViewModal from '../spaces/modals/SnippetViewModal';
 
 const getAge = (dateStr) => {
   if (!dateStr) return 'today';
@@ -100,28 +101,46 @@ export default function PinnedBoilerplates() {
     }
   };
 
-  const handleViewSnippetCode = async (snippet) => {
+  const handleViewSnippetCode = (snippet) => {
     setViewingSnippet(snippet);
-    setLoadingCode(true);
-    try {
-      const realSpaceId = snippet.spaceId?._id || snippet.spaceId;
-      const { data } = await api.get(`/api/spaces/${realSpaceId}/snippets/${snippet._id}/content`);
-      setSnippetCodeText(data.code || '');
-    } catch {
-      message.error('Failed to fetch code content');
-      setViewingSnippet(null);
-    } finally {
-      setLoadingCode(false);
-    }
   };
 
   const handleDocOpen = async (doc) => {
     const realSpaceId = doc.spaceId?._id || doc.spaceId;
     if (doc.type === 'url') {
       window.open(doc.url, '_blank', 'noopener,noreferrer');
-    } else {
+      return;
+    }
+
+    if (doc.type === 'pdf') {
+      const token = localStorage.getItem('dos_access_token');
+      const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+      fetch(
+        `${apiUrl}/api/spaces/${realSpaceId}/docs/${doc._id}/file`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load PDF');
+          return res.blob();
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const tab = window.open(blobUrl, '_blank');
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          if (!tab) {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.target = '_blank';
+            a.click();
+          }
+        })
+        .catch(() => message.error('Could not open PDF. Try again.'));
+      return;
+    }
+
+    if (doc.type === 'image') {
       try {
-        const { data } = await api.get(`/api/spaces/${realSpaceId}/docs/${doc._id}/signed-url`);
+        const { data } = await api.get(`/api/spaces/${realSpaceId}/docs/${doc._id}/file`);
         window.open(data.url, '_blank', 'noopener,noreferrer');
       } catch {
         message.error('Failed to retrieve file URL');
@@ -480,27 +499,12 @@ export default function PinnedBoilerplates() {
       </div>
 
       {/* Snippet Code Viewer Modal */}
-      <Modal
-        title={`Snippet Code: ${viewingSnippet?.name}`}
+      <SnippetViewModal
         open={!!viewingSnippet}
-        onCancel={() => { setViewingSnippet(null); setSnippetCodeText(''); }}
-        footer={[
-          <Button key="close" onClick={() => { setViewingSnippet(null); setSnippetCodeText(''); }}>
-            Close
-          </Button>
-        ]}
-        width={720}
-      >
-        <div style={{ borderRadius: '8px', overflow: 'hidden', fontSize: '12px', marginTop: '16px' }}>
-          <SyntaxHighlighter
-            language={viewingSnippet?.language || 'javascript'}
-            style={isLight ? coy : vscDarkPlus}
-            customStyle={{ margin: 0, padding: '12px' }}
-          >
-            {loadingCode ? 'Loading code content...' : snippetCodeText || 'No code preview available'}
-          </SyntaxHighlighter>
-        </div>
-      </Modal>
+        snippet={viewingSnippet}
+        spaceId={viewingSnippet?.spaceId?._id || viewingSnippet?.spaceId}
+        onClose={() => setViewingSnippet(null)}
+      />
 
       {/* Prompt Viewer Modal */}
       <Modal

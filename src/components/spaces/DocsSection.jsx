@@ -148,16 +148,40 @@ export default function DocsSection({ space, isLight, highlightId }) {
       return;
     }
 
-    try {
-      const { data } = await api.get(`/api/spaces/${space._id}/docs/${doc._id}/signed-url`);
-      if (doc.type === 'pdf') {
-        window.open(data.url, '_blank', 'noopener,noreferrer');
-      } else if (doc.type === 'image') {
+    if (doc.type === 'pdf') {
+      const token = localStorage.getItem('dos_access_token');
+      const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+      fetch(
+        `${apiUrl}/api/spaces/${space._id}/docs/${doc._id}/file`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load PDF');
+          return res.blob();
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const tab = window.open(blobUrl, '_blank');
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          if (!tab) {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.target = '_blank';
+            a.click();
+          }
+        })
+        .catch(() => message.error('Could not open PDF. Try again.'));
+      return;
+    }
+
+    if (doc.type === 'image') {
+      try {
+        const { data } = await api.get(`/api/spaces/${space._id}/docs/${doc._id}/file`);
         setPreviewUrl(data.url);
         setPreviewVisible(true);
+      } catch (err) {
+        message.error('Failed to load image');
       }
-    } catch (err) {
-      message.error('Failed to retrieve file URL');
     }
   };
 
@@ -238,11 +262,24 @@ export default function DocsSection({ space, isLight, highlightId }) {
             <div
               key={doc._id}
               style={{
-                background: isLight ? '#f9f9fc' : '#181818',
-                border: `1px solid ${isLight ? '#ebebeb' : '#282828'}`,
-                borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column',
-                justifyContent: 'space-between', minHeight: '140px', position: 'relative',
-                transition: 'transform 0.15s ease',
+                background:   'var(--card)',
+                border:       '1px solid var(--border)',
+                borderRadius: 10,
+                padding:      '14px 16px',
+                display:      'flex',
+                flexDirection:'column',
+                justifyContent:'space-between',
+                minHeight:    '140px',
+                position:     'relative',
+                transition:   'border-color 0.15s, background 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.background  = 'var(--card-hover)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.background  = 'var(--card)';
               }}
             >
               {/* Pin indicator */}
@@ -320,8 +357,18 @@ export default function DocsSection({ space, isLight, highlightId }) {
         confirmLoading={loading}
         okText="Add Document"
         cancelText="Cancel"
-        style={{ borderRadius: '12px' }}
-        styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' } }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', gap: '8px', borderBottom: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`, paddingBottom: '12px', marginBottom: '16px' }}>
           {[
@@ -407,10 +454,10 @@ export default function DocsSection({ space, isLight, highlightId }) {
       </Modal>
       {/* Hidden Image component for previewing doc images */}
       <Image
+        src={previewUrl}
         style={{ display: 'none' }}
         preview={{
           visible: previewVisible,
-          src: previewUrl,
           onVisibleChange: (visible) => {
             setPreviewVisible(visible);
             if (!visible) setPreviewUrl('');

@@ -25,7 +25,7 @@ export default function RecentActivity() {
     queryKey: ['history'],
     queryFn: async () => {
       const { data } = await api.get('/api/history');
-      return data;
+      return data.slice(0, 5);
     },
     staleTime: 1000 * 30, // refetch every 30 s
   });
@@ -103,7 +103,7 @@ export default function RecentActivity() {
           animate={{ opacity: 1 }}
           style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
         >
-          {history.map((item, i) => (
+          {(history || []).slice(0, 5).map((item, i) => (
             <motion.div
               key={item._id}
               initial={{ opacity: 0, y: 6 }}

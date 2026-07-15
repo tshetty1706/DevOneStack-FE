@@ -150,6 +150,18 @@ export default function SettingsSection({ space, isLight }) {
           disabled: confirmName !== space.name,
           loading: isDeleting
         }}
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <p style={{ fontSize: '13px', color: '#888', lineHeight: 1.5 }}>

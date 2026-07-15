@@ -4,6 +4,32 @@ import { Modal, Input, Button, Popconfirm, Skeleton, Tag, message } from 'antd';
 import { RiPriceTag3Line, RiEditLine, RiDeleteBinLine, RiArrowRightUpLine } from 'react-icons/ri';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
+import SnippetViewModal from './modals/SnippetViewModal';
+
+const getTagFontSize = (count, allTags) => {
+  const MIN_FONT = 12;
+  const MAX_FONT = 18;
+
+  if (!allTags || allTags.length === 0) return MIN_FONT;
+  if (allTags.length === 1) return 14;
+
+  const counts = allTags.map(t => t.count);
+  const minCount = Math.min(...counts);
+  const maxCount = Math.max(...counts);
+
+  if (maxCount === minCount) return 14;
+
+  const logMin = Math.log(minCount + 1);
+  const logMax = Math.log(maxCount + 1);
+  const logCount = Math.log(count + 1);
+
+  if (logMax === logMin) return 14;
+
+  const ratio = (logCount - logMin) / (logMax - logMin);
+  const fontSize = MIN_FONT + ratio * (MAX_FONT - MIN_FONT);
+
+  return Math.round(fontSize);
+};
 
 export default function TagsSection({ space, isLight }) {
   const queryClient = useQueryClient();
@@ -16,16 +42,36 @@ export default function TagsSection({ space, isLight }) {
   const handleDocOpen = async (doc) => {
     if (doc.type === 'url') {
       window.open(doc.url, '_blank', 'noopener,noreferrer');
-    } else if (doc.type === 'pdf') {
-      try {
-        const { data } = await api.get(`/api/spaces/${space._id}/docs/${doc._id}/signed-url`);
-        window.open(data.url, '_blank', 'noopener,noreferrer');
-      } catch (err) {
-        message.error('Failed to retrieve file URL');
-      }
-    } else {
-      setSearchParams({ section: 'docs', id: doc._id });
+      return;
     }
+
+    if (doc.type === 'pdf') {
+      const token = localStorage.getItem('dos_access_token');
+      const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+      fetch(
+        `${apiUrl}/api/spaces/${space._id}/docs/${doc._id}/file`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load PDF');
+          return res.blob();
+        })
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const tab = window.open(blobUrl, '_blank');
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          if (!tab) {
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.target = '_blank';
+            a.click();
+          }
+        })
+        .catch(() => message.error('Could not open PDF. Try again.'));
+      return;
+    }
+
+    setSearchParams({ section: 'docs', id: doc._id });
   };
 
   // Fetch unique tags in space
@@ -89,12 +135,10 @@ export default function TagsSection({ space, isLight }) {
     renameMutation.mutate({ oldTag: tagToRename, newTag: newTagName });
   };
 
+  const [viewSnippet, setViewSnippet] = useState(null);
+
   // Font sizing parameters for tag cloud
-  const minFont = 12;
-  const maxFont = 26;
   const counts = tags.map(t => t.count);
-  const minCount = counts.length > 0 ? Math.min(...counts) : 0;
-  const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
 
   return (
     <div style={{ padding: '20px' }}>
@@ -114,7 +158,7 @@ export default function TagsSection({ space, isLight }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
             {tags.map((t) => {
               const isActive = selectedTag === t.tag;
-              const fontSize = minCount === maxCount ? 14 : minFont + ((t.count - minCount) / (maxCount - minCount)) * (maxFont - minFont);
+              const fontSize = getTagFontSize(t.count, tags);
               return (
                 <div
                   key={t.tag}
@@ -216,7 +260,7 @@ export default function TagsSection({ space, isLight }) {
                   <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', fontWeight: 600 }}>CODE SNIPPETS</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
                     {tagContent.snippets.map(s => (
-                      <div key={s._id} onClick={() => setSearchParams({ section: 'snippets', id: s._id })} style={{ cursor: 'pointer', padding: '10px', background: isLight ? '#f9f9fc' : '#141414', border: `1px solid ${isLight ? '#ebebeb' : '#282828'}`, borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={s._id} onClick={() => setViewSnippet({ ...s, fromTags: true })} style={{ cursor: 'pointer', padding: '10px', background: isLight ? '#f9f9fc' : '#141414', border: `1px solid ${isLight ? '#ebebeb' : '#282828'}`, borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff' }}>{s.name}</p>
                           <span style={{ fontSize: '10px', color: '#666' }}>{s.language}</span>
@@ -291,6 +335,18 @@ export default function TagsSection({ space, isLight }) {
         onOk={handleRenameSubmit}
         okText="Rename Tag"
         cancelText="Cancel"
+        style={{ top: 40 }}
+        styles={{
+          body: {
+            maxHeight: 'calc(100vh - 160px)',
+            overflowY: 'auto',
+            padding: '20px 24px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--border) transparent',
+          },
+          mask: { backdropFilter: 'blur(4px)' },
+        }}
+        getContainer={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
           <div>
@@ -304,6 +360,12 @@ export default function TagsSection({ space, isLight }) {
         </div>
       </Modal>
 
+      <SnippetViewModal
+        open={!!viewSnippet}
+        snippet={viewSnippet}
+        spaceId={space._id}
+        onClose={() => setViewSnippet(null)}
+      />
     </div>
   );
 }

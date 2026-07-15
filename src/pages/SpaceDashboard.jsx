@@ -500,13 +500,29 @@ export default function SpaceDashboard() {
                 style={{ maxWidth: '1100px' }}
               >
                 {/* Section heading */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '17px', fontWeight: 700, color: textColor, margin: 0, fontFamily: 'var(--font-display)', textTransform: 'capitalize', letterSpacing: '-0.01em' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
+                  <h2 style={{
+                    fontSize:      20,
+                    fontWeight:    600,
+                    color:         'var(--text-primary)',
+                    marginBottom:  4,
+                    letterSpacing: '-0.01em',
+                  }}>
                     {activeSection === 'snippets' ? 'Boilerplates & Snippets'
                       : activeSection === 'settings' ? 'Settings'
                         : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                   </h2>
-
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 0 }}>
+                    {activeSection === 'docs' ? 'Reference documents, PDFs and external links'
+                      : activeSection === 'notes' ? 'Concept notes and markdown documentation'
+                        : activeSection === 'snippets' ? 'Reusable boilerplates, scripts and configuration'
+                          : activeSection === 'repos' ? 'Tracked code repositories and platforms'
+                            : activeSection === 'prompts' ? 'Saved AI prompt engineering templates'
+                              : activeSection === 'communities' ? 'Linked developer communities and channels'
+                                : activeSection === 'tags' ? 'Manage workspace tags and taxonomy'
+                                  : activeSection === 'settings' ? 'Customize space workspace settings'
+                                    : ''}
+                  </p>
                 </div>
 
                 <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', minHeight: '300px', padding: activeSection === 'settings' ? '24px' : '0' }}>
