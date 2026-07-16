@@ -1,6 +1,6 @@
 # DevOneStack — Frontend
 
-A developer productivity platform built with **React + Vite**. Features dark/light theme, smooth animations, JWT auth (email/password + Google + GitHub OAuth), and a full space dashboard for organizing dev tools.
+A developer productivity platform built with **React + Vite**. Features dark/light theme, smooth animations, JWT auth (email/password + Google OAuth), and a full space dashboard for organizing dev tools.
 
 ---
 
@@ -85,7 +85,7 @@ src/
 - **Overhauled Pinned Widget** — Horizontal scrolling track displaying pinned resources with copying options, syntax-highlighted code preview modal, and external redirect buttons.
 - **Isolated Space Activity Feed** — Recent activity under the space view shows actions related to that specific space only.
 - **Theme** — Dark/light mode toggle persisted across sessions, with refined tag colors in dark mode.
-- **Auth** — httpOnly cookie-based JWT, auto token refresh, Google + GitHub OAuth.
+- **Auth** — httpOnly cookie-based JWT, auto token refresh, Google OAuth.
 
 ---
 

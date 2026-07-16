@@ -37,13 +37,13 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           queue.push({ resolve, reject });
         })
-        .then(token => {
-          original.headers.Authorization = `Bearer ${token}`;
-          return api(original);
-        })
-        .catch(() => {
-          return Promise.reject(err);
-        });
+          .then(token => {
+            original.headers.Authorization = `Bearer ${token}`;
+            return api(original);
+          })
+          .catch(() => {
+            return Promise.reject(err);
+          });
       }
       refreshing = true;
       try {

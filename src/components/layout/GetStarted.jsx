@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-export default function GetStarted() {
+export default function GetStarted({ style }) {
     const navigate = useNavigate();
     const { user } = useAuth();
     return (
         <>
             <button
                 className="btn-primary"
-                style={{ width: '100%', maxWidth: '280px', marginTop: '12px' }}
+                style={{ width: '100%', maxWidth: '280px', marginTop: '12px', ...style }}
                 onClick={() => navigate(user ? '/dashboard' : '/signup')}
             >
                 {user ? 'Go to Dashboard' : 'Get started'}

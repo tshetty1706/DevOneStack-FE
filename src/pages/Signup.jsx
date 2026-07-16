@@ -4,9 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { FcGoogle } from 'react-icons/fc';
-import { FaGithub } from 'react-icons/fa';
 import { signup as signupApi } from '../api/auth';
-import { googleAuthUrl, githubAuthUrl } from '../api/auth';
+import { googleAuthUrl } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import './auth.css';
 
@@ -31,9 +30,15 @@ export default function Signup() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(signupSchema),
   });
+
+  const passwordVal = watch('password', '');
+  const hasMinLength = passwordVal.length >= 8;
+  const hasUppercase = /[A-Z]/.test(passwordVal);
+  const hasNumber = /[0-9]/.test(passwordVal);
+  const hasSpecialChar = /[^A-Za-z0-9]/.test(passwordVal);
 
   useEffect(() => {
     if (user) {
@@ -117,14 +122,10 @@ export default function Signup() {
         </p>
 
         <span className="auth-oauth-label">Sign up with:</span>
-        <div className="auth-oauth-buttons">
+        <div className="auth-oauth-buttons" style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
           <a href={googleAuthUrl} className="auth-oauth-btn google">
             <FcGoogle className="oauth-icon" size={18} />
             <span>Continue with Google</span>
-          </a>
-          <a href={githubAuthUrl} className="auth-oauth-btn github">
-            <FaGithub className="oauth-icon" size={18} />
-            <span>Continue with GitHub</span>
           </a>
         </div>
 
@@ -180,7 +181,65 @@ export default function Signup() {
                   {...register('password')}
                 />
               </div>
-              {errors.password && <p style={{ color: '#f87171', fontSize: '0.75rem', marginTop: '4px' }}>{errors.password.message}</p>}
+              
+              {/* Dynamic Password Requirement Checklist */}
+              {passwordVal && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ 
+                      color: hasMinLength ? '#10b981' : '#4b5563', 
+                      fontWeight: 'bold',
+                      textShadow: hasMinLength ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}>✓</span>
+                    <span style={{ 
+                      color: hasMinLength ? 'var(--text-color, #ffffff)' : 'var(--text-secondary, #9ca3af)', 
+                      transition: 'all 0.2s ease' 
+                    }}>At least 8 characters</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ 
+                      color: hasUppercase ? '#10b981' : '#4b5563', 
+                      fontWeight: 'bold',
+                      textShadow: hasUppercase ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}>✓</span>
+                    <span style={{ 
+                      color: hasUppercase ? 'var(--text-color, #ffffff)' : 'var(--text-secondary, #9ca3af)', 
+                      transition: 'all 0.2s ease' 
+                    }}>One uppercase letter</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ 
+                      color: hasNumber ? '#10b981' : '#4b5563', 
+                      fontWeight: 'bold',
+                      textShadow: hasNumber ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}>✓</span>
+                    <span style={{ 
+                      color: hasNumber ? 'var(--text-color, #ffffff)' : 'var(--text-secondary, #9ca3af)', 
+                      transition: 'all 0.2s ease' 
+                    }}>One number</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <span style={{ 
+                      color: hasSpecialChar ? '#10b981' : '#4b5563', 
+                      fontWeight: 'bold',
+                      textShadow: hasSpecialChar ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}>✓</span>
+                    <span style={{ 
+                      color: hasSpecialChar ? 'var(--text-color, #ffffff)' : 'var(--text-secondary, #9ca3af)', 
+                      transition: 'all 0.2s ease' 
+                    }}>One special character</span>
+                  </div>
+                </div>
+              )}
+
+              {errors.password && <p style={{ color: '#f87171', fontSize: '0.75rem', marginTop: '6px' }}>{errors.password.message}</p>}
             </div>
 
             <p className="auth-terms-text">

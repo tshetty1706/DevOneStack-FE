@@ -51,7 +51,7 @@ export default function Hero() {
           </p>
 
           <div className="hero-ctas">
-            <GetStarted />
+            <GetStarted style={{ marginTop: 0 }} />
 
             <button
               className="btn-secondary"

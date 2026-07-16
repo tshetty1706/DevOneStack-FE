@@ -346,6 +346,7 @@ body.light-mode .premium-card {
   justify-content: center;
   gap: 8px;
   outline: none;
+  white-space: nowrap;
 }
 
 .btn-primary:hover {
@@ -374,6 +375,7 @@ body.light-mode .premium-card {
   justify-content: center;
   gap: 8px;
   outline: none;
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {

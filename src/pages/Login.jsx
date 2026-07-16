@@ -4,11 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { FcGoogle } from 'react-icons/fc';
-import { FaGithub } from 'react-icons/fa';
 import { login as loginApi } from '../api/auth';
-import { googleAuthUrl, githubAuthUrl } from '../api/auth';
+import { googleAuthUrl } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import './auth.css';
+import OnlyLog from '../components/layout/OnlyLogo';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
@@ -43,7 +43,7 @@ export default function Login() {
     const provider = params.get('provider');
 
     if (errType === 'account_exists') {
-      const pName = provider === 'local' ? 'email/password' : provider === 'google' ? 'Google' : provider === 'github' ? 'GitHub' : provider;
+      const pName = provider === 'local' ? 'email/password' : provider === 'google' ? 'Google' : provider;
       setApiError(`An account with this email already exists via ${pName}. Please sign in using that method below.`);
     } else if (errType === 'oauth_failed') {
       setApiError('Sign-in failed. Try again or use email instead.');
@@ -79,37 +79,8 @@ export default function Login() {
 
         {/* Brand Logo */}
         <Link to="/" className="auth-brand-logo" style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', width: 'fit-content', margin: '0 auto 16px auto' }}>
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 32 32"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M16 2L6 7L16 12L26 7L16 2Z"
-              fill="var(--accent-color, #6366f1)"
-              stroke="var(--accent-color, #6366f1)"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6 13L16 18L26 13"
-              stroke="var(--accent-color, #6366f1)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.8"
-            />
-            <path
-              d="M6 19L16 24L26 19"
-              stroke="var(--accent-color, #6366f1)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.5"
-            />
-          </svg>
+
+          <OnlyLog className='auth-brand-logo' />
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-color)' }}>
             DevOneStack
           </span>
@@ -121,14 +92,10 @@ export default function Login() {
         </p>
 
         <span className="auth-oauth-label">Continue with:</span>
-        <div className="auth-oauth-buttons">
+        <div className="auth-oauth-buttons" style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
           <a href={googleAuthUrl} className="auth-oauth-btn google">
             <FcGoogle className="oauth-icon" size={18} />
             <span>Continue with Google</span>
-          </a>
-          <a href={githubAuthUrl} className="auth-oauth-btn github">
-            <FaGithub className="oauth-icon" size={18} />
-            <span>Continue with GitHub</span>
           </a>
         </div>
 
