@@ -24,6 +24,7 @@ import PromptsSection from '../components/spaces/PromptsSection';
 import CommunitiesSection from '../components/spaces/CommunitiesSection';
 import TagsSection from '../components/spaces/TagsSection';
 import SettingsSection from '../components/spaces/SettingsSection';
+import SpaceIcon from '../components/spaces/SpaceIcon';
 
 const SIDEBAR_ITEMS = [
   { id: 'home', icon: RiHome4Line, label: 'Home' },
@@ -204,6 +205,24 @@ export default function SpaceDashboard() {
     retry: false,
   });
 
+  // Track space visit for "Continue Where You Left Off" widget
+  useEffect(() => {
+    if (space && space._id && user && user._id) {
+      try {
+        const key = `dos_recent_spaces_${user._id}`;
+        const recent = JSON.parse(localStorage.getItem(key) || '[]');
+        const updated = recent.filter(item => item._id !== space._id);
+        updated.unshift({
+          _id: space._id,
+          openedAt: new Date().toISOString(),
+        });
+        localStorage.setItem(key, JSON.stringify(updated.slice(0, 5)));
+      } catch (err) {
+        console.error('Error tracking space visit:', err);
+      }
+    }
+  }, [space, user]);
+
   const { data: activity = [] } = useQuery({
     queryKey: ['history', spaceId],
     queryFn: async () => {
@@ -376,9 +395,12 @@ export default function SpaceDashboard() {
               <RiArrowLeftLine size={17} />
             </button>
             <span style={{ height: '14px', width: '1px', background: sidebarBrd }} />
-            <span style={{ fontSize: '14px', fontWeight: 600, color: textColor, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
-              {space.name}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <SpaceIcon iconKey={space.iconKey || space.icon} size={16} />
+              <span style={{ fontSize: '14px', fontWeight: 600, color: textColor, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
+                {space.name}
+              </span>
+            </div>
             {space.tags?.slice(0, 2).map(t => (
               <span key={t} style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: isLight ? '#f0f0f0' : '#1e1e1e', border: `1px solid ${sidebarBrd}`, color: textMuted, fontWeight: 500 }}>
                 {t}

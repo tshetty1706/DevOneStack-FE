@@ -19,12 +19,16 @@ export default function ProfileDropdown({ onClose }) {
 
   const loadProfile = () => {
     if (user) {
-      setUserName(localStorage.getItem('dos_profile_name') || user.displayName || user.username || 'Your Name');
+      setUserName(localStorage.getItem('dos_profile_name') || user.name || 'Your Name');
       setAvatarVal(localStorage.getItem('dos_profile_avatar') || user.avatarUrl || '');
     }
   };
 
+
   useEffect(() => {
+    localStorage.setItem('dos_profile_name', user.name);
+    localStorage.setItem('dos_profile_avatar', user.avatarUrl);
+
     loadProfile();
     window.addEventListener('profile_update', loadProfile);
     return () => window.removeEventListener('profile_update', loadProfile);
@@ -61,6 +65,9 @@ export default function ProfileDropdown({ onClose }) {
 
   const handleLogout = async () => {
     onClose();
+
+    localStorage.removeItem('dos_profile_name');
+    localStorage.removeItem('dos_profile_avatar');
     await logout();
     navigate('/login');
   };
@@ -68,11 +75,8 @@ export default function ProfileDropdown({ onClose }) {
   const MENU_GROUPS = [
     [
       { icon: <RiUserLine />, label: 'Profile' },
-      { icon: <RiStackLine />, label: 'My Spaces' },
-      { icon: <RiStarLine />, label: 'Starred Stacks' }
     ],
     [
-      { icon: <RiSettings3Line />, label: 'Settings' },
       { icon: <RiAccessibilityLine />, label: 'Accessibility' },
     ],
   ];
@@ -159,7 +163,7 @@ export default function ProfileDropdown({ onClose }) {
           <span style={{ fontSize: '15px', color: textMuted, display: 'flex' }}>
             <RiLogoutBoxLine />
           </span>
-          Sign out
+          Log out
         </button>
       </div>
     </motion.div>

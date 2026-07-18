@@ -13,8 +13,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import DashboardNavbar from '../components/dashboard/DashboardNavbar';
 import ThemeToggle from '../components/layout/ThemeToggle';
-import { useSpaces } from '../hooks/useSpaces';
-import ToolSpacesGrid from '../components/dashboard/ToolSpacesGrid';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 
 export default function Profile() {
@@ -27,18 +25,7 @@ export default function Profile() {
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [isEditingSocials, setIsEditingSocials] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('Overview');
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
-  const [searchParams] = useSearchParams();
-
-  // Auto-switch to Spaces tab if ?tab=spaces is in URL
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'spaces') {
-      setActiveTab('Spaces');
-    }
-  }, [searchParams]);
-  const { data: spaces = [], isLoading: spacesLoading } = useSpaces();
 
   const [name, setName] = useState('');
   const [caption, setCaption] = useState('');
@@ -193,7 +180,7 @@ export default function Profile() {
         <div className="glow-orb glow-orb-3" />
       </div>
 
-      <DashboardNavbar onNewSpaceClick={() => { setActiveTab('Spaces'); setNewSpaceOpen(true); }} />
+      <DashboardNavbar onNewSpaceClick={() => setNewSpaceOpen(true)} />
 
 
       <main style={{ maxWidth: '1024px', margin: '0 auto', padding: '76px 24px 80px', position: 'relative', zIndex: 10 }}>
@@ -218,48 +205,7 @@ export default function Profile() {
           </Button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div style={{
-          display: 'flex', gap: '8px', marginBottom: '24px',
-          borderBottom: `1px solid ${divider}`, paddingBottom: '12px'
-        }}>
-          {[
-            { id: 'Overview', label: 'Profile Overview' },
-            { id: 'Spaces', label: 'Spaces' }
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: '8px 16px', borderRadius: '8px', border: 'none',
-                  background: isActive ? (isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)') : 'transparent',
-                  color: isActive ? accentColor : textMuted,
-                  fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-body)',
-                  cursor: 'pointer', transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = textPrimary;
-                    e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) {
-                    e.currentTarget.style.color = textMuted;
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {activeTab === 'Overview' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '20px', alignItems: 'start' }}>
 
 
             {/* LEFT COLUMN: Header Card & Personal Info */}
@@ -620,52 +566,6 @@ export default function Profile() {
 
             </div>
           </div>
-        ) : activeTab === 'Spaces' ? (
-          <div style={{
-            background: cardBg, border: `1px solid ${border}`,
-            borderRadius: '16px', padding: '24px', position: 'relative'
-          }}>
-            {spacesLoading ? (
-              <div style={{ color: textMuted, fontSize: '13px', padding: '10px 0' }}>Loading spaces...</div>
-            ) : spaces.length === 0 ? (
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '60px 24px', textAlign: 'center', gap: '16px'
-              }}>
-                <div style={{
-                  width: '56px', height: '56px', borderRadius: '16px',
-                  background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '28px'
-                }}><RxRocket />
-                </div>
-                <div>
-                  <p style={{ fontSize: '15px', fontWeight: 600, color: textPrimary, margin: '0 0 6px', fontFamily: 'var(--font-display)' }}>
-                    No spaces yet
-                  </p>
-                  <p style={{ fontSize: '13px', color: textMuted, margin: '0 0 20px', lineHeight: 1.55 }}>
-                    Create your first tool space to get started.
-                  </p>
-                  <button
-                    onClick={() => setNewSpaceOpen(true)}
-                    style={{
-                      padding: '10px 22px', borderRadius: '10px', border: 'none',
-                      background: accentColor, color: '#ffffff', fontSize: '13px',
-                      fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)',
-                      transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                  >
-                    + Add New Space
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <ToolSpacesGrid spaces={spaces} onAddSpaceClick={() => setNewSpaceOpen(true)} />
-            )}
-          </div>
-        ) : null}
 
       </main>
 
