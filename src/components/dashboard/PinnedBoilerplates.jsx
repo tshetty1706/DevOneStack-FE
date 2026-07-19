@@ -113,17 +113,9 @@ export default function PinnedBoilerplates() {
     }
 
     if (doc.type === 'pdf') {
-      const token = localStorage.getItem('dos_access_token');
-      const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-      fetch(
-        `${apiUrl}/api/spaces/${realSpaceId}/docs/${doc._id}/file`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to load PDF');
-          return res.blob();
-        })
-        .then(blob => {
+      api.get(`/api/spaces/${realSpaceId}/docs/${doc._id}/file`, { responseType: 'blob' })
+        .then(response => {
+          const blob = response.data;
           const blobUrl = URL.createObjectURL(blob);
           const tab = window.open(blobUrl, '_blank');
           setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);

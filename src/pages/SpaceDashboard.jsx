@@ -10,14 +10,14 @@ import ThemeToggle from '../components/layout/ThemeToggle';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
-  RiHome4Line, RiFileTextLine, RiStickyNoteLine, RiCodeSSlashLine,
+  RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
   RiSettings3Line, RiAddLine, RiHistoryLine,
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
 import DocsSection from '../components/spaces/DocsSection';
-import NotesSection from '../components/spaces/NotesSection';
+import LearningsSection from '../components/spaces/LearningsSection';
 import SnippetsSection from '../components/spaces/SnippetsSection';
 import ReposSection from '../components/spaces/ReposSection';
 import PromptsSection from '../components/spaces/PromptsSection';
@@ -27,10 +27,10 @@ import SettingsSection from '../components/spaces/SettingsSection';
 import SpaceIcon from '../components/spaces/SpaceIcon';
 
 const SIDEBAR_ITEMS = [
-  { id: 'home', icon: RiHome4Line, label: 'Home' },
-  { id: 'docs', icon: RiFileTextLine, label: 'Docs' },
-  { id: 'notes', icon: RiStickyNoteLine, label: 'Notes' },
+  { id: 'home', icon: RiHome4Line, label: 'Overview' },
+  { id: 'learnings', icon: RiLightbulbLine, label: 'Learnings' },
   { id: 'snippets', icon: RiCodeSSlashLine, label: 'Snippets' },
+  { id: 'docs', icon: RiFileTextLine, label: 'Docs' },
   { id: 'repos', icon: RiGitRepositoryLine, label: 'Repos' },
   { id: 'prompts', icon: RiRobot2Line, label: 'Prompts' },
   { id: 'communities', icon: RiTeamLine, label: 'Communities' },
@@ -40,7 +40,7 @@ const SIDEBAR_ITEMS = [
 // Each stat card gets its own accent color to match the screenshot
 const STAT_CARDS = [
   { key: 'docsCount', icon: RiFileTextLine, label: 'Docs', iconBg: 'rgba(59,130,246,0.15)', iconColor: '#60a5fa' },
-  { key: 'notesCount', icon: RiStickyNoteLine, label: 'Notes', iconBg: 'rgba(139,92,246,0.15)', iconColor: '#a78bfa' },
+  { key: 'learningsCount', icon: RiLightbulbLine, label: 'Learnings', iconBg: 'rgba(234,179,8,0.15)', iconColor: '#eab308' },
   { key: 'snippetsCount', icon: RiCodeSSlashLine, label: 'Snippets', iconBg: 'rgba(99,102,241,0.15)', iconColor: '#818cf8' },
   { key: 'reposCount', icon: RiGitRepositoryLine, label: 'Repos', iconBg: 'rgba(249,115,22,0.15)', iconColor: '#fb923c' },
   { key: 'promptsCount', icon: RiRobot2Line, label: 'Prompts', iconBg: 'rgba(236,72,153,0.15)', iconColor: '#f472b6' },
@@ -56,17 +56,17 @@ function EmptySection({ icon: Icon, title, body, btnLabel, accent }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', padding: '80px 24px', gap: '16px', textAlign: 'center',
     }}>
-      <Icon size={48} style={{ color: isLight ? '#bbbbbb' : '#444444' }} />
+      <Icon size={48} style={{ color: 'var(--text-muted)' }} />
       <div>
-        <p style={{ fontSize: '16px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 8px' }}>{title}</p>
-        <p style={{ fontSize: '13px', color: isLight ? '#666666' : '#888888', maxWidth: '340px', margin: '0 0 20px', lineHeight: 1.6 }}>{body}</p>
+        <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-color)', margin: '0 0 8px' }}>{title}</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '340px', margin: '0 0 20px', lineHeight: 1.6 }}>{body}</p>
         {btnLabel && (
           <button style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             padding: '9px 20px', borderRadius: '10px',
-            border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
+            border: '1px solid var(--card-border)',
             background: 'transparent',
-            color: isLight ? '#333333' : '#cccccc',
+            color: 'var(--text-secondary)',
             fontSize: '13px', fontWeight: 600,
             cursor: 'default', fontFamily: 'var(--font-body)',
           }}>
@@ -81,7 +81,7 @@ function EmptySection({ icon: Icon, title, body, btnLabel, accent }) {
 // ── Section content per tab ───────────────────────────────────────────────────
 const SECTIONS = {
   docs: ({ space, isLight, highlightId }) => <DocsSection space={space} isLight={isLight} highlightId={highlightId} />,
-  notes: ({ space, isLight, openNoteId }) => <NotesSection space={space} isLight={isLight} openNoteId={openNoteId} />,
+  learnings: ({ space, isLight, highlightId }) => <LearningsSection space={space} isLight={isLight} highlightId={highlightId} />,
   snippets: ({ space, isLight, highlightId }) => <SnippetsSection space={space} isLight={isLight} highlightId={highlightId} />,
   repos: ({ space, isLight, highlightId }) => <ReposSection space={space} isLight={isLight} highlightId={highlightId} />,
   prompts: ({ space, isLight, highlightId }) => <PromptsSection space={space} isLight={isLight} highlightId={highlightId} />,
@@ -112,14 +112,14 @@ function StatCard({ stat, value, isLight }) {
   const Icon = stat.icon;
   return (
     <div style={{
-      background: isLight ? '#ffffff' : '#161616',
-      border: `1px solid ${isLight ? '#ebebeb' : '#242424'}`,
+      background: 'var(--card-bg)',
+      border: '1px solid var(--card-border)',
       borderRadius: '12px', padding: '18px 16px',
       display: 'flex', flexDirection: 'column', gap: '12px',
       transition: 'border-color 0.2s ease',
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = isLight ? '#cccccc' : '#3a3a3a'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = isLight ? '#ebebeb' : '#242424'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--card-hover-border)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--card-border)'}
     >
       <div style={{
         width: '34px', height: '34px', borderRadius: '9px',
@@ -133,12 +133,12 @@ function StatCard({ stat, value, isLight }) {
       <div>
         <div style={{
           fontSize: '26px', fontWeight: 600, lineHeight: 1,
-          color: isLight ? '#111111' : '#ffffff',
+          color: 'var(--text-color)',
           fontFamily: 'var(--font-display)',
         }}>
           {count}
         </div>
-        <div style={{ fontSize: '12px', color: isLight ? '#999999' : '#666666', marginTop: '4px', fontWeight: 500 }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 500 }}>
           {stat.label}
         </div>
       </div>
@@ -160,7 +160,6 @@ export default function SpaceDashboard() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const isLight = theme === 'light';
 
   const [isHovered, setIsHovered] = useState(false);
@@ -170,7 +169,7 @@ export default function SpaceDashboard() {
   const [openNoteId, setOpenNoteId] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -182,13 +181,24 @@ export default function SpaceDashboard() {
 
   useEffect(() => {
     const section = searchParams.get('section');
-    const noteId  = searchParams.get('noteId');
-    const id      = searchParams.get('id');
+    const noteId = searchParams.get('noteId');
+    const id = searchParams.get('id');
 
     if (section) setActiveSection(section);
-    if (noteId)  setOpenNoteId(noteId);
-    if (id)      setHighlightId(id);
+    if (noteId) setOpenNoteId(noteId);
+    if (id) setHighlightId(id);
   }, [searchParams]);
+
+  const handleSectionChange = (sectionId) => {
+    setActiveSection(sectionId);
+    setOpenNoteId(null);
+    setHighlightId(null);
+    if (sectionId === 'home') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ section: sectionId });
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -234,24 +244,24 @@ export default function SpaceDashboard() {
     staleTime: 30000,
   });
 
-  // ── Theme tokens ── matching screenshot precisely
-  const bg = isLight ? '#f2f2f7' : '#0d0d0d';
-  const sidebarBg = isLight ? '#ffffff' : '#111111';
-  const sidebarBrd = isLight ? '#ebebeb' : '#1e1e1e';
-  const mainBg = isLight ? '#f2f2f7' : '#0d0d0d';
-  const cardBg = isLight ? '#ffffff' : '#161616';
-  const cardBorder = isLight ? '#ebebeb' : '#242424';
-  const navBg = isLight ? 'rgba(242,242,247,0.92)' : 'rgba(13,13,13,0.92)';
-  const navBorder = isLight ? '#e0e0e0' : '#1e1e1e';
+  // ── Theme tokens ── matching user dashboard (Dashboard.jsx) theme colors
+  const bg = 'var(--bg-color)';
+  const sidebarBg = isLight ? '#ffffff' : '#08080c';
+  const sidebarBrd = isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)';
+  const mainBg = 'var(--bg-color)';
+  const cardBg = 'var(--card-bg)';
+  const cardBorder = 'var(--card-border)';
+  const navBg = isLight ? 'rgba(250,250,250,0.92)' : 'rgba(8, 8, 12, 0.92)';
+  const navBorder = 'var(--nav-border)';
 
-  // Indigo/violet accent — matches the active-item highlight in screenshot
-  const accent = isLight ? '#4f46e5' : '#6366f1';
-  const accentBg = isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)';
+  // Indigo/violet accent
+  const accent = 'var(--accent-color)';
+  const accentBg = isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.08)';
   const accentText = accent;
 
-  const textColor = isLight ? '#111111' : '#f0f0f0';
-  const textMuted = isLight ? '#888888' : '#666666';
-  const textSub = isLight ? '#bbbbbb' : '#444444';
+  const textColor = 'var(--text-color)';
+  const textMuted = 'var(--text-secondary)';
+  const textSub = 'var(--text-muted)';
 
   // ── Loading ──
   if (isLoading) {
@@ -287,7 +297,7 @@ export default function SpaceDashboard() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: bg, transition: 'background 0.3s ease', position: 'relative' }}>
 
       {/* Spacer to reserve space for collapsed sidebar */}
-      <div style={{ width: '64px', height: '100vh', flexShrink: 0 }} />
+      <div style={{ width: '70px', height: '100vh', flexShrink: 0 }} />
 
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
@@ -303,8 +313,8 @@ export default function SpaceDashboard() {
           transition: 'width 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms ease',
           background: sidebarBg,
           borderRight: `1px solid ${sidebarBrd}`,
-          boxShadow: isHovered 
-            ? (isLight ? '0 0 20px rgba(0,0,0,0.06), 4px 0 24px rgba(0,0,0,0.06)' : '0 0 20px rgba(0,0,0,0.4), 4px 0 24px rgba(0,0,0,0.5)') 
+          boxShadow: isHovered
+            ? (isLight ? '0 0 20px rgba(0,0,0,0.06), 4px 0 24px rgba(0,0,0,0.06)' : '0 0 20px rgba(0,0,0,0.4), 4px 0 24px rgba(0,0,0,0.5)')
             : 'none',
           display: 'flex',
           flexDirection: 'column',
@@ -312,17 +322,19 @@ export default function SpaceDashboard() {
         }}
       >
         {/* Brand */}
-        <div 
-          onClick={() => navigate('/dashboard')} 
-          style={{ 
-            padding: '16px 14px 12px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
+        <div
+          onClick={() => navigate('/dashboard')}
+          style={{
+            padding: '16px 14px 12px',
+            paddingLeft: isHovered ? '24px' : '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
             minHeight: '52px',
             cursor: 'pointer',
             overflow: 'hidden',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
@@ -352,12 +364,12 @@ export default function SpaceDashboard() {
             return (
               <Tooltip key={item.id} title={!isHovered ? item.label : ''} placement="right">
                 <button
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => handleSectionChange(item.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     padding: '10px 0',
-                    paddingLeft: isHovered ? '14px' : '20px',
+                    paddingLeft: isHovered ? '14px' : '11px',
                     borderRadius: '8px', border: 'none',
                     background: isActive ? accentBg : 'transparent',
                     color: isActive ? accentText : textMuted,
@@ -396,12 +408,12 @@ export default function SpaceDashboard() {
         <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}`, display: 'flex', flexDirection: 'column', gap: '1px' }}>
           <Tooltip title={!isHovered ? 'Settings' : ''} placement="right">
             <button
-              onClick={() => setActiveSection('settings')}
+              onClick={() => handleSectionChange('settings')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 padding: '10px 0',
-                paddingLeft: isHovered ? '14px' : '20px',
+                paddingLeft: isHovered ? '14px' : '11px',
                 borderRadius: '8px', border: 'none',
                 background: activeSection === 'settings' ? accentBg : 'transparent',
                 color: activeSection === 'settings' ? accentText : textMuted,
@@ -510,7 +522,7 @@ export default function SpaceDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1100px' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px' }}
               >
                 {/* Welcome */}
                 <div>
@@ -576,15 +588,15 @@ export default function SpaceDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ maxWidth: '1100px' }}
+                style={{ maxWidth: '1200px' }}
               >
                 {/* Section heading */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
                   <h2 style={{
-                    fontSize:      20,
-                    fontWeight:    600,
-                    color:         'var(--text-primary)',
-                    marginBottom:  4,
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: 4,
                     letterSpacing: '-0.01em',
                   }}>
                     {activeSection === 'snippets' ? 'Boilerplates & Snippets'
@@ -593,7 +605,7 @@ export default function SpaceDashboard() {
                   </h2>
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 0 }}>
                     {activeSection === 'docs' ? 'Reference documents, PDFs and external links'
-                      : activeSection === 'notes' ? 'Concept notes and markdown documentation'
+                      : activeSection === 'learnings' ? 'Structured developer learnings and logs'
                         : activeSection === 'snippets' ? 'Reusable boilerplates, scripts and configuration'
                           : activeSection === 'repos' ? 'Tracked code repositories and platforms'
                             : activeSection === 'prompts' ? 'Saved AI prompt engineering templates'

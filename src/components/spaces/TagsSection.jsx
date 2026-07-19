@@ -46,17 +46,9 @@ export default function TagsSection({ space, isLight }) {
     }
 
     if (doc.type === 'pdf') {
-      const token = localStorage.getItem('dos_access_token');
-      const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-      fetch(
-        `${apiUrl}/api/spaces/${space._id}/docs/${doc._id}/file`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to load PDF');
-          return res.blob();
-        })
-        .then(blob => {
+      api.get(`/api/spaces/${space._id}/docs/${doc._id}/file`, { responseType: 'blob' })
+        .then(response => {
+          const blob = response.data;
           const blobUrl = URL.createObjectURL(blob);
           const tab = window.open(blobUrl, '_blank');
           setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
@@ -239,15 +231,15 @@ export default function TagsSection({ space, isLight }) {
                 </div>
               )}
 
-              {/* Notes Grid */}
-              {tagContent.notes?.length > 0 && (
+              {/* Learnings Grid */}
+              {tagContent.learnings?.length > 0 && (
                 <div>
-                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', fontWeight: 600 }}>NOTES</h4>
+                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', fontWeight: 600 }}>LEARNINGS</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
-                    {tagContent.notes.map(n => (
-                      <div key={n._id} onClick={() => setSearchParams({ section: 'notes', noteId: n._id })} style={{ cursor: 'pointer', padding: '10px', background: isLight ? '#f9f9fc' : '#141414', border: `1px solid ${isLight ? '#ebebeb' : '#282828'}`, borderRadius: '8px' }}>
-                        <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff' }}>{n.title}</p>
-                        <p style={{ margin: 0, fontSize: '11px', color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.preview}</p>
+                    {tagContent.learnings.map(l => (
+                      <div key={l._id} onClick={() => setSearchParams({ section: 'learnings', id: l._id })} style={{ cursor: 'pointer', padding: '10px', background: isLight ? '#f9f9fc' : '#141414', border: `1px solid ${isLight ? '#ebebeb' : '#282828'}`, borderRadius: '8px' }}>
+                        <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff' }}>{l.title}</p>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.content}</p>
                       </div>
                     ))}
                   </div>

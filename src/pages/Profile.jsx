@@ -7,7 +7,7 @@ import {
   RiMapPin2Line, RiGlobalLine, RiGithubLine, RiLinkedinLine,
   RiTwitterXLine, RiBookOpenLine, RiDeleteBin6Line, RiAddLine,
   RiArrowLeftLine, RiCalendarLine, RiLayoutGridLine,
-  RiFileTextLine, RiCodeSSlashLine, RiFolder5Line, RiCameraLine
+  RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine, RiFolder5Line, RiCameraLine
 } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -29,7 +29,7 @@ export default function Profile() {
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const { data: spaces = [] } = useSpaces();
 
-  const notesCount = spaces.reduce((acc, s) => acc + (s.notesCount || 0), 0);
+  const learningsCount = spaces.reduce((acc, s) => acc + (s.learningsCount || 0), 0);
   const snippetsCount = spaces.reduce((acc, s) => acc + (s.snippetsCount || 0), 0);
   const resourcesCount = spaces.reduce((acc, s) => acc + (s.docsCount || 0), 0);
 
@@ -192,13 +192,13 @@ export default function Profile() {
       borderColor: 'rgba(129, 140, 248, 0.15)'
     },
     {
-      label: 'Notes',
-      count: notesCount,
+      label: 'Learnings',
+      count: learningsCount,
       subtitle: '+12 this week',
-      icon: <RiFileTextLine size={18} />,
-      color: '#f59e0b',
-      bg: 'rgba(245, 158, 11, 0.08)',
-      borderColor: 'rgba(245, 158, 11, 0.15)'
+      icon: <RiLightbulbLine size={18} />,
+      color: '#eab308',
+      bg: 'rgba(234, 179, 8, 0.08)',
+      borderColor: 'rgba(234, 179, 8, 0.15)'
     },
     {
       label: 'Snippets',

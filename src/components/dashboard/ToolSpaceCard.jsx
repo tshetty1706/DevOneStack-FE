@@ -115,7 +115,7 @@ export default function ToolSpaceCard({ space, index, onEditClick }) {
   const initials = space.name ? space.name.substring(0, 2).toLowerCase() : 'sp';
 
   const metaText = space.meta || 
-    `${space.notesCount || 0} notes · ${space.snippetsCount || 0} snippets · ${space.docsCount || 0} docs`;
+    `${space.learningsCount || 0} learnings · ${space.snippetsCount || 0} snippets · ${space.docsCount || 0} docs`;
 
   // Real-time ticking relative time state
   const [relativeTime, setRelativeTime] = useState(formatRelativeTime(space.updatedAt || space.createdAt));

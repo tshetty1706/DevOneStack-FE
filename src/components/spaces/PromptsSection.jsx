@@ -182,6 +182,13 @@ export default function PromptsSection({ space, isLight, highlightId }) {
   const closeModal = () => {
     setModalOpen(false);
     setEditingPrompt(null);
+    
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('id')) {
+      params.delete('id');
+      const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState(null, '', newRelativePathQuery);
+    }
   };
 
   const handleSubmit = () => {

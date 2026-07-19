@@ -26,7 +26,7 @@ export default function PinnedResources() {
     queryFn: () => api.get('/api/dashboard/pinned').then(r => r.data),
   });
 
-  const notes = data?.notes?.map(x => ({ ...x, itemType: 'note' })) || [];
+  const learnings = data?.learnings?.map(x => ({ ...x, itemType: 'learning' })) || [];
   const snippets = data?.snippets?.map(x => ({ ...x, itemType: 'snippet' })) || [];
   const docs = data?.docs?.map(x => ({ ...x, itemType: 'doc' })) || [];
   const repos = data?.repos?.map(x => ({ ...x, itemType: 'repo' })) || [];
@@ -34,7 +34,7 @@ export default function PinnedResources() {
   const communities = data?.communities?.map(x => ({ ...x, itemType: 'community' })) || [];
 
   const allPinnedItems = [
-    ...notes,
+    ...learnings,
     ...snippets,
     ...docs,
     ...repos,
@@ -55,8 +55,8 @@ export default function PinnedResources() {
 
   const handleOpen = (item) => {
     const realSpaceId = item.spaceId?._id || item.spaceId;
-    if (item.itemType === 'note') {
-      window.open(`/spaces/${realSpaceId}?section=notes&noteId=${item._id}`, '_self');
+    if (item.itemType === 'learning') {
+      window.open(`/spaces/${realSpaceId}?section=learnings&id=${item._id}`, '_self');
     } else if (item.itemType === 'snippet') {
       window.open(`/spaces/${realSpaceId}?section=snippets&id=${item._id}`, '_self');
     } else if (item.itemType === 'prompt') {

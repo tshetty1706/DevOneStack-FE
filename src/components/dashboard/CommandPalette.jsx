@@ -67,7 +67,7 @@ export default function CommandPalette({ open, onClose }) {
               <RiSearchLine size={18} style={{ color: textMuted, flexShrink: 0 }} />
               <input
                 autoFocus
-                placeholder="Search spaces, notes, snippets…"
+                placeholder="Search spaces, learnings, snippets…"
                 style={{
                   flex: 1, border: 'none', outline: 'none',
                   background: 'transparent', fontSize: '15px',

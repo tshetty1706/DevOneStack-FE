@@ -502,7 +502,15 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
         open={!!viewSnippet}
         snippet={viewSnippet}
         spaceId={space._id}
-        onClose={() => { setViewSnippet(null); }}
+        onClose={() => {
+          setViewSnippet(null);
+          const params = new URLSearchParams(window.location.search);
+          if (params.has('id')) {
+            params.delete('id');
+            const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState(null, '', newRelativePathQuery);
+          }
+        }}
         onEdit={(s) => openEditModal(s)}
       />
     </div>

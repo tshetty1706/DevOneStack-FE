@@ -45,7 +45,7 @@ const STATS_CONFIG = [
     key: 'resources',
     icon: <RiLinksLine />,
     label: 'Resources',
-    subtext: 'Docs, videos, links & notes',
+    subtext: 'Docs, videos, links & learnings',
   },
   {
     key: 'prompts',
