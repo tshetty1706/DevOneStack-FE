@@ -1,6 +1,16 @@
+import { Link } from 'react-router-dom';
+
 export default function Logo() {
     return (
-        <>
+        <Link to="/" style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            textDecoration: 'none',
+            color: 'inherit',
+            cursor: 'pointer',
+            flexShrink: 0
+        }}>
             <svg
                 width="32"
                 height="32"
@@ -33,7 +43,16 @@ export default function Logo() {
                     opacity="0.5"
                 />
             </svg>
-            <span>DevOneStack</span>
-        </>
+            <span style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: '20px',
+                color: 'var(--text-color)',
+                letterSpacing: '-0.02em',
+                lineHeight: 1
+            }}>
+                DevOneStack
+            </span>
+        </Link>
     )
 }

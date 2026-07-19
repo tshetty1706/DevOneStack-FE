@@ -1,4 +1,4 @@
-export default function OnlyLog() {
+export default function OnlyLogo() {
     return (
         <>
             <svg

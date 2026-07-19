@@ -65,6 +65,7 @@ src/
 │   ├── dashboard/  # Navbar, SpaceCards, NewSpaceModal, RecentActivity, etc.
 │   ├── home/       # Landing page sections
 │   └── layout/     # Navbar, Footer, ThemeToggle, Logo
+│   └── spaces/     # SpaceDashboard sections (Docs, Notes, Snippets, etc.)
 ├── context/        # AuthContext, ThemeContext
 ├── hooks/          # useSpaces, useStats
 ├── pages/          # All page components
@@ -76,13 +77,18 @@ src/
 ## Key Features
 
 - **Spaces** — Create and manage tool workspaces (React, Node.js, Docker, etc.)
+  - **Dynamic Branding**: Custom brand icon auto-detection based on space name (e.g. naming it "React" automatically displays the React logo).
+  - **Ellipsis Actions**: Inline Pin/Unpin, Edit/Rename, and Delete options inside cards.
+  - **Real-time Activity Ticking**: Relatve update times tick dynamically in real-time.
 - **Space Dashboard** — Workspace with sidebar sections: Docs, Notes, Snippets, Repos, Prompts, Communities, Tags. 
+  - **Dynamic Sidebar Overlay**: MongoDB Atlas-style hover-expand sidebar utilizing absolute overlays and smooth slide/fade animations without causing layout reflows on the right.
   - **Universal Pinning**: Pin notes, snippets, docs, repos, prompts, and communities directly.
   - **Deep-linking & Highlighting**: URL parameter query selection (`?section=notes&noteId=ID`) to navigate and highlight specific resources.
   - **PDF & Image Previews**: View uploaded PDFs inline in a new tab, and raw images in popup previews.
+- **Unified Profile Aesthetic** — Clean single-container layout for avatar, details, edit triggers, and dynamic stats counters (aggregating total spaces, notes, snippets, and documents via queries).
+- **Searchable Pinned Resources** — Dashboard pinned widget supporting copy-to-clipboard, previews, and instant local text filtering with scrollable layout.
 - **Scroll & Layout Improvements** — Custom scroll bars, modal vertical overflow settings, and `data-lenis-prevent` smooth scroll boundary configuration.
 - **Tags Cloud** — Dynamic tag cloud with frequency-based sizing and click navigation.
-- **Overhauled Pinned Widget** — Horizontal scrolling track displaying pinned resources with copying options, syntax-highlighted code preview modal, and external redirect buttons.
 - **Isolated Space Activity Feed** — Recent activity under the space view shows actions related to that specific space only.
 - **Theme** — Dark/light mode toggle persisted across sessions, with refined tag colors in dark mode.
 - **Auth** — httpOnly cookie-based JWT, auto token refresh, Google OAuth.

@@ -163,7 +163,7 @@ export default function SpaceDashboard() {
   const queryClient = useQueryClient();
   const isLight = theme === 'light';
 
-  const [collapsed, setCollapsed] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [userName, setUserName] = useState('Developer');
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
@@ -284,31 +284,63 @@ export default function SpaceDashboard() {
   const SectionComp = SECTIONS[activeSection];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: bg, transition: 'background 0.3s ease' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: bg, transition: 'background 0.3s ease', position: 'relative' }}>
+
+      {/* Spacer to reserve space for collapsed sidebar */}
+      <div style={{ width: '64px', height: '100vh', flexShrink: 0 }} />
 
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside style={{
-        width: collapsed ? '56px' : '200px',
-        transition: 'width 250ms ease',
-        height: '100vh',
-        overflow: 'hidden',
-        flexShrink: 0,
-        background: sidebarBg,
-        borderRight: `1px solid ${sidebarBrd}`,
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 100,
-      }}>
-        {/* Brand + toggle */}
-        <div style={{ padding: '14px 12px 10px', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', gap: '8px', minHeight: '52px' }}>
-          {!collapsed && (
-            <div onClick={() => navigate('/dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: textColor, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-              <Logo />
-            </div>
-          )}
-          <button onClick={() => setCollapsed(p => !p)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '6px', flexShrink: 0 }}>
-            <RiMenuLine size={16} />
-          </button>
+      <aside
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: isHovered ? '220px' : '64px',
+          height: '100vh',
+          zIndex: 1000,
+          transition: 'width 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms ease',
+          background: sidebarBg,
+          borderRight: `1px solid ${sidebarBrd}`,
+          boxShadow: isHovered 
+            ? (isLight ? '0 0 20px rgba(0,0,0,0.06), 4px 0 24px rgba(0,0,0,0.06)' : '0 0 20px rgba(0,0,0,0.4), 4px 0 24px rgba(0,0,0,0.5)') 
+            : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Brand */}
+        <div 
+          onClick={() => navigate('/dashboard')} 
+          style={{ 
+            padding: '16px 14px 12px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            minHeight: '52px',
+            cursor: 'pointer',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
+            <OnlyLogo />
+          </div>
+          <span style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 800,
+            fontSize: '16px',
+            color: textColor,
+            letterSpacing: '-0.02em',
+            whiteSpace: 'nowrap',
+            opacity: isHovered ? 1 : 0,
+            transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
+            transition: 'opacity 200ms ease, transform 200ms ease',
+          }}>
+            DevOneStack
+          </span>
         </div>
 
 
@@ -318,14 +350,14 @@ export default function SpaceDashboard() {
             const isActive = activeSection === item.id;
             const Icon = item.icon;
             return (
-              <Tooltip key={item.id} title={collapsed ? item.label : ''} placement="right">
+              <Tooltip key={item.id} title={!isHovered ? item.label : ''} placement="right">
                 <button
                   onClick={() => setActiveSection(item.id)}
                   style={{
-                    display: 'flex', alignItems: 'center',
-                    gap: '9px',
-                    padding: collapsed ? '10px 0' : '8px 10px',
-                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '10px 0',
+                    paddingLeft: isHovered ? '14px' : '20px',
                     borderRadius: '8px', border: 'none',
                     background: isActive ? accentBg : 'transparent',
                     color: isActive ? accentText : textMuted,
@@ -333,15 +365,27 @@ export default function SpaceDashboard() {
                     fontSize: '13px',
                     fontWeight: isActive ? 600 : 500,
                     cursor: 'pointer', width: '100%', textAlign: 'left',
-                    borderLeft: isActive ? `2.5px solid ${accent}` : '2.5px solid transparent',
-                    transition: 'all 0.15s ease',
+                    borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
+                    transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, color 0.15s, border-left-color 0.15s',
                     whiteSpace: 'nowrap',
+                    overflow: 'hidden',
                   }}
                   onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
                   onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
                 >
-                  <Icon size={20} />
-                  {!collapsed && <span>{item.label}</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+                    <Icon size={20} />
+                  </div>
+                  <span style={{
+                    opacity: isHovered ? 1 : 0,
+                    transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
+                    transition: 'opacity 200ms ease, transform 200ms ease',
+                    fontSize: '13px',
+                    fontWeight: isActive ? 600 : 500,
+                    marginLeft: '12px',
+                  }}>
+                    {item.label}
+                  </span>
                 </button>
               </Tooltip>
             );
@@ -350,26 +394,39 @@ export default function SpaceDashboard() {
 
         {/* Footer */}
         <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}`, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          <Tooltip title={collapsed ? 'Settings' : ''} placement="right">
+          <Tooltip title={!isHovered ? 'Settings' : ''} placement="right">
             <button
               onClick={() => setActiveSection('settings')}
               style={{
-                display: 'flex', alignItems: 'center', gap: '9px',
-                padding: collapsed ? '10px 0' : '8px 10px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '10px 0',
+                paddingLeft: isHovered ? '14px' : '20px',
                 borderRadius: '8px', border: 'none',
                 background: activeSection === 'settings' ? accentBg : 'transparent',
                 color: activeSection === 'settings' ? accentText : textMuted,
                 fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: activeSection === 'settings' ? 600 : 500,
                 cursor: 'pointer', width: '100%', whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-                borderLeft: activeSection === 'settings' ? `2.5px solid ${accent}` : '2.5px solid transparent',
+                transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, color 0.15s, border-left-color 0.15s',
+                borderLeft: activeSection === 'settings' ? `3px solid ${accent}` : '3px solid transparent',
+                overflow: 'hidden',
               }}
               onMouseEnter={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
               onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
             >
-              <RiSettings3Line size={15} />
-              {!collapsed && <span>Settings</span>}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+                <RiSettings3Line size={20} />
+              </div>
+              <span style={{
+                opacity: isHovered ? 1 : 0,
+                transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
+                transition: 'opacity 200ms ease, transform 200ms ease',
+                fontSize: '13px',
+                fontWeight: activeSection === 'settings' ? 600 : 500,
+                marginLeft: '12px',
+              }}>
+                Settings
+              </span>
             </button>
           </Tooltip>
         </div>

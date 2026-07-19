@@ -32,10 +32,7 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo">
-          {/* Custom SVG Logo Mark */}
-          <Logo />
-        </Link>
+        <Logo />
 
         <div className="navbar-menu">
           {MENU_ITEMS.map((item) => (
