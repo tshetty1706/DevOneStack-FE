@@ -9,6 +9,7 @@ import {
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { QuickAddLearningModal } from './QuickAddModals';
 import api from '../../api/axios';
 
 const TYPE_CONFIG = {
@@ -728,137 +729,15 @@ export default function LearningsSection({ space, isLight, highlightId }) {
       </div>
 
       {/* CREATE / EDIT DIALOG MODAL */}
-      <Modal
-        title={editingLearning ? 'Edit Developer Learning' : 'Log New Developer Knowledge'}
+      <QuickAddLearningModal
         open={modalOpen}
-        onCancel={closeModal}
-        onOk={handleSubmit}
-        okText={editingLearning ? 'Update Entry' : 'Log Entry'}
-        cancelText="Cancel"
-        width={580}
-        style={{ top: 40 }}
-        styles={{
-          body: {
-            maxHeight: 'calc(100vh - 160px)',
-            overflowY: 'auto',
-            padding: '20px 24px',
-            scrollbarWidth: 'thin'
-          },
-          mask: { backdropFilter: 'blur(4px)' }
+        onClose={closeModal}
+        space={space}
+        editingLearning={editingLearning}
+        onSuccess={(learning) => {
+          if (learning?._id) setSelectedId(learning._id);
         }}
-        getContainer={false}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
-          
-          {/* Row 1: Type Selection */}
-          <div className="learning-type-select">
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>PURPOSE / TYPE</label>
-            <Select
-              value={type}
-              onChange={(val) => setType(val)}
-              style={{ width: '100%' }}
-              dropdownStyle={{ background: themeCardBg }}
-              options={Object.entries(TYPE_CONFIG).map(([key, config]) => ({
-                value: key,
-                label: (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <config.icon size={13} style={{ color: config.color }} />
-                    <span style={{ fontSize: '13px' }}>{config.label}</span>
-                  </div>
-                )
-              }))}
-            />
-          </div>
-
-          {/* Row 2: Title */}
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>TITLE</label>
-            <Input
-              placeholder="e.g. Why useEffect cleanup matters"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ background: themeInputBg, borderColor: themeInputBorder, color: isLight ? '#111' : '#fff' }}
-            />
-          </div>
-
-          {/* Row 3: What did you learn */}
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>WHAT DID YOU LEARN?</label>
-            <Input.TextArea
-              placeholder="Explanation of the concept, fix details, gotcha warning, or best practices you discovered..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={5}
-              style={{
-                background: themeInputBg,
-                borderColor: themeInputBorder,
-                color: isLight ? '#111' : '#fff',
-                fontSize: '13px',
-                lineHeight: 1.5
-              }}
-            />
-          </div>
-
-          {/* Row 4: Tags Select */}
-          <div className="learning-tags-select">
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>TAGS</label>
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              placeholder="Add tag keywords..."
-              value={tags}
-              onChange={(val) => setTags(val)}
-            />
-          </div>
-
-          {/* Optional Code Example Toggler */}
-          <div style={{ borderTop: `1px solid ${themeBorder}`, paddingTop: '12px', marginTop: '6px' }}>
-            <Button
-              type={hasCode ? 'primary' : 'default'}
-              danger={hasCode}
-              onClick={() => setHasCode(!hasCode)}
-              size="small"
-              style={{ fontSize: '11px', fontWeight: 600 }}
-            >
-              {hasCode ? 'Remove Code Example' : '+ Add Code Example'}
-            </Button>
-          </div>
-
-          {/* Optional Code Example Inputs */}
-          {hasCode && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: isLight ? '#f9fafb' : '#111116', padding: '12px', borderRadius: '8px', border: `1px solid ${themeBorder}` }}>
-              <div className="learning-type-select">
-                <label style={{ fontSize: '10px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>CODE LANGUAGE</label>
-                <Select
-                  options={LANGUAGES}
-                  style={{ width: '150px' }}
-                  value={codeLanguage}
-                  onChange={(val) => setCodeLanguage(val)}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '10px', color: '#888', display: 'block', marginBottom: '4px', fontWeight: 600 }}>CODE BLOCK</label>
-                <Input.TextArea
-                  placeholder="// Illustrate with a code example..."
-                  value={codeContent}
-                  onChange={(e) => setCodeContent(e.target.value)}
-                  rows={8}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    background: themeInputBg,
-                    borderColor: themeInputBorder,
-                    color: isLight ? '#000' : '#fff'
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-        </div>
-      </Modal>
-
+      />
     </div>
   );
 }

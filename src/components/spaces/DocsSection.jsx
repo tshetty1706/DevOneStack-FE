@@ -8,6 +8,7 @@ import {
   RiHistoryLine, RiTeamLine 
 } from 'react-icons/ri';
 import api from '../../api/axios';
+import { QuickAddDocModal } from './QuickAddModals';
 
 const { Dragger } = Upload;
 
@@ -637,109 +638,11 @@ export default function DocsSection({ space, isLight, highlightId }) {
       )}
 
       {/* Add Doc Modal */}
-      <Modal
-        title="Add New Reference Document"
+      <QuickAddDocModal
         open={modalOpen}
-        onCancel={resetForm}
-        onOk={handleSubmit}
-        confirmLoading={loading}
-        okText="Add Document"
-        cancelText="Cancel"
-        style={{ top: 40 }}
-        styles={{
-          body: {
-            maxHeight: 'calc(100vh - 160px)',
-            overflowY: 'auto',
-            padding: '20px 24px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--border) transparent',
-          },
-          mask: { backdropFilter: 'blur(4px)' },
-        }}
-        getContainer={false}
-      >
-        <div style={{ display: 'flex', gap: '8px', borderBottom: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`, paddingBottom: '12px', marginBottom: '16px' }}>
-          {[
-            { id: 'url', label: 'External URL' },
-            { id: 'pdf', label: 'PDF Document' },
-            { id: 'image', label: 'Image/Diagram' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setFile(null); }}
-              style={{
-                padding: '6px 12px', borderRadius: '6px', border: 'none',
-                background: activeTab === tab.id ? (isLight ? '#e5e7eb' : '#2a2a2a') : 'transparent',
-                color: activeTab === tab.id ? (isLight ? '#111' : '#fff') : '#888',
-                fontWeight: 600, fontSize: '12px', cursor: 'pointer'
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {activeTab === 'url' ? (
-            <>
-              <div>
-                <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>DOCUMENT TITLE</label>
-                <Input placeholder="e.g. React Official Getting Started Guide" value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>EXTERNAL URL</label>
-                <Input placeholder="https://react.dev/learn" value={url} onChange={(e) => setUrl(e.target.value)} />
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>UPLOAD FILE</label>
-                <Dragger
-                  accept={activeTab === 'pdf' ? '.pdf' : 'image/*'}
-                  beforeUpload={(file) => {
-                    if (file.size > 10 * 1024 * 1024) {
-                      message.error('File size must be less than 10MB');
-                      return Upload.LIST_IGNORE;
-                    }
-                    setFile(file);
-                    return false; // Stop automatic upload
-                  }}
-                  maxCount={1}
-                  onRemove={() => setFile(null)}
-                >
-                  <div style={{ padding: '16px 0' }}>
-                    <RiUploadCloudLine size={32} style={{ color: '#888', marginBottom: '8px' }} />
-                    <p style={{ fontSize: '13px', fontWeight: 500, margin: 0 }}>Click or drag file here to upload</p>
-                    <p style={{ fontSize: '11px', color: '#666', margin: '4px 0 0' }}>PDF or Images up to 10MB</p>
-                  </div>
-                </Dragger>
-                {file && <span style={{ fontSize: '12px', color: '#22c55e', display: 'block', marginTop: '6px' }}>Selected: {file.name}</span>}
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>DOCUMENT TITLE</label>
-                <Input placeholder="e.g. Architecture Diagram (Optional)" value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-            </>
-          )}
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>CAPTION / DESCRIPTION</label>
-            <Input.TextArea placeholder="Brief description of the resource..." value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={300} rows={3} />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>TAGS</label>
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              placeholder="Type tags and hit enter"
-              value={tags}
-              onChange={(value) => setTags(value)}
-            />
-          </div>
-        </div>
-      </Modal>
+        onClose={() => setModalOpen(false)}
+        space={space}
+      />
       {/* Hidden Image component for previewing doc images */}
       <Image
         src={previewUrl || null}

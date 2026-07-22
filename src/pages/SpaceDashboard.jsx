@@ -12,7 +12,7 @@ import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
   RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
-  RiSettings3Line, RiAddLine, RiHistoryLine,
+  RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine,
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
@@ -25,6 +25,14 @@ import CommunitiesSection from '../components/spaces/CommunitiesSection';
 import TagsSection from '../components/spaces/TagsSection';
 import SettingsSection from '../components/spaces/SettingsSection';
 import SpaceIcon from '../components/spaces/SpaceIcon';
+import {
+  QuickAddLearningModal,
+  QuickAddSnippetModal,
+  QuickAddDocModal,
+  QuickAddRepoModal,
+  QuickAddPromptModal,
+  QuickAddCommunityModal,
+} from '../components/spaces/QuickAddModals';
 
 const SIDEBAR_ITEMS = [
   { id: 'home', icon: RiHome4Line, label: 'Overview' },
@@ -170,6 +178,7 @@ export default function SpaceDashboard() {
   const [highlightId, setHighlightId] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const [quickAddModal, setQuickAddModal] = useState(null); // 'learnings'|'snippets'|'docs'|'repos'|'prompts'|'communities'|null
 
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -541,42 +550,171 @@ export default function SpaceDashboard() {
                   ))}
                 </div>
 
-                {/* Recent activity */}
-                <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: textColor, margin: '0 0 16px', letterSpacing: '-0.01em' }}>
-                    Recent activity
-                  </p>
+                {/* Recent Activity + Quick Add side-by-side */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
 
-                  {activity.length === 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '32px 0', textAlign: 'center' }}>
-                      <RiHistoryLine size={36} style={{ color: textSub }} />
-                      <div>
-                        <p style={{ fontSize: '14px', fontWeight: 600, color: textColor, margin: '0 0 4px' }}>No activity yet</p>
-                        <p style={{ fontSize: '12px', color: textMuted, margin: 0, lineHeight: 1.5 }}>
-                          Start adding docs, notes, or snippets — your activity will appear here.
-                        </p>
-                      </div>
+                  {/* ── Recent Activity Timeline ── */}
+                  <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: textColor, margin: 0, letterSpacing: '-0.01em' }}>
+                        Recent Activity
+                      </p>
+
                     </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {activity.map((item, i) => (
-                        <div key={item._id || i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '9px', transition: 'background 0.15s ease' }}
-                          onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f8f8f8' : '#1e1e1e'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: accentBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: accentText, fontSize: '11px', fontWeight: 700 }}>
-                            {(item.meta?.spaceName || space.name).slice(0, 2).toUpperCase()}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: textColor }}>{item.label}</p>
-                            <p style={{ margin: 0, fontSize: '11px', color: textMuted }}>
-                              {timeAgo(item.createdAt)} · {item.meta?.spaceName || space.name}
-                            </p>
-                          </div>
+
+                    {activity.length === 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '32px 0', textAlign: 'center' }}>
+                        <RiHistoryLine size={36} style={{ color: textSub }} />
+                        <div>
+                          <p style={{ fontSize: '14px', fontWeight: 600, color: textColor, margin: '0 0 4px' }}>No activity yet</p>
+                          <p style={{ fontSize: '12px', color: textMuted, margin: 0, lineHeight: 1.5 }}>
+                            Start adding docs, notes, or snippets — your activity will appear here.
+                          </p>
                         </div>
-                      ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative' }}>
+                        {/* Vertical timeline line */}
+                        <div style={{
+                          position: 'absolute',
+                          left: '15px',
+                          top: '6px',
+                          bottom: '6px',
+                          width: '2px',
+                          background: isLight ? '#e5e5e5' : 'rgba(255,255,255,0.06)',
+                          borderRadius: '1px',
+                          zIndex: 0,
+                        }} />
+
+                        {activity.map((item, i) => {
+                          // Determine activity type for icon/color from the action field
+                          const actionMap = {
+                            created_learning: { icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.12)', tag: 'Learning' },
+                            created_snippet: { icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.12)', tag: 'Snippet' },
+                            created_doc: { icon: RiFileTextLine, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', tag: 'Doc' },
+                            created_repo: { icon: RiGitRepositoryLine, color: '#fb923c', bg: 'rgba(249,115,22,0.12)', tag: 'Repository' },
+                            created_prompt: { icon: RiRobot2Line, color: '#f472b6', bg: 'rgba(236,72,153,0.12)', tag: 'Prompt' },
+                            created_community: { icon: RiTeamLine, color: '#22d3ee', bg: 'rgba(6,182,212,0.12)', tag: 'Community' },
+                          };
+                          const meta = actionMap[item.action] || { icon: RiHistoryLine, color: isLight ? '#888' : '#666', bg: isLight ? '#f0f0f0' : 'rgba(255,255,255,0.06)', tag: item.action?.replace('created_', '').replace('_', ' ') || 'Activity' };
+                          const ActIcon = meta.icon;
+
+                          return (
+                            <div
+                              key={item._id || i}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '14px',
+                                padding: '10px 10px 10px 0', position: 'relative',
+                                borderRadius: '9px', transition: 'background 0.15s ease',
+                                cursor: 'default',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                              {/* Timeline dot + icon */}
+                              <div style={{
+                                width: '30px', height: '30px', borderRadius: '8px',
+                                background: meta.bg,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0, zIndex: 1,
+                                color: meta.color,
+                                border: `2px solid ${isLight ? '#fff' : '#0a0a10'}`,
+                              }}>
+                                <ActIcon size={14} />
+                              </div>
+
+                              {/* Label + tag */}
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
+                                  {item.label}
+                                </p>
+                                <span style={{
+                                  fontSize: '10px', fontWeight: 600,
+                                  padding: '2px 8px', borderRadius: '20px',
+                                  background: meta.bg, color: meta.color,
+                                  whiteSpace: 'nowrap',
+                                  letterSpacing: '0.02em',
+                                }}>
+                                  {meta.tag}
+                                </span>
+                              </div>
+
+                              {/* Timestamp */}
+                              <span style={{ fontSize: '11px', color: textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                {timeAgo(item.createdAt)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Quick Add Panel ── */}
+                  <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+                      <RiFlashlightLine size={15} style={{ color: '#eab308' }} />
+                      <p style={{
+                        fontSize: '12px', fontWeight: 800, color: textColor,
+                        margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
+                        fontFamily: 'var(--font-display)',
+                      }}>
+                        Quick Add
+                      </p>
                     </div>
-                  )}
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', flex: 1 }}>
+                      {[
+                        { label: 'Learning', section: 'learnings', icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.08)' },
+                        { label: 'Snippet', section: 'snippets', icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.08)' },
+                        { label: 'Doc', section: 'docs', icon: RiFileTextLine, color: '#60a5fa', bg: 'rgba(59,130,246,0.08)' },
+                        { label: 'Repository', section: 'repos', icon: RiGitRepositoryLine, color: '#fb923c', bg: 'rgba(249,115,22,0.08)' },
+                        { label: 'Prompt', section: 'prompts', icon: RiRobot2Line, color: '#f472b6', bg: 'rgba(236,72,153,0.08)' },
+                        { label: 'Community', section: 'communities', icon: RiTeamLine, color: '#22d3ee', bg: 'rgba(6,182,212,0.08)' },
+                      ].map(qa => {
+                        const QaIcon = qa.icon;
+                        return (
+                          <button
+                            key={qa.section}
+                            onClick={() => setQuickAddModal(qa.section)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '10px',
+                              padding: '12px 14px', borderRadius: '10px',
+                              border: `1px solid ${isLight ? '#e8e8e8' : 'rgba(255,255,255,0.07)'}`,
+                              background: 'transparent',
+                              color: textColor,
+                              fontSize: '13px', fontWeight: 600,
+                              cursor: 'pointer',
+                              fontFamily: 'var(--font-body)',
+                              transition: 'all 0.2s ease',
+                              textAlign: 'left',
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = qa.bg;
+                              e.currentTarget.style.borderColor = qa.color + '44';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.borderColor = isLight ? '#e8e8e8' : 'rgba(255,255,255,0.07)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            <div style={{
+                              width: '28px', height: '28px', borderRadius: '7px',
+                              background: qa.bg,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: qa.color, flexShrink: 0,
+                            }}>
+                              <QaIcon size={14} />
+                            </div>
+                            <span>+ {qa.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
               </motion.div>
 
@@ -627,6 +765,18 @@ export default function SpaceDashboard() {
 
       <ThemeToggle />
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
+
+      {/* ── Quick Add Modals (rendered at dashboard home level) ── */}
+      {space && (
+        <>
+          <QuickAddLearningModal   open={quickAddModal === 'learnings'}   onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddSnippetModal    open={quickAddModal === 'snippets'}    onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddDocModal        open={quickAddModal === 'docs'}        onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddRepoModal       open={quickAddModal === 'repos'}       onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddPromptModal     open={quickAddModal === 'prompts'}     onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddCommunityModal  open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} />
+        </>
+      )}
     </div>
   );
 }

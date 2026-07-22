@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, Switch, message, Tooltip } from 'antd';
-import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearchLine, RiPushpinLine, RiPushpin2Fill } from 'react-icons/ri';
+import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearchLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiGitRepositoryLine, RiTeamLine, RiExternalLinkLine } from 'react-icons/ri';
 import { SiBitbucket } from 'react-icons/si';
 import api from '../../api/axios';
+import { QuickAddRepoModal } from './QuickAddModals';
 
 const PLATFORMS = [
   { value: 'github', label: 'GitHub' },
@@ -212,12 +213,12 @@ export default function ReposSection({ space, isLight, highlightId }) {
     }
   };
 
-  const getPlatformIcon = (plat) => {
+  const getPlatformIcon = (plat, size = 16) => {
     switch (plat) {
-      case 'github': return <RiGithubLine size={20} style={{ color: '#888' }} />;
-      case 'gitlab': return <RiGitlabLine size={20} style={{ color: '#fc6d26' }} />;
-      case 'bitbucket': return <SiBitbucket size={18} style={{ color: '#0052cc' }} />;
-      default: return <RiLink size={20} style={{ color: '#888' }} />;
+      case 'github': return <RiGithubLine size={size} />;
+      case 'gitlab': return <RiGitlabLine size={size} style={{ color: '#fc6d26' }} />;
+      case 'bitbucket': return <SiBitbucket size={size - 2} style={{ color: '#0052cc' }} />;
+      default: return <RiLink size={size} />;
     }
   };
 
@@ -257,97 +258,161 @@ export default function ReposSection({ space, isLight, highlightId }) {
           No repositories linked. Add your GitHub or GitLab projects!
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
           {repos.map((repo) => (
             <div
               key={repo._id}
               style={{
-                background:   'var(--card)',
-                border:       '1px solid var(--border)',
-                borderRadius: 10,
-                padding:      '12px 16px',
+                background:   isLight ? '#ffffff' : '#14141c',
+                border:       `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
+                borderRadius: '12px',
+                padding:      '18px 20px',
                 display:      'flex',
-                alignItems:   'center',
-                justifyContent: 'space-between',
-                gap:          '16px',
-                transition:   'border-color 0.15s, background 0.15s',
+                flexDirection:'column',
+                gap:          '14px',
+                position:     'relative',
+                transition:   'all 0.2s ease',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--border-strong)';
-                e.currentTarget.style.background  = 'var(--card-hover)';
+                e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
+                e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.background  = 'var(--card)';
+                e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+                e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                <div style={{ flexShrink: 0 }}>
-                  {getPlatformIcon(repo.platform)}
+              {/* Header Row: Badge & Pin */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                    padding: '2px 8px', borderRadius: '4px',
+                    background: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.12)',
+                    border: `1px solid ${isLight ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.25)'}`,
+                    color: '#fb923c', display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    {getPlatformIcon(repo.platform, 12)}
+                    <span>{(repo.platform || 'REPO').toUpperCase()}</span>
+                  </span>
+                  {repo.isOwn && (
+                    <span style={{
+                      fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
+                      padding: '2px 6px', borderRadius: '4px',
+                      background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.25)', color: '#22c55e'
+                    }}>
+                      OWN REPO
+                    </span>
+                  )}
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <a
-                      href={repo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: '14px', fontWeight: 600, color: isLight ? '#4f46e5' : '#6366f1', textDecoration: 'none' }}
-                    >
+                <PinButton isPinned={repo.isPinned} onToggle={() => togglePin.mutate(repo._id)} />
+              </div>
+
+              {/* Main Content info */}
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '10px',
+                  background: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.12)',
+                  border: `1px solid ${isLight ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.25)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fb923c', flexShrink: 0
+                }}>
+                  {getPlatformIcon(repo.platform, 24)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href={repo.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
                       {repo.name}
                     </a>
-                    {repo.isOwn && (
-                      <Tag color="success" style={{ fontSize: '9px', lineHeight: 1.5, borderRadius: '4px' }}>
-                        Own Repo
-                      </Tag>
-                    )}
-                  </div>
-                  {repo.caption && (
-                    <p style={{ fontSize: '12px', color: '#888', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  </h4>
+                  {repo.caption ? (
+                    <p style={{
+                      fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,
+                      overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+                    }}>
                       {repo.caption}
                     </p>
+                  ) : (
+                    <div style={{ height: '4px' }} />
+                  )}
+
+                  {repo.tags && repo.tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                      {repo.tags.map(t => (
+                        <Tag key={t} style={{
+                          fontSize: '10px', borderRadius: '4px', margin: 0,
+                          background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
+                          color: isLight ? '#4b5563' : '#a1a1aa',
+                          border: `1px solid ${isLight ? '#e5e7eb' : '#242428'}`
+                        }}>
+                          {t}
+                        </Tag>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Tags + Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
-                {repo.tags && repo.tags.length > 0 && (
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {repo.tags.map(t => (
-                      <Tag
-                        key={t}
-                        style={{
-                          fontSize: '10px',
-                          borderRadius: '4px',
-                          margin: 0,
-                          background: isLight ? '#f3f4f6' : '#242428',
-                          color: isLight ? '#4b5563' : '#a1a1aa',
-                          border: `1px solid ${isLight ? '#e5e7eb' : '#3f3f46'}`,
-                        }}
-                      >
-                        {t}
-                      </Tag>
-                    ))}
+              {/* Divider Line */}
+              <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
+
+              {/* Metadata Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                  <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {new Date(repo.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
                   </div>
-                )}
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <PinButton
-                    isPinned={repo.isPinned}
-                    onToggle={() => togglePin.mutate(repo._id)}
-                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                  <RiGitRepositoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {repo.platform || 'Git'}
+                    </span>
+                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Platform</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                  <RiTeamLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff' }}>
+                      {repo.isOwn ? 'Owner' : 'Member'}
+                    </span>
+                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Access</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
+                <a
+                  href={repo.url} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
+                    color: isLight ? '#111111' : '#ffffff', textDecoration: 'none', padding: '5px 12px',
+                    borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
+                  }}
+                >
+                  <RiExternalLinkLine size={14} />
+                  <span>Open Repo</span>
+                </a>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <button
                     onClick={() => openEditModal(repo)}
-                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#6366f1', cursor: 'pointer', fontSize: '13px' }}
+                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#fb923c', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                   >
                     Edit
                   </button>
-                  <Popconfirm
-                    title="Remove repository link?"
-                    onConfirm={() => deleteMutation.mutate(repo._id)}
-                    okText="Delete"
-                    cancelText="Cancel"
-                  >
-                    <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '13px' }}>
+                  <Popconfirm title="Remove repository link?" onConfirm={() => deleteMutation.mutate(repo._id)} okText="Delete" cancelText="Cancel">
+                    <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
                       Delete
                     </button>
                   </Popconfirm>
@@ -359,75 +424,12 @@ export default function ReposSection({ space, isLight, highlightId }) {
       )}
 
       {/* Add / Edit Modal */}
-      <Modal
-        title={editingRepo ? 'Edit Repository Connection' : 'Link New Repository'}
+      <QuickAddRepoModal
         open={modalOpen}
-        onCancel={closeModal}
-        onOk={handleSubmit}
-        okText={editingRepo ? 'Update Repository' : 'Link Repository'}
-        cancelText="Cancel"
-        style={{ top: 40 }}
-        styles={{
-          body: {
-            maxHeight: 'calc(100vh - 160px)',
-            overflowY: 'auto',
-            padding: '20px 24px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--border) transparent',
-          },
-          mask: { backdropFilter: 'blur(4px)' },
-        }}
-        getContainer={false}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>REPOSITORY URL</label>
-            <Input
-              placeholder="e.g. https://github.com/facebook/react"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onBlur={() => detectPlatformAndName(url)}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>DISPLAY NAME</label>
-            <Input placeholder="e.g. react" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>CAPTION / DESCRIPTION</label>
-            <Input placeholder="Short project summary..." value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={200} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>PLATFORM</label>
-              <Select
-                options={PLATFORMS}
-                style={{ width: '100%' }}
-                value={platform}
-                onChange={(val) => setPlatform(val)}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>TAGS</label>
-              <Select
-                mode="tags"
-                style={{ width: '100%' }}
-                placeholder="Tags..."
-                value={tags}
-                onChange={(val) => setTags(val)}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
-            <Switch checked={isOwn} onChange={(val) => setIsOwn(val)} />
-            <span style={{ fontSize: '13px', color: isLight ? '#111' : '#fff' }}>I am the owner/maintainer of this project</span>
-          </div>
-        </div>
-      </Modal>
+        onClose={closeModal}
+        space={space}
+        editingRepo={editingRepo}
+      />
 
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiDiscordLine, RiRedditLine, RiSlackLine, RiTwitterLine, RiYoutubeLine, RiMailLine, RiGithubLine, RiLink, RiDeleteBinLine, RiSearchLine, RiTeamLine, RiPushpinLine, RiPushpin2Fill } from 'react-icons/ri';
+import { RiAddLine, RiDiscordLine, RiRedditLine, RiSlackLine, RiTwitterLine, RiYoutubeLine, RiMailLine, RiGithubLine, RiLink, RiDeleteBinLine, RiSearchLine, RiTeamLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiExternalLinkLine, RiGlobalLine } from 'react-icons/ri';
 import api from '../../api/axios';
+import { QuickAddCommunityModal } from './QuickAddModals';
 
 const PLATFORMS = [
   { value: 'discord', label: 'Discord Server' },
@@ -202,16 +203,88 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
     }
   };
 
-  const getPlatformIcon = (plat) => {
+  const getPlatformConfig = (plat) => {
     switch (plat) {
-      case 'discord': return <RiDiscordLine size={18} style={{ color: '#5865F2' }} />;
-      case 'reddit': return <RiRedditLine size={18} style={{ color: '#FF4500' }} />;
-      case 'slack': return <RiSlackLine size={18} style={{ color: '#4A154B' }} />;
-      case 'twitter': return <RiTwitterLine size={18} style={{ color: '#1DA1F2' }} />;
-      case 'youtube': return <RiYoutubeLine size={18} style={{ color: '#FF0000' }} />;
-      case 'newsletter': return <RiMailLine size={18} style={{ color: '#10b981' }} />;
-      case 'github': return <RiGithubLine size={18} style={{ color: '#888' }} />;
-      default: return <RiLink size={18} style={{ color: '#888' }} />;
+      case 'discord': {
+        const color = isLight ? '#4338ca' : '#818cf8';
+        return {
+          icon: <RiDiscordLine size={24} style={{ color }} />,
+          badgeIcon: <RiDiscordLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.14)',
+          border: isLight ? 'rgba(99, 102, 241, 0.22)' : 'rgba(99, 102, 241, 0.3)',
+          color,
+        };
+      }
+      case 'youtube': {
+        const color = isLight ? '#dc2626' : '#f87171';
+        return {
+          icon: <RiYoutubeLine size={24} style={{ color }} />,
+          badgeIcon: <RiYoutubeLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.14)',
+          border: isLight ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.3)',
+          color,
+        };
+      }
+      case 'reddit': {
+        const color = isLight ? '#ea580c' : '#fb923c';
+        return {
+          icon: <RiRedditLine size={24} style={{ color }} />,
+          badgeIcon: <RiRedditLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.14)',
+          border: isLight ? 'rgba(249, 115, 22, 0.22)' : 'rgba(249, 115, 22, 0.3)',
+          color,
+        };
+      }
+      case 'slack': {
+        const color = isLight ? '#db2777' : '#f472b6';
+        return {
+          icon: <RiSlackLine size={24} style={{ color }} />,
+          badgeIcon: <RiSlackLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(236, 72, 153, 0.08)' : 'rgba(236, 72, 153, 0.14)',
+          border: isLight ? 'rgba(236, 72, 153, 0.22)' : 'rgba(236, 72, 153, 0.3)',
+          color,
+        };
+      }
+      case 'twitter': {
+        const color = isLight ? '#0284c7' : '#38bdf8';
+        return {
+          icon: <RiTwitterLine size={24} style={{ color }} />,
+          badgeIcon: <RiTwitterLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(14, 165, 233, 0.08)' : 'rgba(14, 165, 233, 0.14)',
+          border: isLight ? 'rgba(14, 165, 233, 0.22)' : 'rgba(14, 165, 233, 0.3)',
+          color,
+        };
+      }
+      case 'newsletter': {
+        const color = isLight ? '#059669' : '#34d399';
+        return {
+          icon: <RiMailLine size={24} style={{ color }} />,
+          badgeIcon: <RiMailLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.14)',
+          border: isLight ? 'rgba(16, 185, 129, 0.22)' : 'rgba(16, 185, 129, 0.3)',
+          color,
+        };
+      }
+      case 'github': {
+        const color = isLight ? '#9333ea' : '#c084fc';
+        return {
+          icon: <RiGithubLine size={24} style={{ color }} />,
+          badgeIcon: <RiGithubLine size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.14)',
+          border: isLight ? 'rgba(168, 85, 247, 0.22)' : 'rgba(168, 85, 247, 0.3)',
+          color,
+        };
+      }
+      default: {
+        const color = isLight ? '#0891b2' : '#22d3ee';
+        return {
+          icon: <RiLink size={24} style={{ color }} />,
+          badgeIcon: <RiLink size={12} style={{ color }} />,
+          bg: isLight ? 'rgba(6, 182, 212, 0.08)' : 'rgba(6, 182, 212, 0.14)',
+          border: isLight ? 'rgba(6, 182, 212, 0.22)' : 'rgba(6, 182, 212, 0.3)',
+          color,
+        };
+      }
     }
   };
 
@@ -240,7 +313,7 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
           onClick={openAddModal}
           style={{ background: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1', borderRadius: '8px' }}
         >
-          Add Community
+          Link Community
         </Button>
       </div>
 
@@ -251,176 +324,171 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
           No communities linked. Link Discord servers or subreddits!
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-          {communities.map((comm) => (
-            <div
-              key={comm._id}
-              style={{
-                background:   'var(--card)',
-                border:       '1px solid var(--border)',
-                borderRadius: 10,
-                padding:      '14px 16px',
-                display:      'flex',
-                flexDirection:'column',
-                justifyContent:'space-between',
-                minHeight:    '150px',
-                position:     'relative',
-                transition:   'border-color 0.15s, background 0.15s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--border-strong)';
-                e.currentTarget.style.background  = 'var(--card-hover)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.background  = 'var(--card)';
-              }}
-            >
-              {/* Pin indicator */}
-              <div style={{ position: 'absolute', right: '12px', top: '12px', zIndex: 20 }}>
-                <PinButton
-                  isPinned={comm.isPinned}
-                  onToggle={() => togglePin.mutate(comm._id)}
-                />
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingRight: '28px' }}>
-                  {getPlatformIcon(comm.platform)}
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: '#888' }}>
-                    {comm.platform}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
+          {communities.map((comm) => {
+            const cfg = getPlatformConfig(comm.platform);
+            return (
+              <div
+                key={comm._id}
+                style={{
+                  background: isLight ? '#ffffff' : '#14141c',
+                  border: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: '12px',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  position: 'relative',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
+                  e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                {/* Header Row: Badge & Pin */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                    padding: '3px 9px', borderRadius: '5px',
+                    background: cfg.bg,
+                    border: `1px solid ${cfg.border}`,
+                    color: cfg.color, display: 'flex', alignItems: 'center', gap: '5px'
+                  }}>
+                    {cfg.badgeIcon}
+                    <span>{(comm.platform || 'COMMUNITY').toUpperCase()}</span>
                   </span>
-                  {comm.memberCount && (
-                    <Tag color="blue" style={{ fontSize: '9px', lineHeight: 1.5, borderRadius: '4px', marginLeft: 'auto' }}>
-                      <RiTeamLine size={10} style={{ marginRight: '2px' }} /> {comm.memberCount} Members
-                    </Tag>
-                  )}
+                  <PinButton isPinned={comm.isPinned} onToggle={() => togglePin.mutate(comm._id)} />
                 </div>
 
-                <a
-                  href={comm.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: '15px', fontWeight: 600, color: isLight ? '#111' : '#fff',
-                    textDecoration: 'none', display: 'block', marginBottom: '4px'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.color = isLight ? '#4f46e5' : '#6366f1'}
-                  onMouseLeave={e => e.currentTarget.style.color = isLight ? '#111' : '#fff'}
-                >
-                  {comm.name}
-                </a>
-
-                {comm.caption && (
-                  <p style={{ fontSize: '12px', color: '#888', margin: '0 0 12px', lineHeight: 1.4 }}>
-                    {comm.caption}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                {comm.tags && comm.tags.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
-                    {comm.tags.map(t => (
-                      <Tag key={t} color={isLight ? 'blue' : 'blue'} style={{ fontSize: '10px' }}>{t}</Tag>
-                    ))}
+                {/* Main Content info */}
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '10px',
+                    background: cfg.bg,
+                    border: `1px solid ${cfg.border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {cfg.icon}
                   </div>
-                )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <a href={comm.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {comm.name}
+                      </a>
+                    </h4>
+                    {comm.caption ? (
+                      <p style={{
+                        fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,
+                        overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+                      }}>
+                        {comm.caption}
+                      </p>
+                    ) : (
+                      <div style={{ height: '4px' }} />
+                    )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', fontSize: '11px' }}>
-                  <button
-                    onClick={() => openEditModal(comm)}
-                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#6366f1', cursor: 'pointer' }}
+                    {comm.tags && comm.tags.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                        {comm.tags.map(t => (
+                          <Tag key={t} style={{
+                            fontSize: '10px', borderRadius: '4px', margin: 0,
+                            background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
+                            color: isLight ? '#4b5563' : '#a1a1aa',
+                            border: `1px solid ${isLight ? '#e5e7eb' : '#242428'}`
+                          }}>
+                            {t}
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Divider Line */}
+                <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
+
+                {/* Metadata Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                    <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {new Date(comm.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                    <RiTeamLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {comm.memberCount || 'Community'}
+                      </span>
+                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Members</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                    <RiGlobalLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {comm.platform || 'Link'}
+                      </span>
+                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Type</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Footer */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
+                  <a
+                    href={comm.url} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
+                      color: isLight ? '#111111' : '#ffffff', textDecoration: 'none', padding: '5px 12px',
+                      borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
+                    }}
                   >
-                    Edit
-                  </button>
-                  <Popconfirm
-                    title="Remove community link?"
-                    onConfirm={() => deleteMutation.mutate(comm._id)}
-                    okText="Delete"
-                    cancelText="Cancel"
-                  >
-                    <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}>
-                      Delete
+                    <RiExternalLinkLine size={14} />
+                    <span>Join / Open</span>
+                  </a>
+
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      onClick={() => openEditModal(comm)}
+                      style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : cfg.color, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                    >
+                      Edit
                     </button>
-                  </Popconfirm>
+                    <Popconfirm title="Remove community link?" onConfirm={() => deleteMutation.mutate(comm._id)} okText="Delete" cancelText="Cancel">
+                      <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        Delete
+                      </button>
+                    </Popconfirm>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          }
+          )}
         </div>
       )}
 
       {/* Add / Edit Modal */}
-      <Modal
-        title={editingCommunity ? 'Edit Community Resource' : 'Link New Community Resource'}
+      <QuickAddCommunityModal
         open={modalOpen}
-        onCancel={closeModal}
-        onOk={handleSubmit}
-        okText={editingCommunity ? 'Update Connection' : 'Add Community'}
-        cancelText="Cancel"
-        style={{ top: 40 }}
-        styles={{
-          body: {
-            maxHeight: 'calc(100vh - 160px)',
-            overflowY: 'auto',
-            padding: '20px 24px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--border) transparent',
-          },
-          mask: { backdropFilter: 'blur(4px)' },
-        }}
-        getContainer={false}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>COMMUNITY LINK URL</label>
-            <Input
-              placeholder="e.g. https://discord.gg/react"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onBlur={() => detectPlatform(url)}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>COMMUNITY NAME</label>
-            <Input placeholder="e.g. React Developers Discord" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>CAPTION / DESCRIPTION</label>
-            <Input placeholder="What is this community useful for..." value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={200} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>PLATFORM type</label>
-              <Select
-                options={PLATFORMS}
-                style={{ width: '100%' }}
-                value={platform}
-                onChange={(val) => setPlatform(val)}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>ESTIMATED MEMBER COUNT</label>
-              <Input placeholder="e.g. 45K or 2.1M" value={memberCount} onChange={(e) => setMemberCount(e.target.value)} />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>TAGS</label>
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              placeholder="Tags..."
-              value={tags}
-              onChange={(val) => setTags(val)}
-            />
-          </div>
-        </div>
-      </Modal>
+        onClose={closeModal}
+        space={space}
+        editingCommunity={editingCommunity}
+      />
 
     </div>
   );
