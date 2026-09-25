@@ -9,6 +9,7 @@ import {
 } from 'react-icons/ri';
 import { SiBitbucket } from 'react-icons/si';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Button, Tag, Tooltip, message } from 'antd';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -28,6 +29,7 @@ const getAge = (dateStr) => {
 };
 
 export default function PinnedBoilerplates() {
+  const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const navigate = useNavigate();
@@ -142,12 +144,13 @@ export default function PinnedBoilerplates() {
 
   const handleCardClick = (item) => {
     const realSpaceId = item.spaceId?._id || item.spaceId;
+    const userPrefix = `/u/${encodeURIComponent(user?.username || 'user')}`;
     if (item.itemType === 'note') {
-      navigate(`/spaces/${realSpaceId}?section=notes&noteId=${item._id}`);
+      navigate(`${userPrefix}/spaces/${realSpaceId}?section=notes&noteId=${item._id}`);
     } else if (item.itemType === 'snippet') {
-      navigate(`/spaces/${realSpaceId}?section=snippets&id=${item._id}`);
+      navigate(`${userPrefix}/spaces/${realSpaceId}?section=snippets&id=${item._id}`);
     } else if (item.itemType === 'prompt') {
-      navigate(`/spaces/${realSpaceId}?section=prompts&id=${item._id}`);
+      navigate(`${userPrefix}/spaces/${realSpaceId}?section=prompts&id=${item._id}`);
     } else if (item.itemType === 'doc') {
       handleDocOpen(item);
     } else if (item.itemType === 'repo') {

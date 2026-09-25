@@ -42,7 +42,8 @@ export default function Signup() {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      const uname = user.username || 'user';
+      navigate(`/u/${encodeURIComponent(uname)}/dashboard`);
     }
   }, [user, navigate]);
 

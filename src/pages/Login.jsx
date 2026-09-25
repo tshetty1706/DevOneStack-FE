@@ -41,7 +41,8 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      const uname = user.username || 'user';
+      navigate(`/u/${encodeURIComponent(uname)}/dashboard`);
     }
   }, [user, navigate]);
 
@@ -81,8 +82,9 @@ export default function Login() {
 
     try {
       const response = await loginApi({ email: data.email, password: data.password });
-      login(response.accessToken, response.user);
-      navigate('/dashboard');
+      login(response.accessToken, response.user, response.usernameGenerated);
+      const uname = response.user?.username || 'user';
+      navigate(`/u/${encodeURIComponent(uname)}/dashboard`);
     } catch (err) {
       const status = err.response?.status;
       const errorMsg = err.response?.data?.error || 'Something went wrong on our end. Try again shortly.';

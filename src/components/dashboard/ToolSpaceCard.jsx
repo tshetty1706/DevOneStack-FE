@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 import SpaceIcon from '../spaces/SpaceIcon';
@@ -81,6 +82,7 @@ const formatRelativeTime = (dateString) => {
 };
 
 export default function ToolSpaceCard({ space, index, onEditClick }) {
+  const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -162,7 +164,7 @@ export default function ToolSpaceCard({ space, index, onEditClick }) {
 
   return (
     <motion.div
-      onClick={() => navigate(`/spaces/${space._id || space.id}`)}
+      onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/spaces/${space._id || space.id}`)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + index * 0.06, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -351,7 +353,7 @@ export default function ToolSpaceCard({ space, index, onEditClick }) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/spaces/${space._id || space.id}`);
+            navigate(`/u/${encodeURIComponent(user?.username || 'user')}/spaces/${space._id || space.id}`);
           }}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',

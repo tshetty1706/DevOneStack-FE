@@ -1,15 +1,19 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import NotFoundPage from '../../pages/NotFoundPage';
 
 /**
- * Wrap any route that requires authentication.
+ * Wrap any route that requires authentication and user authorization.
  *
- * Usage in App.jsx:
- *   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+ * If a username parameter is in the URL (/u/:username/...), it checks that
+ * the requested username belongs to the authenticated user. If mismatched or
+ * unauthorized, it renders the DevOneStack 404 NotFoundPage without revealing
+ * whether the other user's resource exists.
  */
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const { username } = useParams();
 
   // While the initial /api/auth/me check is in-flight, show a spinner
   // so we don't flash the login page to an authenticated user.
@@ -35,9 +39,14 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // Not logged in → redirect to /login, preserving the intended destination
+  // Not logged in → redirect to /login
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If a username parameter is specified in URL, verify ownership
+  if (username && user.username && username !== user.username) {
+    return <NotFoundPage />;
   }
 
   return children;

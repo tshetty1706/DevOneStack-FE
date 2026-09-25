@@ -8,10 +8,10 @@ export default function OAuthCallback() {
   const { login } = useAuth();
 
   useEffect(() => {
-    // Hash might look like: #token=eyJhbGciOi...
     const hash = window.location.hash.slice(1);
     const params = new URLSearchParams(hash);
     const token = params.get('token');
+    const usernameGenerated = params.get('usernameGenerated') === 'true';
 
     if (!token) {
       navigate('/login?error=oauth_failed');
@@ -21,8 +21,9 @@ export default function OAuthCallback() {
     localStorage.setItem('dos_access_token', token);
     api.get('/api/auth/me')
       .then(res => {
-        login(token, res.data.user);
-        navigate('/dashboard');
+        login(token, res.data.user, usernameGenerated);
+        const uname = res.data.user?.username || 'user';
+        navigate(`/u/${encodeURIComponent(uname)}/dashboard`);
       })
       .catch(() => {
         navigate('/login?error=oauth_failed');

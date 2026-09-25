@@ -9,7 +9,7 @@ export default function GetStarted({ style }) {
             <button
                 className="btn-primary"
                 style={{ width: '100%', maxWidth: '280px', marginTop: '12px', ...style }}
-                onClick={() => navigate(user ? '/dashboard' : '/signup')}
+                onClick={() => navigate(user ? `/u/${encodeURIComponent(user.username || 'user')}/dashboard` : '/signup')}
             >
                 {user ? 'Go to Dashboard' : 'Get started'}
                 <svg

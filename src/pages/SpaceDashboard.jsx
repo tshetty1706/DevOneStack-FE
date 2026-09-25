@@ -6,6 +6,7 @@ import { Tooltip, message } from 'antd';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import NotFoundPage from './NotFoundPage';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
@@ -286,17 +287,7 @@ export default function SpaceDashboard() {
 
   // ── 404 ──
   if (error || !space) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: bg, gap: '16px', textAlign: 'center', padding: '24px' }}>
-        <h2 style={{ fontSize: '22px', fontWeight: 700, color: textColor, margin: 0 }}>Workspace not found</h2>
-        <p style={{ fontSize: '13px', color: textMuted, maxWidth: '320px', margin: 0, lineHeight: 1.6 }}>
-          This space doesn't exist or you don't have access to it.
-        </p>
-        <button onClick={() => navigate('/dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: accent, color: '#ffffff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-          <RiArrowLeftLine /> Back to Dashboard
-        </button>
-      </div>
-    );
+    return <NotFoundPage />;
   }
 
   const SectionComp = SECTIONS[activeSection];
@@ -331,7 +322,7 @@ export default function SpaceDashboard() {
       >
         {/* Brand */}
         <div
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)}
           style={{
             padding: '16px 14px 12px',
             paddingLeft: isHovered ? '24px' : '14px',
@@ -466,7 +457,7 @@ export default function SpaceDashboard() {
         }}>
           {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => navigate('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: textMuted, display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px', transition: 'color 0.15s ease' }}
+            <button onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: textMuted, display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px', transition: 'color 0.15s ease' }}
               onMouseEnter={e => e.currentTarget.style.color = textColor}
               onMouseLeave={e => e.currentTarget.style.color = textMuted}>
               <RiArrowLeftLine size={17} />

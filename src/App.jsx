@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { AuthProvider } from './context/AuthContext';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -14,6 +14,7 @@ import OAuthCallback from './pages/OAuthCallback';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ThemeToggle from './components/layout/ThemeToggle';
 import Lenis from 'lenis';
@@ -35,6 +36,28 @@ function ScrollToTop() {
   }, [pathname]);
 
   return null;
+}
+
+function DashboardRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={`/u/${encodeURIComponent(user.username || 'user')}/dashboard`} replace />;
+}
+
+function SpaceRedirect() {
+  const { user, loading } = useAuth();
+  const { spaceId } = useParams();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={`/u/${encodeURIComponent(user.username || 'user')}/spaces/${spaceId}`} replace />;
+}
+
+function ProfileRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={`/u/${encodeURIComponent(user.username || 'user')}/profile`} replace />;
 }
 
 function AppContent() {
@@ -62,7 +85,6 @@ function AppContent() {
   }, []);
 
   return (
-    //ConfigProvider: it is used because it provides the theme to the entire application
     <ConfigProvider
       theme={{
         algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
@@ -84,15 +106,25 @@ function AppContent() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/dashboard" element={
+
+          {/* Username-based Protected Routes */}
+          <Route path="/u/:username/dashboard" element={
             <ProtectedRoute><Dashboard /></ProtectedRoute>
           } />
-          <Route path="/spaces/:spaceId" element={
+          <Route path="/u/:username/spaces/:spaceId" element={
             <ProtectedRoute><SpaceDashboard /></ProtectedRoute>
           } />
-          <Route path="/profile" element={
+          <Route path="/u/:username/profile" element={
             <ProtectedRoute><Profile /></ProtectedRoute>
           } />
+
+          {/* Automatic URL redirects to authenticated username paths */}
+          <Route path="/dashboard" element={<DashboardRedirect />} />
+          <Route path="/spaces/:spaceId" element={<SpaceRedirect />} />
+          <Route path="/profile" element={<ProfileRedirect />} />
+
+          {/* Global 404 Catch-All Route */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         {/* Global Dark / Light Mode Toggle Button */}
         <ThemeToggle />

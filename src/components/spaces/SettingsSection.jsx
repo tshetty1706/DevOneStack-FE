@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { Modal, Input, Select, Button, message } from 'antd';
 import { RiSearchLine, RiFolder5Line, RiArrowUpSLine, RiArrowDownSLine, RiRefreshLine } from 'react-icons/ri';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import SpaceIcon from './SpaceIcon';
 import { ICON_MAPPING, getIconKeyByName } from '../../utils/iconMapping';
 
 export default function SettingsSection({ space, isLight }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -68,7 +70,7 @@ export default function SettingsSection({ space, isLight }) {
     onSuccess: () => {
       message.success('Space deleted successfully');
       queryClient.invalidateQueries(['spaces']);
-      navigate('/dashboard');
+      navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`);
     },
     onError: (err) => {
       message.error(err.response?.data?.error || 'Failed to delete space');

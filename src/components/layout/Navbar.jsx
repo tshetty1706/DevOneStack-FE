@@ -59,7 +59,7 @@ export default function Navbar() {
           {user ? (
             <button
               className="navbar-btn-primary"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(`/u/${encodeURIComponent(user.username || 'user')}/dashboard`)}
             >
               Go to Dashboard
             </button>

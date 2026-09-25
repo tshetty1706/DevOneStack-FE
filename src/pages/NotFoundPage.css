@@ -1,0 +1,445 @@
+/* ==========================================================================
+   DevOneStack 404 Not Found Page Design System
+   Matches DevOneStack Theme: Indigo & Dark Slate (Dark) / Clean Slate (Light)
+   ========================================================================== */
+
+.notfound-root {
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--bg-color, #08080c);
+  color: var(--text-color, #f1f5f9);
+  font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
+  position: relative;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Background Cyber Grid */
+.notfound-grid-layer {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Ambient Radial Glows */
+.notfound-glow-left {
+  position: absolute;
+  top: 15%;
+  left: 5%;
+  width: min(500px, 40vw);
+  height: min(500px, 40vw);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.notfound-glow-right {
+  position: absolute;
+  top: 20%;
+  right: 8%;
+  width: min(550px, 45vw);
+  height: min(550px, 45vw);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, rgba(56, 189, 248, 0.06) 50%, transparent 75%);
+  filter: blur(110px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Top Brand Bar (Replaces Full Navbar) */
+.notfound-top-bar {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 32px 0 32px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.notfound-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-color, #f1f5f9);
+  transition: opacity 0.2s ease;
+}
+
+.notfound-brand-link:hover {
+  opacity: 0.85;
+}
+
+.notfound-brand-name {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  color: var(--text-color, #f1f5f9);
+}
+
+/* Main Container */
+.notfound-main {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px 60px 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.notfound-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(32px, 5vw, 64px);
+  align-items: center;
+  width: 100%;
+}
+
+/* Left Column: Content */
+.notfound-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  z-index: 15;
+}
+
+.notfound-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.12);
+  margin-bottom: 22px;
+  width: fit-content;
+}
+
+.notfound-badge-sparkle {
+  color: var(--accent-color, #6366f1);
+  font-size: 13px;
+  animation: sparklePulse 2.5s infinite ease-in-out;
+}
+
+@keyframes sparklePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.notfound-badge-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color, #818cf8);
+  letter-spacing: 0.02em;
+}
+
+/* Headings & Text - Strictly using DevOneStack brand colors */
+.notfound-title {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: clamp(36px, 4.6vw, 58px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text-color, #f1f5f9);
+  margin: 0 0 18px 0;
+}
+
+.notfound-title-accent {
+  color: var(--accent-color, #6366f1);
+  display: inline;
+}
+
+.notfound-description {
+  font-size: clamp(15px, 1.8vw, 16.5px);
+  line-height: 1.6;
+  color: var(--text-secondary, #94a3b8);
+  max-width: 480px;
+  margin: 0 0 32px 0;
+}
+
+/* Action Buttons */
+.notfound-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.notfound-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent-color, #6366f1);
+  color: #ffffff;
+  font-family: var(--font-body, inherit);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.32);
+  transition: all 0.22s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.notfound-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.42);
+  filter: brightness(1.08);
+}
+
+.notfound-btn-primary:active {
+  transform: translateY(0);
+}
+
+.notfound-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong, rgba(99, 102, 241, 0.2));
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-color, #f1f5f9);
+  font-family: var(--font-body, inherit);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.22s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.notfound-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--accent-color, #6366f1);
+  transform: translateY(-2px);
+}
+
+.notfound-btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* Right Column: 404_Page.svg Illustration */
+.notfound-visual-column {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.notfound-illustration-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notfound-illustration-svg {
+  width: 100%;
+  height: auto;
+  max-height: 440px;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 28px rgba(99, 102, 241, 0.16));
+  animation: illustrationFloat 7s ease-in-out infinite alternate;
+  user-select: none;
+}
+
+@keyframes illustrationFloat {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+  100% { transform: translateY(0); }
+}
+
+/* --------------------------------------------------------------------------
+   Light Mode Theme Overrides
+   -------------------------------------------------------------------------- */
+body.light-mode .notfound-root,
+[data-theme="light"] .notfound-root {
+  background-color: var(--bg-color, #fafafa);
+  color: var(--text-color, #16161a);
+}
+
+body.light-mode .notfound-brand-name,
+[data-theme="light"] .notfound-brand-name {
+  color: #16161a;
+}
+
+body.light-mode .notfound-grid-layer,
+[data-theme="light"] .notfound-grid-layer {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+}
+
+body.light-mode .notfound-glow-left,
+[data-theme="light"] .notfound-glow-left,
+body.light-mode .notfound-glow-right,
+[data-theme="light"] .notfound-glow-right {
+  display: none;
+}
+
+body.light-mode .notfound-badge,
+[data-theme="light"] .notfound-badge {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: rgba(79, 70, 229, 0.22);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.06);
+}
+
+body.light-mode .notfound-badge-text,
+[data-theme="light"] .notfound-badge-text {
+  color: #4f46e5;
+}
+
+body.light-mode .notfound-title,
+[data-theme="light"] .notfound-title {
+  color: #16161a;
+}
+
+body.light-mode .notfound-title-accent,
+[data-theme="light"] .notfound-title-accent {
+  color: #4f46e5;
+}
+
+body.light-mode .notfound-description,
+[data-theme="light"] .notfound-description {
+  color: #6b6b76;
+}
+
+body.light-mode .notfound-btn-primary,
+[data-theme="light"] .notfound-btn-primary {
+  background: #4f46e5;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+}
+
+body.light-mode .notfound-btn-primary:hover,
+[data-theme="light"] .notfound-btn-primary:hover {
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+}
+
+body.light-mode .notfound-btn-secondary,
+[data-theme="light"] .notfound-btn-secondary {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #16161a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+body.light-mode .notfound-btn-secondary:hover,
+[data-theme="light"] .notfound-btn-secondary:hover {
+  background: #f4f4f6;
+  border-color: #4f46e5;
+}
+
+body.light-mode .notfound-illustration-svg,
+[data-theme="light"] .notfound-illustration-svg {
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.1));
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Breakpoints
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .notfound-top-bar {
+    padding: 20px 24px 0 24px;
+  }
+
+  .notfound-main {
+    padding: 32px 24px 48px 24px;
+  }
+  
+  .notfound-layout {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    text-align: center;
+  }
+  
+  .notfound-content {
+    align-items: center;
+    text-align: center;
+  }
+  
+  .notfound-description {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .notfound-actions {
+    justify-content: center;
+  }
+  
+  .notfound-illustration-wrapper {
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 640px) {
+  .notfound-top-bar {
+    padding: 16px 18px 0 18px;
+    justify-content: center;
+  }
+
+  .notfound-main {
+    padding: 24px 18px 36px 18px;
+  }
+
+  .notfound-title {
+    font-size: 30px;
+    margin-bottom: 14px;
+  }
+
+  .notfound-description {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .notfound-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .notfound-btn-primary,
+  .notfound-btn-secondary {
+    width: 100%;
+    height: 44px;
+  }
+
+  .notfound-illustration-wrapper {
+    max-width: 290px;
+  }
+
+  .notfound-illustration-svg {
+    max-height: 280px;
+  }
+}

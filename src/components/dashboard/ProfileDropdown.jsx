@@ -19,17 +19,21 @@ export default function ProfileDropdown({ onClose }) {
 
   const loadProfile = () => {
     if (user) {
-      setUserName(localStorage.getItem('dos_profile_name') || user.name || 'Your Name');
+      setUserName(localStorage.getItem('dos_profile_name') || user.displayName || user.username || user.email?.split('@')[0] || 'Developer');
       setAvatarVal(localStorage.getItem('dos_profile_avatar') || user.avatarUrl || '');
     }
   };
 
-
   useEffect(() => {
-    localStorage.setItem('dos_profile_name', user.name);
-    localStorage.setItem('dos_profile_avatar', user.avatarUrl);
-
-    loadProfile();
+    if (user) {
+      if (!localStorage.getItem('dos_profile_name') && (user.displayName || user.username)) {
+        localStorage.setItem('dos_profile_name', user.displayName || user.username);
+      }
+      if (!localStorage.getItem('dos_profile_avatar') && user.avatarUrl) {
+        localStorage.setItem('dos_profile_avatar', user.avatarUrl);
+      }
+      loadProfile();
+    }
     window.addEventListener('profile_update', loadProfile);
     return () => window.removeEventListener('profile_update', loadProfile);
   }, [user]);
@@ -56,10 +60,11 @@ export default function ProfileDropdown({ onClose }) {
 
   const handleMenuItemClick = (label) => {
     onClose();
+    const uname = user?.username || 'user';
     if (label === 'Profile') {
-      navigate('/profile');
+      navigate(`/u/${encodeURIComponent(uname)}/profile`);
     } else if (label === 'My Spaces') {
-      navigate('/profile?tab=spaces');
+      navigate(`/u/${encodeURIComponent(uname)}/dashboard?view=spaces`);
     }
   };
 

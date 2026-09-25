@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RiCloseLine, RiTerminalBoxLine, RiSearchLine, RiFolder5Line, RiArrowDownSLine, RiArrowUpSLine, RiRefreshLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
@@ -9,6 +10,7 @@ import SpaceIcon from '../spaces/SpaceIcon';
 import { ICON_MAPPING, getIconKeyByName } from '../../utils/iconMapping';
 
 export default function NewSpaceModal({ open, onClose }) {
+  const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -80,7 +82,7 @@ export default function NewSpaceModal({ open, onClose }) {
       onClose();
 
       // Redirect to the newly created space dashboard
-      navigate(`/spaces/${response.data._id}`);
+      navigate(`/u/${encodeURIComponent(user?.username || 'user')}/spaces/${response.data._id}`);
     } catch (err) {
       console.error('Failed to create space:', err);
       setError(err.response?.data?.error || 'Failed to create space. Please try again.');

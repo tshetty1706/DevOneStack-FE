@@ -92,7 +92,7 @@ export default function ContinueWorking() {
             <div 
               key={space._id} 
               className="dashboard-continue-card"
-              onClick={() => navigate(`/spaces/${space._id}`)}
+              onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/spaces/${space._id}`)}
             >
               {/* Header: Icon Box + Space Name / Metadata */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>

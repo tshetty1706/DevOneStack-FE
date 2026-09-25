@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Input, Button, Upload, message } from 'antd';
 import {
@@ -16,6 +16,7 @@ import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 import { useSpaces } from '../hooks/useSpaces';
 
 export default function Profile() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -246,7 +247,7 @@ export default function Profile() {
         <div style={{ alignSelf: 'flex-start' }}>
           <Button
             type="link"
-            href="/dashboard"
+            onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)}
             icon={<RiArrowLeftLine />}
             style={{
               color: textMuted,
@@ -254,6 +255,7 @@ export default function Profile() {
               alignItems: 'center',
               padding: 0,
               fontFamily: 'var(--font-body)',
+              cursor: 'pointer'
             }}
             onMouseEnter={e => e.currentTarget.style.color = textPrimary}
             onMouseLeave={e => e.currentTarget.style.color = textMuted}
@@ -372,9 +374,17 @@ export default function Profile() {
                   <h2 style={{ fontSize: '24px', fontWeight: 700, color: textPrimary, margin: '0 0 4px 0', fontFamily: 'var(--font-display)' }}>
                     {name}
                   </h2>
-                  <p style={{ fontSize: '14px', color: textMuted, margin: '0 0 8px 0', fontWeight: 500 }}>
-                    {user.email}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '0 0 8px 0' }}>
+                    {user.username && (
+                      <span style={{ fontSize: '13px', color: accentColor, fontWeight: 600 }}>
+                        @{user.username}
+                      </span>
+                    )}
+                    {user.username && <span style={{ color: textSub }}>•</span>}
+                    <span style={{ fontSize: '13.5px', color: textMuted, fontWeight: 500 }}>
+                      {user.email}
+                    </span>
+                  </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: textMuted, fontSize: '13px', margin: '8px 0 16px 0' }}>
                     <RiCalendarLine size={15} style={{ color: textMuted }} />
