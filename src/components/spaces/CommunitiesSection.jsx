@@ -4,6 +4,8 @@ import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Toolt
 import { RiAddLine, RiDiscordLine, RiRedditLine, RiSlackLine, RiTwitterLine, RiYoutubeLine, RiMailLine, RiGithubLine, RiLink, RiDeleteBinLine, RiSearchLine, RiTeamLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiExternalLinkLine, RiGlobalLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddCommunityModal } from './QuickAddModals';
+import PinButton from '../common/PinButton';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const PLATFORMS = [
   { value: 'discord', label: 'Discord Server' },
@@ -21,29 +23,7 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCommunity, setEditingCommunity] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-
-  const PinButton = ({ isPinned, onToggle }) => (
-    <Tooltip title={isPinned ? 'Unpin' : 'Pin'} placement="top">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle() }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: isPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'color 0.15s',
-          zIndex: 20
-        }}
-      >
-        {isPinned ? <RiPushpin2Fill size={14} /> : <RiPushpinLine size={14} />}
-      </button>
-    </Tooltip>
-  );
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
   // Form states
   const [name, setName] = useState('');
@@ -52,14 +32,6 @@ export default function CommunitiesSection({ space, isLight, highlightId }) {
   const [caption, setCaption] = useState('');
   const [tags, setTags] = useState([]);
   const [memberCount, setMemberCount] = useState('');
-
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Fetch communities
   const { data: communities = [], isLoading } = useQuery({

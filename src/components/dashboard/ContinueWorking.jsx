@@ -6,24 +6,7 @@ import SpaceIcon from '../spaces/SpaceIcon';
 import { RiArrowRightLine, RiHistoryLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
 
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) {
-    const mins = Math.floor(diff / 60);
-    return `${mins} min ago`;
-  }
-  if (diff < 86400) {
-    const hours = Math.floor(diff / 3600);
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  }
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  const weeks = Math.floor(days / 7);
-  return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
-}
+import { timeAgo } from '../../utils/dateUtils';
 
 export default function ContinueWorking() {
   const { user } = useAuth();

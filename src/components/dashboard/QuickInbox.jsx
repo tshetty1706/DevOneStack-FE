@@ -35,49 +35,29 @@ export default function QuickInbox() {
 
   const [url, setUrl] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const queryClient = useQueryClient();
 
-  // Queries & Mutations
-  const { data: items = [] } = useQuery({
-    queryKey: ['inbox'],
-    queryFn: () => api.get('/api/inbox').then(r => r.data),
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (newVal) => api.post('/api/inbox', newVal).then(r => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, title }) => api.put(`/api/inbox/${id}`, { title }).then(r => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/api/inbox/${id}`).then(r => r.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inbox'] });
-    },
-  });
+  // Centralized inbox hook
+  const { data: items = [], addItem, deleteItem } = useQuickInbox();
 
   const handleSave = () => {
     const trimmed = url.trim();
     if (!trimmed) return;
-    saveMutation.mutate({
+    addItem({
       url: trimmed,
       type: detectType(trimmed),
     });
     setUrl('');
   };
 
-  const handleDelete = (id) => deleteMutation.mutate(id);
+  const handleDelete = (id) => deleteItem(id);
 
-  const handleTitleChange = (id, val) => {
-    updateMutation.mutate({ id, title: val });
+  const handleTitleChange = async (id, val) => {
+    try {
+      await api.put(`/api/inbox/${id}`, { title: val });
+      // Invalidation handled if needed
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const ghostBtn = {

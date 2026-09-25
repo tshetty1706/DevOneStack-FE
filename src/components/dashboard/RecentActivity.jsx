@@ -1,8 +1,8 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { RiHistoryLine, RiSpeedLine, RiTerminalBoxLine, RiFileTextLine, RiCodeSSlashLine, RiPriceTag3Line } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
-import api from '../../api/axios';
+import { useRecentActivity } from '../../hooks/useDashboard';
+import { timeAgo } from '../../utils/dateUtils';
 
 const ACTION_ICON = {
   created_space: <RiTerminalBoxLine size={15} />,
@@ -15,26 +15,12 @@ const ACTION_ICON = {
   created_tag: <RiPriceTag3Line size={15} />,
 };
 
-function timeAgo(dateStr) {
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
 export default function RecentActivity() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
-  const { data: history = [], isLoading } = useQuery({
-    queryKey: ['history'],
-    queryFn: async () => {
-      const { data } = await api.get('/api/history');
-      return data.slice(0, 5);
-    },
-    staleTime: 1000 * 30, // refetch every 30 s
-  });
+  const { data: rawHistory = [], isLoading } = useRecentActivity();
+  const history = Array.isArray(rawHistory) ? rawHistory.slice(0, 5) : [];
 
   const textMuted = 'var(--text-secondary)';
   const textPrimary = 'var(--text-color)';

@@ -7,6 +7,8 @@ import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism
 import api from '../../api/axios';
 import SnippetViewModal from './modals/SnippetViewModal';
 import { QuickAddSnippetModal } from './QuickAddModals';
+import PinButton from '../common/PinButton';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -29,36 +31,13 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
   const [viewSnippet, setViewSnippet] = useState(null);
 
   const handleOpenViewModal = (snip) => {
     setViewSnippet(snip);
   };
-
-  const PinButton = ({ isPinned, onToggle }) => (
-    <Tooltip title={isPinned ? 'Unpin' : 'Pin'} placement="top">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle() }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: isPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'color 0.15s',
-          zIndex: 20
-        }}
-      >
-        {isPinned ? <RiPushpin2Fill size={14} /> : <RiPushpinLine size={14} />}
-      </button>
-    </Tooltip>
-  );
 
   // Form states
   const [name, setName] = useState('');

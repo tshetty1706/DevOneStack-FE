@@ -12,7 +12,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import DashboardNav from '../components/dashboard/DashboardNav';
-import ThemeToggle from '../components/layout/ThemeToggle';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 import { useSpaces } from '../hooks/useSpaces';
 
@@ -778,7 +777,6 @@ export default function Profile() {
 
       </main>
 
-      <ThemeToggle />
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
     </div>
   );

@@ -5,6 +5,8 @@ import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearc
 import { SiBitbucket } from 'react-icons/si';
 import api from '../../api/axios';
 import { QuickAddRepoModal } from './QuickAddModals';
+import PinButton from '../common/PinButton';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const PLATFORMS = [
   { value: 'github', label: 'GitHub' },
@@ -18,29 +20,7 @@ export default function ReposSection({ space, isLight, highlightId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRepo, setEditingRepo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-
-  const PinButton = ({ isPinned, onToggle }) => (
-    <Tooltip title={isPinned ? 'Unpin' : 'Pin'} placement="top">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle() }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: isPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'color 0.15s',
-          zIndex: 20
-        }}
-      >
-        {isPinned ? <RiPushpin2Fill size={14} /> : <RiPushpinLine size={14} />}
-      </button>
-    </Tooltip>
-  );
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
   // Form states
   const [name, setName] = useState('');
@@ -49,14 +29,6 @@ export default function ReposSection({ space, isLight, highlightId }) {
   const [platform, setPlatform] = useState('github');
   const [tags, setTags] = useState([]);
   const [isOwn, setIsOwn] = useState(false);
-
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Fetch repos
   const { data: repos = [], isLoading } = useQuery({

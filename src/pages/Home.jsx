@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import ThemeToggle from '../components/layout/ThemeToggle';
 import Hero from '../components/home/Hero';
 import LogoStrip from '../components/home/LogoStrip';
 import StepsSection from '../components/home/StepsSection';
@@ -41,7 +40,6 @@ export default function Home() {
       </main>
 
       <Footer />
-      <ThemeToggle />
     </div>
   );
 }

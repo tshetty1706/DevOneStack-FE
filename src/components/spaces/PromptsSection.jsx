@@ -4,6 +4,8 @@ import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Toolt
 import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiFileCopyLine, RiCheckLine, RiRobotLine, RiRobot2Line, RiHistoryLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddPromptModal } from './QuickAddModals';
+import PinButton from '../common/PinButton';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const MODELS = [
   { value: 'Claude 3.5 Sonnet', label: 'Claude 3.5 Sonnet' },
@@ -31,31 +33,9 @@ export default function PromptsSection({ space, isLight, highlightId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
   const [viewPrompt, setViewPrompt] = useState(null);
-
-  const PinButton = ({ isPinned, onToggle }) => (
-    <Tooltip title={isPinned ? 'Unpin' : 'Pin'} placement="top">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle() }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: isPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'color 0.15s',
-          zIndex: 20
-        }}
-      >
-        {isPinned ? <RiPushpin2Fill size={14} /> : <RiPushpinLine size={14} />}
-      </button>
-    </Tooltip>
-  );
 
   // Form states
   const [title, setTitle] = useState('');
@@ -65,14 +45,6 @@ export default function PromptsSection({ space, isLight, highlightId }) {
   const [customModel, setCustomModel] = useState('');
   const [tags, setTags] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
-
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Fetch prompts
   const { data: prompts = [], isLoading } = useQuery({

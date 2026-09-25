@@ -9,6 +9,8 @@ import {
 } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddDocModal } from './QuickAddModals';
+import PinButton from '../common/PinButton';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const { Dragger } = Upload;
 
@@ -17,33 +19,11 @@ export default function DocsSection({ space, isLight, highlightId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('url'); // 'url', 'pdf', 'image'
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebounce(searchQuery, 300);
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'pdf', 'image', 'url'
 
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
-
-  const PinButton = ({ isPinned, onToggle }) => (
-    <Tooltip title={isPinned ? 'Unpin' : 'Pin'} placement="top">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle() }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          color: isPinned ? 'var(--accent-color)' : 'var(--text-secondary)',
-          padding: '4px',
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          transition: 'color 0.15s',
-          zIndex: 20
-        }}
-      >
-        {isPinned ? <RiPushpin2Fill size={14} /> : <RiPushpinLine size={14} />}
-      </button>
-    </Tooltip>
-  );
 
   // Form states
   const [title, setTitle] = useState('');
@@ -52,14 +32,6 @@ export default function DocsSection({ space, isLight, highlightId }) {
   const [tags, setTags] = useState([]);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Fetch docs
   const { data, isLoading } = useQuery({

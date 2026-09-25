@@ -15,6 +15,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import ThemeToggle from './components/layout/ThemeToggle';
 import Lenis from 'lenis';
 
 const queryClient = new QueryClient({
@@ -73,10 +74,7 @@ function AppContent() {
       }}
     >
       <Router>
-        <ScrollToTop />{/*Its a function used to scroll to top of the page when the route(page) changes */}
-        {/* /if we remove it then the page will not scroll to top when the route changes and will not look good, it will just keep on scrolling from where it left off*/}
-
-
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -84,6 +82,7 @@ function AppContent() {
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/dashboard" element={
             <ProtectedRoute><Dashboard /></ProtectedRoute>
@@ -95,6 +94,8 @@ function AppContent() {
             <ProtectedRoute><Profile /></ProtectedRoute>
           } />
         </Routes>
+        {/* Global Dark / Light Mode Toggle Button */}
+        <ThemeToggle />
       </Router>
     </ConfigProvider>
   );

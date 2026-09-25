@@ -9,7 +9,6 @@ import ContinueWorking from '../components/dashboard/ContinueWorking';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import PinnedResources from '../components/dashboard/PinnedResources';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
-import ThemeToggle from '../components/layout/ThemeToggle';
 import { useSpaces } from '../hooks/useSpaces';
 import ToolSpacesGrid from '../components/dashboard/ToolSpacesGrid';
 import {
@@ -341,8 +340,6 @@ function DashboardContent() {
           )}
         </motion.main>
       </div>
-
-      <ThemeToggle />
 
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
     </div>

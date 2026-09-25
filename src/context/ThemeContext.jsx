@@ -10,10 +10,15 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     const root = window.document.body;
+    const docEl = window.document.documentElement;
     if (theme === 'light') {
       root.classList.add('light-mode');
+      docEl.setAttribute('data-theme', 'light');
+      root.setAttribute('data-theme', 'light');
     } else {
       root.classList.remove('light-mode');
+      docEl.setAttribute('data-theme', 'dark');
+      root.setAttribute('data-theme', 'dark');
     }
     localStorage.setItem('theme', theme);
   }, [theme]);

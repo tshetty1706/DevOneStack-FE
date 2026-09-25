@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { RiExternalLinkLine, RiSearchLine } from 'react-icons/ri';
-import api from '../../api/axios';
 import { useTheme } from '../../context/ThemeContext';
+import { usePinnedResources } from '../../hooks/useDashboard';
+import { getDomain } from '../../utils/urlUtils';
 import SpaceIcon from '../spaces/SpaceIcon';
-
-// Helper to parse domain from URL
-function getDomain(urlStr) {
-  try {
-    const url = new URL(urlStr);
-    return url.hostname.replace('www.', '');
-  } catch {
-    return 'docs';
-  }
-}
 
 export default function PinnedResources() {
   const { theme } = useTheme();
@@ -21,10 +11,7 @@ export default function PinnedResources() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch pinned resources across all types
-  const { data, isLoading } = useQuery({
-    queryKey: ['pinned', 'all'],
-    queryFn: () => api.get('/api/dashboard/pinned').then(r => r.data),
-  });
+  const { data, isLoading } = usePinnedResources();
 
   const learnings = data?.learnings?.map(x => ({ ...x, itemType: 'learning' })) || [];
   const snippets = data?.snippets?.map(x => ({ ...x, itemType: 'snippet' })) || [];

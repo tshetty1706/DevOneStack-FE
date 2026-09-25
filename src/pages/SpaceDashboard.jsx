@@ -6,7 +6,6 @@ import { Tooltip, message } from 'antd';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import ThemeToggle from '../components/layout/ThemeToggle';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
 import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
@@ -763,7 +762,6 @@ export default function SpaceDashboard() {
         </main>
       </div>
 
-      <ThemeToggle />
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
 
       {/* ── Quick Add Modals (rendered at dashboard home level) ── */}
