@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import DashboardNav from '../components/dashboard/DashboardNav';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
+import CommandPalette from '../components/dashboard/CommandPalette';
 import { useSpaces } from '../hooks/useSpaces';
 
 export default function Profile() {
@@ -27,6 +28,7 @@ export default function Profile() {
   const [isEditingSocials, setIsEditingSocials] = useState(false);
 
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { data: spaces = [] } = useSpaces();
 
   const learningsCount = spaces.reduce((acc, s) => acc + (s.learningsCount || 0), 0);
@@ -71,6 +73,18 @@ export default function Profile() {
       }
     }
   }, [user]);
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Save utility to persist to localstorage
   const saveProfileField = (key, value) => {
@@ -230,17 +244,22 @@ export default function Profile() {
         <div className="glow-orb glow-orb-3" />
       </div>
 
-      <DashboardNav onNewSpaceClick={() => setNewSpaceOpen(true)} />
+      <DashboardNav
+        onSearchOpen={() => setPaletteOpen(true)}
+        onNewSpaceClick={() => setNewSpaceOpen(true)}
+      />
 
       <main style={{
         maxWidth: '1080px',
         margin: '0 auto',
-        padding: '30px 24px 80px',
+        padding: 'clamp(20px, 3vw, 30px) clamp(16px, 3.5vw, 24px) 80px',
         position: 'relative',
         zIndex: 10,
         display: 'flex',
         flexDirection: 'column',
-        gap: '24px'
+        gap: '24px',
+        boxSizing: 'border-box',
+        width: '100%',
       }}>
 
         {/* Back Link / Breadcrumb */}
@@ -268,142 +287,157 @@ export default function Profile() {
         <div
           style={{
             ...cardStyle,
-            padding: '32px',
+            padding: 'clamp(20px, 3vw, 32px)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '32px',
+            gap: '28px',
           }}
           onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--card-hover-border)'}
           onMouseLeave={e => e.currentTarget.style.borderColor = border}
         >
           {/* TOP PART: User Profile Header */}
-          <div style={{ position: 'relative', width: '100%' }}>
-            {/* Edit profile toggle button */}
-            <button
-              onClick={() => setIsEditingProfile(!isEditingProfile)}
-              style={{
-                position: 'absolute', top: 0, right: 0,
-                background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isLight ? '#e5e5e5' : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: '8px', cursor: 'pointer',
-                color: isEditingProfile ? accentColor : textPrimary,
-                fontSize: '13px', fontWeight: 600,
-                padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px',
-                fontFamily: 'var(--font-body)', transition: 'all 0.15s ease',
-                zIndex: 10
-              }}
-            >
-              {isEditingProfile ? (
-                <>
-                  <RiCloseLine size={16} />
-                  <span>Cancel</span>
-                </>
-              ) : (
-                <>
-                  <RiEditLine size={15} />
-                  <span>Edit Profile</span>
-                </>
-              )}
-            </button>
-
-            {isEditingProfile ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '480px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: textPrimary, margin: 0 }}>
-                  Edit Profile Information
-                </h3>
-                <div>
-                  <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Full Name</label>
-                  <Input value={name} onChange={e => setName(e.target.value)} style={textInputStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Caption / Bio</label>
-                  <Input value={caption} onChange={e => setCaption(e.target.value)} style={textInputStyle} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Avatar Image URL (Optional)</label>
-                  <Input value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Or paste any image URL directly" style={textInputStyle} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Button type="primary" onClick={handleSaveProfile} style={{ background: accentColor, borderColor: accentColor }}>
-                    Save Profile
-                  </Button>
-                  <Upload beforeUpload={handleAvatarUpload} showUploadList={false}>
-                    <Button type="default" style={textInputStyle}>
-                      Upload Image File
-                    </Button>
-                  </Upload>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap', minWidth: 0, width: '100%' }}>
-                {/* Left: Avatar with Blue Camera Icon overlay */}
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  {avatar ? (
-                    <img
-                      src={avatar}
-                      alt={name}
-                      style={{ width: '96px', height: '96px', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${isLight ? '#e5e5e5' : '#22222a'}` }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '96px', height: '96px', borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${isLight ? '#4f46e5' : '#6366f1'}, ${isLight ? '#9333ea' : '#a855f7'})`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '36px', fontWeight: 700, color: '#ffffff'
-                    }}>
-                      {initials}
+          <div style={{ width: '100%' }}>
+            {/* Header top row with user details & edit toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              flexWrap: 'wrap',
+              marginBottom: isEditingProfile ? '16px' : '0',
+            }}>
+              <div style={{ flex: 1, minWidth: 'min(100%, 280px)' }}>
+                {isEditingProfile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '520px', width: '100%' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: textPrimary, margin: 0 }}>
+                      Edit Profile Information
+                    </h3>
+                    <div>
+                      <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Full Name</label>
+                      <Input value={name} onChange={e => setName(e.target.value)} style={textInputStyle} />
                     </div>
-                  )}
-                  {/* Camera icon picker */}
-                  <Upload beforeUpload={handleAvatarUpload} showUploadList={false}>
-                    <button style={{
-                      position: 'absolute', bottom: '-2px', right: '-2px',
-                      width: '30px', height: '30px', borderRadius: '50%',
-                      background: '#4f46e5', border: `2.5px solid ${isLight ? '#ffffff' : '#111116'}`,
-                      color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                      transition: 'background 0.15s'
-                    }}>
-                      <RiCameraLine size={14} />
-                    </button>
-                  </Upload>
-                </div>
-
-                {/* Right of Avatar: User Meta */}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <h2 style={{ fontSize: '24px', fontWeight: 700, color: textPrimary, margin: '0 0 4px 0', fontFamily: 'var(--font-display)' }}>
-                    {name}
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '0 0 8px 0' }}>
-                    {user.username && (
-                      <span style={{ fontSize: '13px', color: accentColor, fontWeight: 600 }}>
-                        @{user.username}
-                      </span>
-                    )}
-                    {user.username && <span style={{ color: textSub }}>•</span>}
-                    <span style={{ fontSize: '13.5px', color: textMuted, fontWeight: 500 }}>
-                      {user.email}
-                    </span>
+                    <div>
+                      <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Caption / Bio</label>
+                      <Input value={caption} onChange={e => setCaption(e.target.value)} style={textInputStyle} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: textMuted, textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Avatar Image URL (Optional)</label>
+                      <Input value={avatar} onChange={e => setAvatar(e.target.value)} placeholder="Or paste any image URL directly" style={textInputStyle} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <Button type="primary" onClick={handleSaveProfile} style={{ background: accentColor, borderColor: accentColor }}>
+                        Save Profile
+                      </Button>
+                      <Upload beforeUpload={handleAvatarUpload} showUploadList={false}>
+                        <Button type="default" style={textInputStyle}>
+                          Upload Image File
+                        </Button>
+                      </Upload>
+                    </div>
                   </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', minWidth: 0, width: '100%' }}>
+                    {/* Avatar with Camera picker */}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      {avatar ? (
+                        <img
+                          src={avatar}
+                          alt={name}
+                          style={{ width: '88px', height: '88px', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${isLight ? '#e5e5e5' : '#22222a'}` }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '88px', height: '88px', borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${isLight ? '#4f46e5' : '#6366f1'}, ${isLight ? '#9333ea' : '#a855f7'})`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '32px', fontWeight: 700, color: '#ffffff'
+                        }}>
+                          {initials}
+                        </div>
+                      )}
+                      <Upload beforeUpload={handleAvatarUpload} showUploadList={false}>
+                        <button
+                          type="button"
+                          aria-label="Upload Avatar Photo"
+                          style={{
+                            position: 'absolute', bottom: '-2px', right: '-2px',
+                            width: '30px', height: '30px', borderRadius: '50%',
+                            background: '#4f46e5', border: `2.5px solid ${isLight ? '#ffffff' : '#111116'}`,
+                            color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                            transition: 'background 0.15s'
+                          }}
+                        >
+                          <RiCameraLine size={14} />
+                        </button>
+                      </Upload>
+                    </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: textMuted, fontSize: '13px', margin: '8px 0 16px 0' }}>
-                    <RiCalendarLine size={15} style={{ color: textMuted }} />
-                    <span>Joined on {joinedDate}</span>
+                    {/* Right of Avatar: User Details */}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <h2 style={{ fontSize: 'clamp(20px, 3.5vw, 24px)', fontWeight: 700, color: textPrimary, margin: '0 0 4px 0', fontFamily: 'var(--font-display)' }}>
+                        {name}
+                      </h2>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '0 0 6px 0' }}>
+                        {user.username && (
+                          <span style={{ fontSize: '13px', color: accentColor, fontWeight: 600 }}>
+                            @{user.username}
+                          </span>
+                        )}
+                        {user.username && <span style={{ color: textSub }}>•</span>}
+                        <span style={{ fontSize: '13px', color: textMuted, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {user.email}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: textMuted, fontSize: '12.5px', margin: '6px 0 12px 0' }}>
+                        <RiCalendarLine size={14} style={{ color: textMuted }} />
+                        <span>Joined on {joinedDate}</span>
+                      </div>
+
+                      <p style={{
+                        fontSize: '13.5px',
+                        color: isLight ? '#475569' : '#d1d5db',
+                        margin: 0,
+                        lineHeight: 1.5,
+                        maxWidth: '560px'
+                      }}>
+                        "{caption}" ✨
+                      </p>
+                    </div>
                   </div>
-
-                  <p style={{
-                    fontSize: '14px',
-                    color: isLight ? '#475569' : '#d1d5db',
-                    margin: 0,
-                    lineHeight: 1.5,
-                    fontStyle: 'normal',
-                    maxWidth: '560px'
-                  }}>
-                    "{caption}" ✨
-                  </p>
-                </div>
+                )}
               </div>
-            )}
+
+              {/* Edit profile toggle button */}
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile(!isEditingProfile)}
+                style={{
+                  background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${isLight ? '#e5e5e5' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: '8px', cursor: 'pointer',
+                  color: isEditingProfile ? accentColor : textPrimary,
+                  fontSize: '13px', fontWeight: 600,
+                  padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  fontFamily: 'var(--font-body)', transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                  minHeight: '38px',
+                }}
+              >
+                {isEditingProfile ? (
+                  <>
+                    <RiCloseLine size={16} />
+                    <span>Cancel</span>
+                  </>
+                ) : (
+                  <>
+                    <RiEditLine size={15} />
+                    <span>Edit Profile</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* BOTTOM PART: Dynamic Stats Cards Row inside the same container */}
@@ -788,6 +822,7 @@ export default function Profile() {
       </main>
 
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

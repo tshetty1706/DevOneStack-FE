@@ -225,7 +225,7 @@ export default function LearningsSection({ space, isLight, highlightId }) {
   const themeInputBorder = isLight ? '#d9d9d9' : '#2a2a30';
 
   return (
-    <div style={{
+    <div className="learnings-split-layout" style={{
       display: 'flex',
       flex: 1,
       overflow: 'hidden',
@@ -248,7 +248,7 @@ export default function LearningsSection({ space, isLight, highlightId }) {
       `}</style>
 
       {/* LEFT COLUMN: Sidebar Explorer */}
-      <div style={{
+      <div className="learnings-split-sidebar" style={{
         width: '320px',
         borderRight: `1px solid ${themeBorder}`,
         display: 'flex',

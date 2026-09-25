@@ -23,7 +23,7 @@ export default function Hero() {
         <div className="grid-bg-overlay" />
       </div>
 
-      <div className="hero-grid" style={{ gridTemplateColumns: '1fr 1.1fr', gap: '40px' }}>
+      <div className="hero-grid">
         {/* Left Side Content */}
         <motion.div
           className="hero-content"

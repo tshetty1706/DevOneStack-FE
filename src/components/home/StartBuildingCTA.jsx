@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { Card, Button } from 'antd';
 import { motion, useInView } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 // React Icons Imports for CTA visual badging
 import { FaReact, FaDocker, FaGitAlt } from 'react-icons/fa';
@@ -52,6 +54,8 @@ function hexToRgb(hex) {
 export default function StartBuildingCTA() {
   const containerRef = useRef(null);
   const isInView = useInView(containerRef, { once: true, amount: 0.3 });
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <section className="cta-section" ref={containerRef} style={{ position: 'relative', overflow: 'hidden' }}>
@@ -201,9 +205,9 @@ export default function StartBuildingCTA() {
               gap: '8px',
               color: '#ffffff',
             }}
-            onClick={() => console.log('Start Building CTA click')}
+            onClick={() => navigate(user ? `/u/${encodeURIComponent(user.username || 'user')}/dashboard` : '/signup')}
           >
-            Create your first tool space
+            {user ? 'Go to your workspaces' : 'Create your first tool space'}
             <svg
               width="16"
               height="16"

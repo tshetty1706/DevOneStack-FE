@@ -195,10 +195,10 @@ export default function ReposSection({ space, isLight, highlightId }) {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 20px)' }}>
       {/* Header controls */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 220px)', maxWidth: '320px' }}>
           <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
           <input
             placeholder="Search repos..."
@@ -230,7 +230,7 @@ export default function ReposSection({ space, isLight, highlightId }) {
           No repositories linked. Add your GitHub or GitLab projects!
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
           {repos.map((repo) => (
             <div
               key={repo._id}

@@ -198,11 +198,11 @@ export default function DocsSection({ space, isLight, highlightId }) {
   });
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 20px)' }}>
       {/* Header Controls with Filter Pills */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '180px', maxWidth: '320px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: 'min(100%, 260px)', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 180px)', maxWidth: '320px' }}>
             <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
             <input
               placeholder="Search docs..."
@@ -228,6 +228,7 @@ export default function DocsSection({ space, isLight, highlightId }) {
             borderRadius: '8px',
             padding: '2px',
             gap: '2px',
+            flexWrap: 'wrap',
             boxShadow: isLight ? 'none' : 'inset 0 1px 2px rgba(0,0,0,0.2)'
           }}>
             {[
@@ -298,7 +299,7 @@ export default function DocsSection({ space, isLight, highlightId }) {
           No documents found matching the "{typeFilter.toUpperCase()}" filter.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
           {filteredDocs.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)).map((doc) => {
             const isPdf = doc.type === 'pdf';
             const isImage = doc.type === 'image';

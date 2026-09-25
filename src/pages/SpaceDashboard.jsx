@@ -8,11 +8,12 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import NotFoundPage from './NotFoundPage';
 import NewSpaceModal from '../components/dashboard/NewSpaceModal';
+import CommandPalette from '../components/dashboard/CommandPalette';
 import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
   RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
-  RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine,
+  RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine, RiCloseLine
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
@@ -45,7 +46,6 @@ const SIDEBAR_ITEMS = [
   { id: 'tags', icon: RiPriceTag3Line, label: 'Tags' },
 ];
 
-// Each stat card gets its own accent color to match the screenshot
 const STAT_CARDS = [
   { key: 'docsCount', icon: RiFileTextLine, label: 'Docs', iconBg: 'rgba(59,130,246,0.15)', iconColor: '#60a5fa' },
   { key: 'learningsCount', icon: RiLightbulbLine, label: 'Learnings', iconBg: 'rgba(234,179,8,0.15)', iconColor: '#eab308' },
@@ -55,38 +55,6 @@ const STAT_CARDS = [
   { key: 'communitiesCount', icon: RiTeamLine, label: 'Communities', iconBg: 'rgba(6,182,212,0.15)', iconColor: '#22d3ee' },
 ];
 
-// ── Empty section template ────────────────────────────────────────────────────
-function EmptySection({ icon: Icon, title, body, btnLabel, accent }) {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: '80px 24px', gap: '16px', textAlign: 'center',
-    }}>
-      <Icon size={48} style={{ color: 'var(--text-muted)' }} />
-      <div>
-        <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-color)', margin: '0 0 8px' }}>{title}</p>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '340px', margin: '0 0 20px', lineHeight: 1.6 }}>{body}</p>
-        {btnLabel && (
-          <button style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            padding: '9px 20px', borderRadius: '10px',
-            border: '1px solid var(--card-border)',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            fontSize: '13px', fontWeight: 600,
-            cursor: 'default', fontFamily: 'var(--font-body)',
-          }}>
-            <RiAddLine /> {btnLabel}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Section content per tab ───────────────────────────────────────────────────
 const SECTIONS = {
   docs: ({ space, isLight, highlightId }) => <DocsSection space={space} isLight={isLight} highlightId={highlightId} />,
   learnings: ({ space, isLight, highlightId }) => <LearningsSection space={space} isLight={isLight} highlightId={highlightId} />,
@@ -98,7 +66,6 @@ const SECTIONS = {
   settings: ({ space, isLight }) => <SettingsSection space={space} isLight={isLight} />,
 };
 
-// ── CountUp animation hook ────────────────────────────────────────────────────
 function useCountUp(target, duration = 800) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -122,31 +89,38 @@ function StatCard({ stat, value, isLight }) {
     <div style={{
       background: 'var(--card-bg)',
       border: '1px solid var(--card-border)',
-      borderRadius: '12px', padding: '18px 16px',
-      display: 'flex', flexDirection: 'column', gap: '12px',
-      transition: 'border-color 0.2s ease',
+      borderRadius: '12px', padding: '16px 14px',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+      transition: 'all 0.2s ease',
+      minWidth: 0,
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--card-hover-border)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--card-border)'}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--card-hover-border)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--card-border)';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
     >
       <div style={{
-        width: '34px', height: '34px', borderRadius: '9px',
+        width: '32px', height: '32px', borderRadius: '8px',
         background: stat.iconBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: stat.iconColor,
         flexShrink: 0,
       }}>
-        <Icon size={17} />
+        <Icon size={16} />
       </div>
       <div>
         <div style={{
-          fontSize: '26px', fontWeight: 600, lineHeight: 1,
+          fontSize: '22px', fontWeight: 700, lineHeight: 1,
           color: 'var(--text-color)',
           fontFamily: 'var(--font-display)',
         }}>
           {count}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 500 }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 500 }}>
           {stat.label}
         </div>
       </div>
@@ -155,6 +129,7 @@ function StatCard({ stat, value, isLight }) {
 }
 
 function timeAgo(dateStr) {
+  if (!dateStr) return 'just now';
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
   if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -162,7 +137,6 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function SpaceDashboard() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
@@ -171,14 +145,28 @@ export default function SpaceDashboard() {
   const isLight = theme === 'light';
 
   const [isHovered, setIsHovered] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [userName, setUserName] = useState('Developer');
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [openNoteId, setOpenNoteId] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
+  const [quickAddModal, setQuickAddModal] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [quickAddModal, setQuickAddModal] = useState(null); // 'learnings'|'snippets'|'docs'|'repos'|'prompts'|'communities'|null
+
+  // Keyboard shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -202,6 +190,7 @@ export default function SpaceDashboard() {
     setActiveSection(sectionId);
     setOpenNoteId(null);
     setHighlightId(null);
+    setMobileSidebarOpen(false);
     if (sectionId === 'home') {
       setSearchParams({});
     } else {
@@ -224,7 +213,7 @@ export default function SpaceDashboard() {
     retry: false,
   });
 
-  // Track space visit for "Continue Where You Left Off" widget
+  // Track space visit
   useEffect(() => {
     if (space && space._id && user && user._id) {
       try {
@@ -253,7 +242,6 @@ export default function SpaceDashboard() {
     staleTime: 30000,
   });
 
-  // ── Theme tokens ── matching user dashboard (Dashboard.jsx) theme colors
   const bg = 'var(--bg-color)';
   const sidebarBg = isLight ? '#ffffff' : '#08080c';
   const sidebarBrd = isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)';
@@ -263,16 +251,14 @@ export default function SpaceDashboard() {
   const navBg = isLight ? 'rgba(250,250,250,0.92)' : 'rgba(8, 8, 12, 0.92)';
   const navBorder = 'var(--nav-border)';
 
-  // Indigo/violet accent
   const accent = 'var(--accent-color)';
-  const accentBg = isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.08)';
+  const accentBg = isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)';
   const accentText = accent;
 
   const textColor = 'var(--text-color)';
   const textMuted = 'var(--text-secondary)';
   const textSub = 'var(--text-muted)';
 
-  // ── Loading ──
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: bg }}>
@@ -285,21 +271,182 @@ export default function SpaceDashboard() {
     );
   }
 
-  // ── 404 ──
   if (error || !space) {
     return <NotFoundPage />;
   }
 
   const SectionComp = SECTIONS[activeSection];
 
+  const sidebarContent = (isMobile = false) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      width: '100%',
+      background: sidebarBg,
+    }}>
+      {/* Brand */}
+      <div
+        style={{
+          padding: isMobile ? '16px 20px' : (isHovered ? '16px 20px' : '16px 14px'),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          minHeight: '52px',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          borderBottom: `1px solid ${sidebarBrd}`,
+        }}
+      >
+        <div
+          onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', flexShrink: 0 }}>
+            <OnlyLogo />
+          </div>
+          {(isMobile || isHovered) && (
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 800,
+              fontSize: '16px',
+              color: textColor,
+              letterSpacing: '-0.02em',
+              whiteSpace: 'nowrap',
+            }}>
+              DevOneStack
+            </span>
+          )}
+        </div>
+
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(false)}
+            aria-label="Close sidebar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: 'none',
+              background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.06)',
+              color: textColor,
+              cursor: 'pointer',
+            }}
+          >
+            <RiCloseLine size={20} />
+          </button>
+        )}
+      </div>
+
+      {/* Nav items */}
+      <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none', padding: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {SIDEBAR_ITEMS.map(item => {
+          const isActive = activeSection === item.id;
+          const Icon = item.icon;
+          return (
+            <Tooltip key={item.id} title={!isHovered && !isMobile ? item.label : ''} placement="right">
+              <button
+                type="button"
+                onClick={() => handleSectionChange(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isActive ? accentBg : 'transparent',
+                  color: isActive ? accentText : textMuted,
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '13px',
+                  fontWeight: isActive ? 600 : 500,
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left',
+                  borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
+                  transition: 'background 0.15s, color 0.15s, border-left-color 0.15s',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  minHeight: '40px',
+                }}
+                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
+                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+                  <Icon size={18} />
+                </div>
+                {(isMobile || isHovered) && (
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: isActive ? 600 : 500,
+                    marginLeft: '12px',
+                  }}>
+                    {item.label}
+                  </span>
+                )}
+              </button>
+            </Tooltip>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}` }}>
+        <Tooltip title={!isHovered && !isMobile ? 'Settings' : ''} placement="right">
+          <button
+            type="button"
+            onClick={() => handleSectionChange('settings')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              background: activeSection === 'settings' ? accentBg : 'transparent',
+              color: activeSection === 'settings' ? accentText : textMuted,
+              fontFamily: 'var(--font-body)',
+              fontSize: '13px',
+              fontWeight: activeSection === 'settings' ? 600 : 500,
+              cursor: 'pointer',
+              width: '100%',
+              whiteSpace: 'nowrap',
+              borderLeft: activeSection === 'settings' ? `3px solid ${accent}` : '3px solid transparent',
+              overflow: 'hidden',
+              minHeight: '40px',
+            }}
+            onMouseEnter={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
+            onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+              <RiSettings3Line size={18} />
+            </div>
+            {(isMobile || isHovered) && (
+              <span style={{
+                fontSize: '13px',
+                fontWeight: activeSection === 'settings' ? 600 : 500,
+                marginLeft: '12px',
+              }}>
+                Settings
+              </span>
+            )}
+          </button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: bg, transition: 'background 0.3s ease', position: 'relative' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: bg, transition: 'background 0.3s ease', position: 'relative' }}>
 
-      {/* Spacer to reserve space for collapsed sidebar */}
-      <div style={{ width: '70px', height: '100vh', flexShrink: 0 }} />
+      {/* Spacer to reserve space for collapsed sidebar on desktop */}
+      <div className="space-sidebar-spacer" style={{ width: '64px', height: '100vh', flexShrink: 0 }} />
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      {/* ── Desktop Hover Sidebar ────────────────────────────────────────── */}
       <aside
+        className="space-desktop-sidebar"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
@@ -308,8 +455,8 @@ export default function SpaceDashboard() {
           top: 0,
           width: isHovered ? '220px' : '64px',
           height: '100vh',
-          zIndex: 1000,
-          transition: 'width 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms ease',
+          zIndex: 800,
+          transition: 'width 220ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 220ms ease',
           background: sidebarBg,
           borderRight: `1px solid ${sidebarBrd}`,
           boxShadow: isHovered
@@ -320,181 +467,245 @@ export default function SpaceDashboard() {
           overflow: 'hidden',
         }}
       >
-        {/* Brand */}
-        <div
-          onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)}
-          style={{
-            padding: '16px 14px 12px',
-            paddingLeft: isHovered ? '24px' : '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            minHeight: '52px',
-            cursor: 'pointer',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
-            <OnlyLogo />
-          </div>
-          <span style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            fontSize: '16px',
-            color: textColor,
-            letterSpacing: '-0.02em',
-            whiteSpace: 'nowrap',
-            opacity: isHovered ? 1 : 0,
-            transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
-            transition: 'opacity 200ms ease, transform 200ms ease',
-          }}>
-            DevOneStack
-          </span>
-        </div>
-
-
-        {/* Nav items */}
-        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none', padding: '2px 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          {SIDEBAR_ITEMS.map(item => {
-            const isActive = activeSection === item.id;
-            const Icon = item.icon;
-            return (
-              <Tooltip key={item.id} title={!isHovered ? item.label : ''} placement="right">
-                <button
-                  onClick={() => handleSectionChange(item.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '10px 0',
-                    paddingLeft: isHovered ? '14px' : '11px',
-                    borderRadius: '8px', border: 'none',
-                    background: isActive ? accentBg : 'transparent',
-                    color: isActive ? accentText : textMuted,
-                    fontFamily: 'var(--font-body)',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 600 : 500,
-                    cursor: 'pointer', width: '100%', textAlign: 'left',
-                    borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
-                    transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, color 0.15s, border-left-color 0.15s',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                  }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
-                    <Icon size={20} />
-                  </div>
-                  <span style={{
-                    opacity: isHovered ? 1 : 0,
-                    transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
-                    transition: 'opacity 200ms ease, transform 200ms ease',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 600 : 500,
-                    marginLeft: '12px',
-                  }}>
-                    {item.label}
-                  </span>
-                </button>
-              </Tooltip>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}`, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-          <Tooltip title={!isHovered ? 'Settings' : ''} placement="right">
-            <button
-              onClick={() => handleSectionChange('settings')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '10px 0',
-                paddingLeft: isHovered ? '14px' : '11px',
-                borderRadius: '8px', border: 'none',
-                background: activeSection === 'settings' ? accentBg : 'transparent',
-                color: activeSection === 'settings' ? accentText : textMuted,
-                fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: activeSection === 'settings' ? 600 : 500,
-                cursor: 'pointer', width: '100%', whiteSpace: 'nowrap',
-                transition: 'padding-left 250ms cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, color 0.15s, border-left-color 0.15s',
-                borderLeft: activeSection === 'settings' ? `3px solid ${accent}` : '3px solid transparent',
-                overflow: 'hidden',
-              }}
-              onMouseEnter={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
-              onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
-                <RiSettings3Line size={20} />
-              </div>
-              <span style={{
-                opacity: isHovered ? 1 : 0,
-                transform: isHovered ? 'translateX(0)' : 'translateX(-10px)',
-                transition: 'opacity 200ms ease, transform 200ms ease',
-                fontSize: '13px',
-                fontWeight: activeSection === 'settings' ? 600 : 500,
-                marginLeft: '12px',
-              }}>
-                Settings
-              </span>
-            </button>
-          </Tooltip>
-        </div>
+        {sidebarContent(false)}
       </aside>
+
+      {/* ── Mobile Sidebar Drawer ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <>
+            <motion.div
+              key="mobile-space-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 1000,
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+              }}
+            />
+            <motion.aside
+              key="mobile-space-sidebar"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 'min(280px, 85vw)',
+                zIndex: 1001,
+                boxShadow: '4px 0 24px rgba(0,0,0,0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {sidebarContent(true)}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Main area ────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: mainBg }}>
 
         {/* Top bar */}
         <header style={{
-          height: '52px', display: 'flex', alignItems: 'center',
-          padding: '0 24px', gap: '12px', flexShrink: 0,
-          background: navBg, backdropFilter: 'blur(14px)',
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 clamp(12px, 3vw, 24px)',
+          gap: '12px',
+          flexShrink: 0,
+          background: navBg,
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
           borderBottom: `1px solid ${navBorder}`,
-          position: 'sticky', top: 0, zIndex: 50,
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
           transition: 'background 0.3s ease',
         }}>
-          {/* Left */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: textMuted, display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px', transition: 'color 0.15s ease' }}
-              onMouseEnter={e => e.currentTarget.style.color = textColor}
-              onMouseLeave={e => e.currentTarget.style.color = textMuted}>
-              <RiArrowLeftLine size={17} />
+          {/* Left Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="space-sidebar-mobile-toggle"
+              aria-label="Open workspace navigation"
+              style={{
+                display: 'none', // shown via CSS on mobile/tablet
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                border: `1px solid ${sidebarBrd}`,
+                background: 'transparent',
+                color: textColor,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <RiMenuLine size={19} />
             </button>
-            <span style={{ height: '14px', width: '1px', background: sidebarBrd }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/u/${encodeURIComponent(user?.username || 'user')}/dashboard`)}
+              aria-label="Back to Dashboard"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: textMuted,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px',
+                borderRadius: '6px',
+                transition: 'color 0.15s ease',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = textColor}
+              onMouseLeave={e => e.currentTarget.style.color = textMuted}
+            >
+              <RiArrowLeftLine size={18} />
+            </button>
+
+            <span style={{ height: '14px', width: '1px', background: sidebarBrd, flexShrink: 0 }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
               <SpaceIcon iconKey={space.iconKey || space.icon} size={16} />
-              <span style={{ fontSize: '14px', fontWeight: 600, color: textColor, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
+              <span style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: textColor,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '-0.01em',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
                 {space.name}
               </span>
             </div>
-            {space.tags?.slice(0, 2).map(t => (
-              <span key={t} style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', background: isLight ? '#f0f0f0' : '#1e1e1e', border: `1px solid ${sidebarBrd}`, color: textMuted, fontWeight: 500 }}>
+
+            {space.tags?.slice(0, 1).map(t => (
+              <span
+                key={t}
+                className="space-header-tag"
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '20px',
+                  background: isLight ? '#f0f0f0' : '#1e1e1e',
+                  border: `1px solid ${sidebarBrd}`,
+                  color: textMuted,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
                 {t}
               </span>
             ))}
           </div>
 
-          {/* Center search */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '340px', height: '32px', padding: '0 12px', borderRadius: '20px', border: `1px solid ${sidebarBrd}`, background: isLight ? '#ffffff' : '#1a1a1a', cursor: 'text' }}>
-              <RiSearchLine size={13} style={{ color: textMuted }} />
-              <span style={{ flex: 1, textAlign: 'left', fontSize: '13px', color: textMuted, opacity: 0.7 }}>Search anything…</span>
-              <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: isLight ? '#f5f5f5' : '#242424', border: `1px solid ${sidebarBrd}`, color: textSub }}>⌘K</span>
-            </div>
+          {/* Center search (Opens Command Palette) */}
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', maxWidth: '340px', minWidth: '40px' }}>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Search within space (⌘K)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                height: '34px',
+                padding: '0 12px',
+                borderRadius: '20px',
+                border: `1px solid ${sidebarBrd}`,
+                background: isLight ? '#ffffff' : '#141418',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                minWidth: 0,
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = accent}
+              onMouseLeave={e => e.currentTarget.style.borderColor = sidebarBrd}
+            >
+              <RiSearchLine size={13} style={{ color: textMuted, flexShrink: 0 }} />
+              <span style={{
+                flex: 1,
+                textAlign: 'left',
+                fontSize: '12px',
+                color: textMuted,
+                opacity: 0.8,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                Search anything…
+              </span>
+              <span style={{
+                fontSize: '10px',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                background: isLight ? '#f5f5f5' : '#222228',
+                border: `1px solid ${sidebarBrd}`,
+                color: textSub,
+                flexShrink: 0,
+              }}>
+                ⌘K
+              </span>
+            </button>
           </div>
 
-          {/* Right */}
+          {/* Right Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {/* TODO: implement share functionality */}
             <button
-              onClick={() => message.info('Sharing coming soon!')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 13px', borderRadius: '8px', border: `1px solid ${sidebarBrd}`, background: 'transparent', color: textMuted, fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'color 0.15s, border-color 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = textColor; e.currentTarget.style.borderColor = isLight ? '#aaaaaa' : '#444444'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = textMuted; e.currentTarget.style.borderColor = sidebarBrd; }}
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                message.success('Space URL copied to clipboard!');
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${sidebarBrd}`,
+                background: 'transparent',
+                color: textMuted,
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+                transition: 'all 0.15s ease',
+                minHeight: '34px',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = textColor;
+                e.currentTarget.style.borderColor = accent;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = textMuted;
+                e.currentTarget.style.borderColor = sidebarBrd;
+              }}
             >
-              <RiShareLine size={14} /> Share
+              <RiShareLine size={14} />
+              <span className="space-share-btn-text">Share</span>
             </button>
           </div>
         </header>
@@ -505,14 +716,14 @@ export default function SpaceDashboard() {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '24px',
+            padding: 'clamp(16px, 3.5vw, 28px)',
             scrollBehavior: 'smooth',
             scrollbarWidth: 'thin',
             scrollbarColor: 'var(--border) transparent',
+            boxSizing: 'border-box',
           }}
         >
           <AnimatePresence mode="wait">
-
             {/* ── Home ── */}
             {activeSection === 'home' ? (
               <motion.div
@@ -521,11 +732,18 @@ export default function SpaceDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}
               >
-                {/* Welcome */}
+                {/* Welcome Banner */}
                 <div>
-                  <h1 style={{ fontSize: '22px', fontWeight: 700, color: textColor, margin: '0 0 4px', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
+                  <h1 style={{
+                    fontSize: 'clamp(20px, 3.5vw, 24px)',
+                    fontWeight: 700,
+                    color: textColor,
+                    margin: '0 0 4px',
+                    fontFamily: 'var(--font-display)',
+                    letterSpacing: '-0.01em',
+                  }}>
                     Welcome back, {userName.split(' ')[0]} 👋
                   </h1>
                   <p style={{ fontSize: '13px', color: textMuted, margin: 0 }}>
@@ -533,23 +751,31 @@ export default function SpaceDashboard() {
                   </p>
                 </div>
 
-                {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                {/* Stats Responsive Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+                  gap: '12px',
+                  width: '100%',
+                }}>
                   {STAT_CARDS.map(stat => (
                     <StatCard key={stat.key} stat={stat} value={space[stat.key] || 0} isLight={isLight} />
                   ))}
                 </div>
 
-                {/* Recent Activity + Quick Add side-by-side */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
-
+                {/* Recent Activity + Quick Add Responsive Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+                  gap: '20px',
+                  width: '100%',
+                }}>
                   {/* ── Recent Activity Timeline ── */}
                   <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
                       <p style={{ fontSize: '13px', fontWeight: 700, color: textColor, margin: 0, letterSpacing: '-0.01em' }}>
                         Recent Activity
                       </p>
-
                     </div>
 
                     {activity.length === 0 ? (
@@ -564,7 +790,6 @@ export default function SpaceDashboard() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative' }}>
-                        {/* Vertical timeline line */}
                         <div style={{
                           position: 'absolute',
                           left: '15px',
@@ -577,7 +802,6 @@ export default function SpaceDashboard() {
                         }} />
 
                         {activity.map((item, i) => {
-                          // Determine activity type for icon/color from the action field
                           const actionMap = {
                             created_learning: { icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.12)', tag: 'Learning' },
                             created_snippet: { icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.12)', tag: 'Snippet' },
@@ -601,7 +825,6 @@ export default function SpaceDashboard() {
                               onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'}
                               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                             >
-                              {/* Timeline dot + icon */}
                               <div style={{
                                 width: '30px', height: '30px', borderRadius: '8px',
                                 background: meta.bg,
@@ -613,9 +836,8 @@ export default function SpaceDashboard() {
                                 <ActIcon size={14} />
                               </div>
 
-                              {/* Label + tag */}
                               <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>
+                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '240px' }}>
                                   {item.label}
                                 </p>
                                 <span style={{
@@ -629,7 +851,6 @@ export default function SpaceDashboard() {
                                 </span>
                               </div>
 
-                              {/* Timestamp */}
                               <span style={{ fontSize: '11px', color: textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                 {timeAgo(item.createdAt)}
                               </span>
@@ -653,7 +874,12 @@ export default function SpaceDashboard() {
                       </p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', flex: 1 }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+                      gap: '10px',
+                      flex: 1,
+                    }}>
                       {[
                         { label: 'Learning', section: 'learnings', icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.08)' },
                         { label: 'Snippet', section: 'snippets', icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.08)' },
@@ -665,19 +891,21 @@ export default function SpaceDashboard() {
                         const QaIcon = qa.icon;
                         return (
                           <button
+                            type="button"
                             key={qa.section}
                             onClick={() => setQuickAddModal(qa.section)}
                             style={{
-                              display: 'flex', alignItems: 'center', gap: '10px',
-                              padding: '12px 14px', borderRadius: '10px',
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '10px 12px', borderRadius: '10px',
                               border: `1px solid ${isLight ? '#e8e8e8' : 'rgba(255,255,255,0.07)'}`,
                               background: 'transparent',
                               color: textColor,
-                              fontSize: '13px', fontWeight: 600,
+                              fontSize: '12.5px', fontWeight: 600,
                               cursor: 'pointer',
                               fontFamily: 'var(--font-body)',
                               transition: 'all 0.2s ease',
                               textAlign: 'left',
+                              minHeight: '44px',
                             }}
                             onMouseEnter={e => {
                               e.currentTarget.style.background = qa.bg;
@@ -691,23 +919,21 @@ export default function SpaceDashboard() {
                             }}
                           >
                             <div style={{
-                              width: '28px', height: '28px', borderRadius: '7px',
+                              width: '26px', height: '26px', borderRadius: '6px',
                               background: qa.bg,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               color: qa.color, flexShrink: 0,
                             }}>
                               <QaIcon size={14} />
                             </div>
-                            <span>+ {qa.label}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>+ {qa.label}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
-
                 </div>
               </motion.div>
-
             ) : (
               /* ── Sub section ── */
               <motion.div
@@ -716,13 +942,12 @@ export default function SpaceDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ maxWidth: '1200px' }}
+                style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}
               >
-                {/* Section heading */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
                   <h2 style={{
-                    fontSize: 20,
-                    fontWeight: 600,
+                    fontSize: 'clamp(18px, 3vw, 22px)',
+                    fontWeight: 700,
                     color: 'var(--text-primary)',
                     marginBottom: 4,
                     letterSpacing: '-0.01em',
@@ -744,7 +969,7 @@ export default function SpaceDashboard() {
                   </p>
                 </div>
 
-                <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', minHeight: '300px', padding: activeSection === 'settings' ? '24px' : '0' }}>
+                <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', minHeight: '300px', padding: activeSection === 'settings' ? '20px' : '0', overflow: 'hidden' }}>
                   {SectionComp && <SectionComp space={space} isLight={isLight} openNoteId={openNoteId} highlightId={highlightId} />}
                 </div>
               </motion.div>
@@ -754,8 +979,9 @@ export default function SpaceDashboard() {
       </div>
 
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      {/* ── Quick Add Modals (rendered at dashboard home level) ── */}
+      {/* ── Quick Add Modals ── */}
       {space && (
         <>
           <QuickAddLearningModal   open={quickAddModal === 'learnings'}   onClose={() => setQuickAddModal(null)} space={space} />

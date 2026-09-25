@@ -47,13 +47,6 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
   const [tags, setTags] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
 
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   // Fetch snippets
   const { data: snippets = [], isLoading } = useQuery({

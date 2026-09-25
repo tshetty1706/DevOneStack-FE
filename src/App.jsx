@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import SpaceDashboard from './pages/SpaceDashboard';
+import CreateSpace from './pages/CreateSpace';
 import Profile from './pages/Profile';
 import OAuthCallback from './pages/OAuthCallback';
 import VerifyEmail from './pages/VerifyEmail';
@@ -51,6 +52,13 @@ function SpaceRedirect() {
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={`/u/${encodeURIComponent(user.username || 'user')}/spaces/${spaceId}`} replace />;
+}
+
+function CreateSpaceRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={`/u/${encodeURIComponent(user.username || 'user')}/spaces/create`} replace />;
 }
 
 function ProfileRedirect() {
@@ -111,6 +119,9 @@ function AppContent() {
           <Route path="/u/:username/dashboard" element={
             <ProtectedRoute><Dashboard /></ProtectedRoute>
           } />
+          <Route path="/u/:username/spaces/create" element={
+            <ProtectedRoute><CreateSpace /></ProtectedRoute>
+          } />
           <Route path="/u/:username/spaces/:spaceId" element={
             <ProtectedRoute><SpaceDashboard /></ProtectedRoute>
           } />
@@ -120,6 +131,7 @@ function AppContent() {
 
           {/* Automatic URL redirects to authenticated username paths */}
           <Route path="/dashboard" element={<DashboardRedirect />} />
+          <Route path="/spaces/create" element={<CreateSpaceRedirect />} />
           <Route path="/spaces/:spaceId" element={<SpaceRedirect />} />
           <Route path="/profile" element={<ProfileRedirect />} />
 
