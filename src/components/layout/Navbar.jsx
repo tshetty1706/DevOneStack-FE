@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Logo from '../layout/Logo';
+import { FaGithub } from 'react-icons/fa';
 
 const MENU_ITEMS = [
   { label: 'How It Works', id: 'how-it-works' },
@@ -48,33 +49,11 @@ export default function Navbar() {
         </div>
 
         <div className="navbar-actions">
-          {/* Viewer count with eye icon */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: 500,
-              marginRight: '8px',
-              userSelect: 'none',
-            }}
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span>43.3k</span>
+          {/* Github Icon */}
+          <div className="flex items-center gap-2" onClick={() => window.open('https://github.com/devonestack/DevOneStack', '_blank')}>
+            <FaGithub
+              size={24}
+              className="text-gray-300 hover:text-white/80 transition-colors cursor-pointer" />
           </div>
 
           {user ? (
