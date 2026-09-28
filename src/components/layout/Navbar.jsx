@@ -85,7 +85,7 @@ export default function Navbar() {
             <button
               type="button"
               className="navbar-icon-btn"
-              onClick={() => window.open('https://github.com/devonestack/DevOneStack', '_blank', 'noopener,noreferrer')}
+              onClick={() => window.open('https://github.com/tshetty1706/DevOneStack-FE.git', '_blank', 'noopener,noreferrer')}
               aria-label="DevOneStack GitHub Repository"
               title="GitHub Repository"
             >

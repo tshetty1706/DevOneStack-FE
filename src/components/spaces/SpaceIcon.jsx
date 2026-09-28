@@ -2,6 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { RiFolder5Line, RiTerminalBoxLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
 
+const ICON_ALIASES = {
+  'simple-icons:java': 'devicon:java',
+  'simple-icons:aws': 'logos:aws',
+  'simple-icons:amazonwebservices': 'logos:aws',
+  'simple-icons:vue': 'devicon:vuejs',
+  'simple-icons:vuejs': 'devicon:vuejs',
+  'simple-icons:csharp': 'devicon:csharp',
+  'simple-icons:vscode': 'devicon:vscode',
+  'simple-icons:nuxtdotjs': 'simple-icons:nuxt',
+  'simple-icons:microsoftazure': 'logos:azure-icon',
+  'simple-icons:css3': 'logos:css-3',
+  'simple-icons:heroku': 'logos:heroku-icon',
+  'simple-icons:playwright': 'logos:playwright',
+  'simple-icons:windows': 'logos:microsoft-windows',
+  'simple-icons:slack': 'logos:slack-icon',
+  'simple-icons:openai': 'logos:openai-icon',
+  'simple-icons:pinecone': 'logos:pinecone-icon',
+  'lucide:git-network': 'lucide:network',
+  'lucide:api': 'lucide:webhook',
+  'simple-icons:kafka': 'simple-icons:apachekafka',
+  'simple-icons:intellij-idea': 'simple-icons:intellijidea',
+};
+
 export default function SpaceIcon({ iconKey, size = 20, style = {}, className = "" }) {
   const { theme } = useTheme();
   const [error, setError] = useState(false);
@@ -11,7 +34,8 @@ export default function SpaceIcon({ iconKey, size = 20, style = {}, className = 
     setError(false);
   }, [iconKey]);
 
-  const key = (iconKey || '').trim();
+  let rawKey = (iconKey || '').trim();
+  const key = ICON_ALIASES[rawKey] || rawKey;
 
   // If empty key or error, use default folder icon
   if (!key || error) {

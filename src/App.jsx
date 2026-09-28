@@ -1,33 +1,58 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import SpaceDashboard from './pages/SpaceDashboard';
-import CreateSpace from './pages/CreateSpace';
-import Profile from './pages/Profile';
-import OAuthCallback from './pages/OAuthCallback';
-import VerifyEmail from './pages/VerifyEmail';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ThemeToggle from './components/layout/ThemeToggle';
 import Lenis from 'lenis';
 
+// Route-level code splitting
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const SpaceDashboard = lazy(() => import('./pages/SpaceDashboard'));
+const CreateSpace = lazy(() => import('./pages/CreateSpace'));
+const Profile = lazy(() => import('./pages/Profile'));
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+
+// High-efficiency TanStack QueryClient with reasonable staleTime and gcTime
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: false,
+      staleTime: 1000 * 60 * 3, // 3 minutes stale time to avoid duplicate requests
+      gcTime: 1000 * 60 * 10,   // 10 minutes cache retention
+      retry: 1,
     },
   },
 });
+
+function PageLoadingFallback() {
+  return (
+    <div style={{
+      minHeight: '60vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <div style={{
+        width: '32px',
+        height: '32px',
+        borderRadius: '50%',
+        border: '3px solid rgba(99, 102, 241, 0.2)',
+        borderTopColor: '#6366f1',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+    </div>
+  );
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -105,39 +130,41 @@ function AppContent() {
     >
       <Router>
         <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/oauth/callback" element={<OAuthCallback />} />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/verify-email/:token" element={<VerifyEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-          {/* Username-based Protected Routes */}
-          <Route path="/u/:username/dashboard" element={
-            <ProtectedRoute><Dashboard /></ProtectedRoute>
-          } />
-          <Route path="/u/:username/spaces/create" element={
-            <ProtectedRoute><CreateSpace /></ProtectedRoute>
-          } />
-          <Route path="/u/:username/spaces/:spaceId" element={
-            <ProtectedRoute><SpaceDashboard /></ProtectedRoute>
-          } />
-          <Route path="/u/:username/profile" element={
-            <ProtectedRoute><Profile /></ProtectedRoute>
-          } />
+            {/* Username-based Protected Routes */}
+            <Route path="/u/:username/dashboard" element={
+              <ProtectedRoute><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/u/:username/spaces/create" element={
+              <ProtectedRoute><CreateSpace /></ProtectedRoute>
+            } />
+            <Route path="/u/:username/spaces/:spaceId" element={
+              <ProtectedRoute><SpaceDashboard /></ProtectedRoute>
+            } />
+            <Route path="/u/:username/profile" element={
+              <ProtectedRoute><Profile /></ProtectedRoute>
+            } />
 
-          {/* Automatic URL redirects to authenticated username paths */}
-          <Route path="/dashboard" element={<DashboardRedirect />} />
-          <Route path="/spaces/create" element={<CreateSpaceRedirect />} />
-          <Route path="/spaces/:spaceId" element={<SpaceRedirect />} />
-          <Route path="/profile" element={<ProfileRedirect />} />
+            {/* Automatic URL redirects to authenticated username paths */}
+            <Route path="/dashboard" element={<DashboardRedirect />} />
+            <Route path="/spaces/create" element={<CreateSpaceRedirect />} />
+            <Route path="/spaces/:spaceId" element={<SpaceRedirect />} />
+            <Route path="/profile" element={<ProfileRedirect />} />
 
-          {/* Global 404 Catch-All Route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+            {/* Global 404 Catch-All Route */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
         {/* Global Dark / Light Mode Toggle Button */}
         <ThemeToggle />
       </Router>

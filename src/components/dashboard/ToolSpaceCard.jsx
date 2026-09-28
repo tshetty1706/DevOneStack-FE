@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import api from '../../api/axios';
 import SpaceIcon from '../spaces/SpaceIcon';
+import SpaceThumbnail from '../common/SpaceThumbnail';
 import { getIconKeyByName } from '../../utils/iconMapping';
 import { resolveThumbnail, getDefaultThumbnail, getToolById, findToolByKeyword } from '../../constants/tools';
 import {
@@ -256,198 +257,231 @@ export default function ToolSpaceCard({
         }
       }}
     >
-      {/* Full-width Top Banner Section with Edge-to-Edge Fitting */}
+      {/* Dedicated Thumbnail Container with Fixed Responsive Aspect Ratio */}
       <div
+        className="space-card-thumbnail-container"
         style={{
           width: '100%',
-          aspectRatio: '16 / 9.2',
+          aspectRatio: '16 / 9',
+          position: 'relative',
           borderTopLeftRadius: '15px',
           borderTopRightRadius: '15px',
-          overflow: 'hidden',
-          position: 'relative',
-          background: isLight ? '#f1f5f9' : '#07070b',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
       >
-        <img
-          src={finalThumbnail}
-          alt={`${name} thumbnail`}
-          onError={() => setImgError(true)}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center',
-            transition: 'transform 0.35s ease',
-          }}
-          onMouseEnter={e => {
-            if (!isPreview) e.currentTarget.style.transform = 'scale(1.03)';
-          }}
-          onMouseLeave={e => {
-            if (!isPreview) e.currentTarget.style.transform = 'scale(1)';
-          }}
-        />
-
-        {/* Subtle gradient vignette at bottom of banner to blend with card body */}
+        {/* Media Layer (Image + Vignette Overlay): Isolated with overflow hidden */}
         <div
+          className="space-card-thumbnail-media"
           style={{
             position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '24px',
-            background: `linear-gradient(to bottom, transparent, ${cardBg})`,
-            pointerEvents: 'none',
-          }}
-        />
-      </div>
-
-      {/* Top Header Row Overlaid on Top of Banner: Visibility Badge, Star & More Menu */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '12px',
-          right: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          zIndex: 50,
-          pointerEvents: 'none',
-        }}
-      >
-        {/* Visibility Badge */}
-        <div
-          style={{
-            display: 'inline-flex',
+            inset: 0,
+            overflow: 'hidden',
+            borderTopLeftRadius: '15px',
+            borderTopRightRadius: '15px',
+            background: isLight ? '#f1f5f9' : '#07070b',
+            display: 'flex',
             alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            borderRadius: '20px',
-            fontSize: '11px',
-            fontWeight: 600,
-            color: visibilityConfig.color,
-            background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            border: `1px solid ${visibilityConfig.border}`,
-            fontFamily: 'var(--font-body)',
-            letterSpacing: '0.01em',
-            textTransform: 'capitalize',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-            pointerEvents: 'auto',
+            justifyContent: 'center',
+            zIndex: 1,
           }}
         >
-          <VisibilityIcon size={12} />
-          <span>{visibilityConfig.label}</span>
+          {/* Thumbnail Image */}
+          <SpaceThumbnail
+            thumbnail={data.thumbnail || toolName || name}
+            tool={toolName}
+            name={name}
+            theme={theme}
+            interactive={!isPreview}
+            objectPosition={data.thumbnailPosition || 'center'}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              borderTopLeftRadius: '15px',
+              borderTopRightRadius: '15px',
+            }}
+          />
+
+          {/* Top subtle scrim gradient for readability of top controls */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '44px',
+              background: isLight
+                ? 'linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, transparent 100%)'
+                : 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 100%)',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+
+          {/* Bottom vignette gradient to blend seamlessly into the card body */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '24px',
+              background: `linear-gradient(to bottom, transparent, ${cardBg})`,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
         </div>
 
-        {/* Right Actions: Star Button + More Menu */}
+        {/* Top Controls Overlay Layer: Visibility Badge, Star & More Menu */}
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative', zIndex: 60, pointerEvents: 'auto' }}
-          onClick={e => e.stopPropagation()}
+          className="space-card-thumbnail-controls"
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '12px',
+            right: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 3,
+            pointerEvents: 'none',
+          }}
         >
-          {/* Star Button */}
-          <button
-            type="button"
-            onClick={handleToggleStar}
-            disabled={isPreview}
-            title={isStarred ? 'Unstar Space' : 'Star Space'}
+          {/* Visibility Badge */}
+          <div
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '30px',
-              height: '30px',
-              borderRadius: '8px',
-              border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+              gap: '5px',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: visibilityConfig.color,
               background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              color: isStarred ? '#eab308' : (isLight ? '#6b7280' : '#94a3b8'),
-              cursor: isPreview ? 'default' : 'pointer',
-              transition: 'all 0.2s ease',
+              border: `1px solid ${visibilityConfig.border}`,
+              fontFamily: 'var(--font-body)',
+              letterSpacing: '0.01em',
+              textTransform: 'capitalize',
               boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-            }}
-            onMouseEnter={e => {
-              if (!isPreview && !isStarred) {
-                e.currentTarget.style.color = '#eab308';
-                e.currentTarget.style.background = isLight ? '#ffffff' : '#1e1e28';
-              }
-            }}
-            onMouseLeave={e => {
-              if (!isPreview && !isStarred) {
-                e.currentTarget.style.color = isLight ? '#6b7280' : '#94a3b8';
-                e.currentTarget.style.background = isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)';
-              }
+              pointerEvents: 'auto',
             }}
           >
-            {isStarred ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
-          </button>
+            <VisibilityIcon size={12} />
+            <span>{visibilityConfig.label}</span>
+          </div>
 
-          {/* More Options Dropdown */}
-          {!isPreview && (
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setShowDropdown(v => !v)}
-                title="More options"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '8px',
-                  border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
-                  background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)',
-                  backdropFilter: 'blur(8px)',
-                  WebkitBackdropFilter: 'blur(8px)',
-                  color: isLight ? '#4b5563' : '#94a3b8',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-                }}
-                onMouseEnter={e => {
-                  if (!showDropdown) {
-                    e.currentTarget.style.background = isLight ? '#ffffff' : '#1e1e28';
-                    e.currentTarget.style.color = textPrimary;
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!showDropdown) {
-                    e.currentTarget.style.background = isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)';
-                    e.currentTarget.style.color = isLight ? '#4b5563' : '#94a3b8';
-                  }
-                }}
-              >
-                <RiMoreFill size={18} />
-              </button>
+          {/* Right Actions: Star Button + More Menu */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative', pointerEvents: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Star Button */}
+            <button
+              type="button"
+              onClick={handleToggleStar}
+              disabled={isPreview}
+              title={isStarred ? 'Unstar Space' : 'Star Space'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+                background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                color: isStarred ? '#eab308' : (isLight ? '#6b7280' : '#94a3b8'),
+                cursor: isPreview ? 'default' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              }}
+              onMouseEnter={e => {
+                if (!isPreview && !isStarred) {
+                  e.currentTarget.style.color = '#eab308';
+                  e.currentTarget.style.background = isLight ? '#ffffff' : '#1e1e28';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isPreview && !isStarred) {
+                  e.currentTarget.style.color = isLight ? '#6b7280' : '#94a3b8';
+                  e.currentTarget.style.background = isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)';
+                }
+              }}
+            >
+              {isStarred ? <RiStarFill size={16} /> : <RiStarLine size={16} />}
+            </button>
 
-              {showDropdown && (
-                <>
-                  <div
-                    onClick={() => setShowDropdown(false)}
-                    style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-                  />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '36px',
-                      right: 0,
-                      background: isLight ? '#ffffff' : '#14141c',
-                      border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.12)'}`,
-                      borderRadius: '10px',
-                      minWidth: '150px',
-                      padding: '5px',
-                      boxShadow: isLight
-                        ? '0 12px 30px rgba(0,0,0,0.15)'
-                        : '0 16px 40px rgba(0,0,0,0.8)',
-                      zIndex: 1000,
-                    }}
-                  >
+            {/* More Options Dropdown */}
+            {!isPreview && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDropdown(v => !v)}
+                  title="More options"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '8px',
+                    border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.12)'}`,
+                    background: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    color: isLight ? '#4b5563' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                  }}
+                  onMouseEnter={e => {
+                    if (!showDropdown) {
+                      e.currentTarget.style.background = isLight ? '#ffffff' : '#1e1e28';
+                      e.currentTarget.style.color = textPrimary;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!showDropdown) {
+                      e.currentTarget.style.background = isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(10, 10, 16, 0.88)';
+                      e.currentTarget.style.color = isLight ? '#4b5563' : '#94a3b8';
+                    }
+                  }}
+                >
+                  <RiMoreFill size={18} />
+                </button>
+
+                {showDropdown && (
+                  <>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDropdown(false);
+                      }}
+                      style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+                    />
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        top: '36px',
+                        right: 0,
+                        background: isLight ? '#ffffff' : '#14141c',
+                        border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.12)'}`,
+                        borderRadius: '10px',
+                        minWidth: '150px',
+                        padding: '5px',
+                        boxShadow: isLight
+                          ? '0 12px 30px rgba(0,0,0,0.15)'
+                          : '0 16px 40px rgba(0,0,0,0.8)',
+                        zIndex: 20,
+                      }}
+                    >
                     <button
                       type="button"
                       onClick={handleCardClick}
@@ -601,6 +635,7 @@ export default function ToolSpaceCard({
           )}
         </div>
       </div>
+    </div>
 
       {/* Card Body Section: Icon + Title, Description, Statistics, Tags */}
       <div

@@ -1,9 +1,16 @@
 // Centralized Technology & Tool Configuration for DevOneStack
 // Contains all 50 supported developer technologies and fallback thumbnails
 
+const darkThumbnails = import.meta.glob('/src/assets/thumbnail/darkMode/*.png', { eager: true, import: 'default' });
+const lightThumbnails = import.meta.glob('/src/assets/thumbnail/lightMode/*.png', { eager: true, import: 'default' });
+
 export const DEFAULT_THUMBNAILS = {
-  light: '/thumbnail/default_light.png',
-  dark: '/thumbnail/default_dark.png',
+  get light() {
+    return lightThumbnails['/src/assets/thumbnail/lightMode/default_light.png'] || '/thumbnail/default_light.png';
+  },
+  get dark() {
+    return darkThumbnails['/src/assets/thumbnail/darkMode/default_dark.png'] || '/thumbnail/default_dark.png';
+  },
 };
 
 export const TOOL_CATEGORIES = {
@@ -550,30 +557,95 @@ export function findToolByKeyword(text) {
 }
 
 /**
- * Get theme-aware default thumbnail
+ * Extract clean tool slug/key from path or tool name
  */
-export function getDefaultThumbnail(theme = 'dark') {
-  return theme === 'light' ? DEFAULT_THUMBNAILS.light : DEFAULT_THUMBNAILS.dark;
+export function extractToolSlug(toolOrThumb) {
+  if (!toolOrThumb || typeof toolOrThumb !== 'string') return null;
+  const trimmed = toolOrThumb.trim();
+  if (!trimmed) return null;
+
+  // If remote URL, blob, or data URL, it's a custom uploaded thumbnail, not a tool slug
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:')
+  ) {
+    return null;
+  }
+
+  let clean = trimmed;
+  if (clean.includes('/')) {
+    clean = clean.split('/').filter(Boolean).pop() || '';
+  }
+  clean = clean.replace(/\.png$/i, '').toLowerCase().trim();
+  return clean || null;
 }
 
 /**
- * Resolve the thumbnail path for a tool name or custom thumbnail string
+ * Get theme-aware default thumbnail
  */
-export function resolveThumbnail(toolOrThumb, theme = 'dark') {
+export function getDefaultThumbnail(theme = 'dark') {
+  if (theme === 'light') {
+    return lightThumbnails['/src/assets/thumbnail/lightMode/default_light.png'] || '/thumbnail/default_light.png';
+  }
+  return darkThumbnails['/src/assets/thumbnail/darkMode/default_dark.png'] || '/thumbnail/default_dark.png';
+}
+
+/**
+ * Get theme-aware thumbnail for any tool id/slug, tool object, or thumbnail string
+ */
+export function getToolThumbnail(toolOrThumb, theme = 'dark') {
   if (!toolOrThumb) {
     return getDefaultThumbnail(theme);
   }
 
-  // If already a valid absolute or local path
-  if (toolOrThumb.startsWith('/') || toolOrThumb.startsWith('http')) {
+  // If tool object passed
+  if (typeof toolOrThumb === 'object' && toolOrThumb !== null) {
+    return getToolThumbnail(toolOrThumb.slug || toolOrThumb.id || toolOrThumb.name, theme);
+  }
+
+  // If custom uploaded image (Cloudinary or blob or data URI), return as-is (do not alter with theme)
+  if (
+    typeof toolOrThumb === 'string' &&
+    (toolOrThumb.startsWith('http://') ||
+      toolOrThumb.startsWith('https://') ||
+      toolOrThumb.startsWith('blob:') ||
+      toolOrThumb.startsWith('data:'))
+  ) {
     return toolOrThumb;
   }
 
-  // If tool name or slug
-  const tool = getToolById(toolOrThumb) || findToolByKeyword(toolOrThumb);
-  if (tool && tool.thumbnail) {
-    return tool.thumbnail;
+  const slug = extractToolSlug(toolOrThumb);
+  if (!slug || slug === 'default' || slug === 'default_dark' || slug === 'default_light') {
+    return getDefaultThumbnail(theme);
   }
 
-  return getDefaultThumbnail(theme);
+  // Try matching directly in TOOLS
+  const matched = TOOLS.find(
+    (t) => t.id === slug || t.slug === slug || t.name.toLowerCase() === slug
+  ) || findToolByKeyword(slug);
+
+  const finalSlug = matched ? matched.slug : slug;
+  const isLight = theme === 'light';
+
+  const lightKey = `/src/assets/thumbnail/lightMode/${finalSlug}.png`;
+  const darkKey = `/src/assets/thumbnail/darkMode/${finalSlug}.png`;
+
+  if (isLight) {
+    if (lightThumbnails[lightKey]) return lightThumbnails[lightKey];
+    if (darkThumbnails[darkKey]) return darkThumbnails[darkKey];
+    return `/thumbnail/${finalSlug}.png`;
+  } else {
+    if (darkThumbnails[darkKey]) return darkThumbnails[darkKey];
+    if (lightThumbnails[lightKey]) return lightThumbnails[lightKey];
+    return `/thumbnail/${finalSlug}.png`;
+  }
+}
+
+/**
+ * Resolve the thumbnail path for a tool name or custom thumbnail string (theme-aware)
+ */
+export function resolveThumbnail(toolOrThumb, theme = 'dark') {
+  return getToolThumbnail(toolOrThumb, theme);
 }

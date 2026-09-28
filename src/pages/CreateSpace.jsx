@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -8,13 +8,15 @@ import { message } from 'antd';
 import api from '../api/axios';
 import Logo from '../components/layout/Logo';
 import SpaceIcon from '../components/spaces/SpaceIcon';
+import SpaceThumbnail from '../components/common/SpaceThumbnail';
 import ToolSpaceCard from '../components/dashboard/ToolSpaceCard';
 import {
   TOOLS,
   TOOL_CATEGORIES,
   getToolById,
   getDefaultThumbnail,
-  resolveThumbnail
+  resolveThumbnail,
+  getToolThumbnail,
 } from '../constants/tools';
 import {
   RiArrowLeftLine,
@@ -29,9 +31,12 @@ import {
   RiCloseLine,
   RiInformationLine,
   RiRefreshLine,
-  RiFolder5Line
+  RiFolder5Line,
+  RiUpload2Line,
+  RiDeleteBinLine,
+  RiLoader4Line,
+  RiImageLine,
 } from 'react-icons/ri';
-
 
 /**
  * Modal to customize/edit the Space Thumbnail
@@ -41,7 +46,11 @@ function ThumbnailPickerModal({
   onClose,
   currentThumbnail,
   selectedTool,
-  onSelectThumbnail
+  onSelectThumbnail,
+  onUploadCustomClick,
+  onRemoveCustom,
+  isCustomActive,
+  uploadingCustom,
 }) {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -99,7 +108,7 @@ function ThumbnailPickerModal({
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: '620px',
+          maxWidth: '680px',
           background: bg,
           border: `1px solid ${border}`,
           borderRadius: '18px',
@@ -110,18 +119,18 @@ function ThumbnailPickerModal({
             : '0 25px 60px -12px rgba(0, 0, 0, 0.7)',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '85vh',
+          maxHeight: '88vh',
           fontFamily: 'var(--font-body)',
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-display)', color: textPrimary }}>
               Choose Space Thumbnail
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: textSecondary }}>
-              Select a 3D technology artwork or reset to the theme default.
+              Select a {isLight ? 'Light Mode' : 'Dark Mode'} 3D artwork, upload your own, or reset to default.
             </p>
           </div>
           <button
@@ -141,8 +150,105 @@ function ThumbnailPickerModal({
           </button>
         </div>
 
+        {/* Custom Upload Banner inside Modal */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 14px',
+          borderRadius: '12px',
+          background: isCustomActive
+            ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)')
+            : (isLight ? '#f8fafc' : '#161620'),
+          border: `1px solid ${isCustomActive ? 'var(--accent-color)' : border}`,
+          marginBottom: '14px',
+          flexWrap: 'wrap',
+          gap: '10px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              background: isLight ? '#ffffff' : '#0e0e14',
+              border: `1px solid ${border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}>
+              {isCustomActive ? (
+                <img
+                  src={currentThumbnail}
+                  alt="Custom preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <RiUpload2Line size={18} style={{ color: 'var(--accent-color)' }} />
+              )}
+            </div>
+            <div>
+              <span style={{ fontSize: '12.5px', fontWeight: 600, color: textPrimary, display: 'block' }}>
+                {isCustomActive ? 'Custom Upload Active' : 'Custom Space Thumbnail'}
+              </span>
+              <span style={{ fontSize: '11px', color: textSecondary }}>
+                {isCustomActive ? 'Stored securely via Cloudinary' : 'Upload PNG, JPG, or WEBP from your device'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              disabled={uploadingCustom}
+              onClick={onUploadCustomClick}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--accent-color)',
+                background: 'var(--accent-color)',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: uploadingCustom ? 'not-allowed' : 'pointer',
+                opacity: uploadingCustom ? 0.7 : 1,
+              }}
+            >
+              {uploadingCustom ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
+              <span>{isCustomActive ? 'Replace from Device' : 'Upload from Device'}</span>
+            </button>
+
+            {isCustomActive && (
+              <button
+                type="button"
+                onClick={onRemoveCustom}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: `1px solid ${border}`,
+                  background: isLight ? '#ffffff' : '#1f1f2a',
+                  color: isLight ? '#dc2626' : '#f87171',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <RiDeleteBinLine size={14} />
+                <span>Remove</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Search & Default Controls */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
           <div style={{
             flex: 1,
             minWidth: '180px',
@@ -156,12 +262,12 @@ function ThumbnailPickerModal({
             />
             <input
               type="text"
-              placeholder="Search thumbnail logo..."
+              placeholder="Search 3D artwork..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
                 width: '100%',
-                height: '38px',
+                height: '36px',
                 padding: '0 12px 0 36px',
                 borderRadius: '9px',
                 border: `1px solid ${border}`,
@@ -176,14 +282,14 @@ function ThumbnailPickerModal({
           <button
             type="button"
             onClick={() => {
-              onSelectThumbnail(getDefaultThumbnail(theme));
+              onSelectThumbnail(getDefaultThumbnail(theme), null);
               onClose();
             }}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              height: '38px',
+              height: '36px',
               padding: '0 14px',
               borderRadius: '9px',
               border: `1px solid ${border}`,
@@ -208,7 +314,7 @@ function ThumbnailPickerModal({
             gap: '6px',
             overflowX: 'auto',
             paddingBottom: '8px',
-            marginBottom: '12px',
+            marginBottom: '10px',
           }}
         >
           {['All', ...Object.values(TOOL_CATEGORIES).filter(c => c !== 'All')].map(cat => (
@@ -217,7 +323,7 @@ function ThumbnailPickerModal({
               type="button"
               onClick={() => setSelectedCategory(cat)}
               style={{
-                padding: '5px 12px',
+                padding: '4px 11px',
                 borderRadius: '20px',
                 border: selectedCategory === cat
                   ? `1px solid var(--accent-color)`
@@ -247,16 +353,17 @@ function ThumbnailPickerModal({
             overflowY: 'auto',
             padding: '4px',
             flex: 1,
-            maxHeight: '340px',
+            maxHeight: '320px',
           }}
         >
           {filteredTools.map(tool => {
-            const isSelected = currentThumbnail === tool.thumbnail;
+            const toolThemedThumb = resolveThumbnail(tool.id, theme);
+            const isSelected = !isCustomActive && (currentThumbnail === tool.id || currentThumbnail === toolThemedThumb || currentThumbnail === tool.thumbnail);
             return (
               <div
                 key={tool.id}
                 onClick={() => {
-                  onSelectThumbnail(tool.thumbnail, tool);
+                  onSelectThumbnail(tool.id, tool);
                   onClose();
                 }}
                 style={{
@@ -264,7 +371,7 @@ function ThumbnailPickerModal({
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '12px 8px',
+                  padding: '10px 8px',
                   borderRadius: '12px',
                   border: isSelected
                     ? '2px solid var(--accent-color)'
@@ -291,10 +398,12 @@ function ThumbnailPickerModal({
                 }}
               >
                 <div style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img
-                    src={tool.thumbnail}
-                    alt={tool.name}
-                    style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                  <SpaceThumbnail
+                    thumbnail={tool.id}
+                    theme={theme}
+                    aspectRatio="1"
+                    objectFit="contain"
+                    style={{ background: 'transparent' }}
                   />
                 </div>
                 <span style={{
@@ -342,13 +451,17 @@ export default function CreateSpace() {
   const queryClient = useQueryClient();
   const isLight = theme === 'light';
 
+  const fileInputRef = useRef(null);
+
   // Form State
   const [spaceName, setSpaceName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedToolId, setSelectedToolId] = useState('react');
   const [customThumbnail, setCustomThumbnail] = useState(null);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const [visibility, setVisibility] = useState('private');
-  const [tags, setTags] = useState(['React', 'JavaScript', 'Frontend']);
+  const [tags, setTags] = useState(['Frontend', 'Interview', 'Learning', 'Projects']);
   const [tagInput, setTagInput] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
@@ -362,12 +475,66 @@ export default function CreateSpace() {
   }, [selectedToolId]);
 
   // Current effective thumbnail
-  const activeThumbnail = customThumbnail || selectedTool?.thumbnail || getDefaultThumbnail(theme);
+  const activeThumbnail = customThumbnail || (selectedToolId ? resolveThumbnail(selectedToolId, theme) : getDefaultThumbnail(theme));
 
-  // Handle Tool Selection
+  // Handle Custom Thumbnail File Upload to Cloudinary
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input value so selecting the same file triggers onChange
+    e.target.value = '';
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      message.error('Please upload a valid image file (PNG, JPG, WEBP, GIF).');
+      return;
+    }
+
+    // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
+      message.error('Thumbnail image size cannot exceed 10MB.');
+      return;
+    }
+
+    // Instant local preview
+    const localPreviewUrl = URL.createObjectURL(file);
+    const previousThumb = customThumbnail;
+    setCustomThumbnail(localPreviewUrl);
+    setUploadingThumbnail(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('thumbnail', file);
+
+      const res = await api.post('/api/spaces/upload-thumbnail', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data?.url) {
+        setCustomThumbnail(res.data.url);
+        message.success('Custom thumbnail uploaded to Cloudinary!');
+      } else {
+        throw new Error('No URL returned from server');
+      }
+    } catch (err) {
+      console.error('Custom thumbnail upload failed:', err);
+      // Rollback to previous
+      setCustomThumbnail(previousThumb);
+      const errText = err?.response?.data?.error || 'Unable to upload thumbnail. Please try again.';
+      setUploadError(errText);
+      message.error(errText);
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
+  // Handle Tool Selection (Predefined tool becomes active as per Requirement 12)
   const handleSelectTool = (tool) => {
     setSelectedToolId(tool.id);
-    setCustomThumbnail(tool.thumbnail);
+    setCustomThumbnail(null);
+    setUploadError(null);
 
     // If space name is blank or standard default, auto-populate with helpful title
     if (!spaceName.trim() || spaceName.endsWith('Mastery') || spaceName.endsWith('Stack') || spaceName.endsWith('Essentials')) {
@@ -776,6 +943,15 @@ export default function CreateSpace() {
               </div>
             </div>
 
+            {/* Hidden File Input for Custom Thumbnail Upload */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+            />
+
             {/* SECTION 2: Primary Technology Selection */}
             <div style={{
               background: cardBg,
@@ -799,30 +975,58 @@ export default function CreateSpace() {
                     2. Primary Technology / Tool
                   </h2>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', color: textSecondary }}>
-                    Selecting a tool automatically updates your 3D banner thumbnail.
+                    Selecting a tool automatically sets theme-aware 3D artwork, or upload your own image.
                   </p>
                 </div>
 
-                {/* Search Tools */}
-                <div style={{ position: 'relative', width: '180px' }}>
-                  <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textSecondary }} />
-                  <input
-                    type="text"
-                    placeholder="Find tool..."
-                    value={toolSearch}
-                    onChange={e => setToolSearch(e.target.value)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {/* Upload Custom Button */}
+                  <button
+                    type="button"
+                    disabled={uploadingThumbnail}
+                    onClick={() => fileInputRef.current?.click()}
                     style={{
-                      width: '100%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
                       height: '32px',
-                      padding: '0 8px 0 30px',
+                      padding: '0 12px',
                       borderRadius: '8px',
-                      border: `1px solid ${inputBorder}`,
-                      background: inputBg,
-                      color: textPrimary,
+                      border: '1px solid var(--accent-color)',
+                      background: isLight ? 'rgba(79, 70, 229, 0.06)' : 'rgba(99, 102, 241, 0.12)',
+                      color: 'var(--accent-color)',
                       fontSize: '12px',
-                      outline: 'none',
+                      fontWeight: 600,
+                      cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: uploadingThumbnail ? 0.7 : 1,
                     }}
-                  />
+                  >
+                    {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
+                    <span>{uploadingThumbnail ? 'Uploading...' : 'Upload Custom'}</span>
+                  </button>
+
+                  {/* Search Tools */}
+                  <div style={{ position: 'relative', width: '160px' }}>
+                    <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textSecondary }} />
+                    <input
+                      type="text"
+                      placeholder="Find tool..."
+                      value={toolSearch}
+                      onChange={e => setToolSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '32px',
+                        padding: '0 8px 0 30px',
+                        borderRadius: '8px',
+                        border: `1px solid ${inputBorder}`,
+                        background: inputBg,
+                        color: textPrimary,
+                        fontSize: '12px',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -838,8 +1042,47 @@ export default function CreateSpace() {
                   padding: '2px',
                 }}
               >
+                {/* Upload Custom Card inside grid */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px 6px',
+                    borderRadius: '10px',
+                    border: customThumbnail
+                      ? '2px solid var(--accent-color)'
+                      : `1px dashed ${isLight ? '#c7d2fe' : 'rgba(99, 102, 241, 0.4)'}`,
+                    background: customThumbnail
+                      ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.16)')
+                      : (isLight ? '#f5f7ff' : '#13131e'),
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-color)' }}>
+                    {uploadingThumbnail ? <RiLoader4Line size={18} className="animate-spin" /> : <RiUpload2Line size={18} />}
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--accent-color)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%',
+                    textAlign: 'center',
+                  }}>
+                    {uploadingThumbnail ? 'Uploading...' : (customThumbnail ? 'Custom Active' : '+ Custom')}
+                  </span>
+                </button>
+
                 {filteredTools.map(tool => {
-                  const isSelected = selectedToolId === tool.id;
+                  const isSelected = !customThumbnail && selectedToolId === tool.id;
                   return (
                     <button
                       key={tool.id}
@@ -905,64 +1148,180 @@ export default function CreateSpace() {
                 flexWrap: 'wrap',
                 gap: '12px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '200px' }}>
                   <div style={{
-                    width: '44px',
-                    height: '44px',
+                    width: '48px',
+                    height: '48px',
                     borderRadius: '8px',
                     background: isLight ? '#ffffff' : '#0e0e14',
                     border: `1px solid ${cardBorder}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2px',
+                    overflow: 'hidden',
+                    flexShrink: 0,
                   }}>
-                    <img
-                      src={activeThumbnail}
-                      alt="Thumbnail preview"
-                      style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                    <SpaceThumbnail
+                      thumbnail={activeThumbnail}
+                      theme={theme}
+                      style={{ width: '100%', height: '100%' }}
+                      objectFit="cover"
                     />
                   </div>
                   <div>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: textPrimary, display: 'block' }}>
-                      Selected 3D Artwork
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: textPrimary }}>
+                        {customThumbnail ? 'Custom Device Thumbnail' : 'Selected Thumbnail'}
+                      </span>
+                      {customThumbnail && (
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: 'var(--accent-color)',
+                          color: '#ffffff',
+                        }}>
+                          Cloudinary
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: '11.5px', color: textSecondary }}>
-                      {selectedTool?.name || 'Custom'} banner
+                      {customThumbnail
+                        ? 'Custom image uploaded from device'
+                        : `${selectedTool?.name || 'Predefined'} Artwork (${isLight ? 'Light Mode' : 'Dark Mode'})`}
                     </span>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsPickerOpen(true)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    border: `1px solid ${inputBorder}`,
-                    background: isLight ? '#ffffff' : '#1e1e28',
-                    color: textPrimary,
-                    fontSize: '12.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-body)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--accent-color)';
-                    e.currentTarget.style.color = 'var(--accent-color)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = inputBorder;
-                    e.currentTarget.style.color = textPrimary;
-                  }}
-                >
-                  <RiImageEditLine size={15} />
-                  <span>Edit Thumbnail</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {customThumbnail ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={uploadingThumbnail}
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: `1px solid ${inputBorder}`,
+                          background: isLight ? '#ffffff' : '#1e1e28',
+                          color: textPrimary,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
+                        <span>Replace</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomThumbnail(null);
+                          message.info('Custom thumbnail removed. Predefined tool thumbnail active.');
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: `1px solid ${inputBorder}`,
+                          background: isLight ? '#ffffff' : '#1e1e28',
+                          color: isLight ? '#dc2626' : '#f87171',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <RiDeleteBinLine size={14} />
+                        <span>Remove</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsPickerOpen(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--accent-color)',
+                          background: 'transparent',
+                          color: 'var(--accent-color)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <RiImageEditLine size={14} />
+                        <span>Browse 3D Gallery</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={uploadingThumbnail}
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: `1px solid ${inputBorder}`,
+                          background: isLight ? '#ffffff' : '#1e1e28',
+                          color: textPrimary,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
+                        <span>Upload Custom</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsPickerOpen(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          border: `1px solid ${inputBorder}`,
+                          background: isLight ? '#ffffff' : '#1e1e28',
+                          color: textPrimary,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-body)',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = 'var(--accent-color)';
+                          e.currentTarget.style.color = 'var(--accent-color)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = inputBorder;
+                          e.currentTarget.style.color = textPrimary;
+                        }}
+                      >
+                        <RiImageEditLine size={15} />
+                        <span>Edit Thumbnail</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1008,7 +1367,7 @@ export default function CreateSpace() {
                     label: 'Public',
                     icon: RiGlobalLine,
                     color: isLight ? '#4f46e5' : '#818cf8',
-                    description: 'Anyone on the internet can discover and view this space.',
+                    description: 'Anyone can discover, view, and star this Space.',
                   },
                   {
                     id: 'unlisted',
@@ -1301,16 +1660,6 @@ export default function CreateSpace() {
                   Live Space Card Preview
                 </h3>
               </div>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                color: textSecondary,
-                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
-                padding: '2px 8px',
-                borderRadius: '6px',
-              }}>
-                Updates instantly
-              </span>
             </div>
 
             {/* Real Rendered SpaceCard */}
@@ -1338,7 +1687,8 @@ export default function CreateSpace() {
             }}>
               <RiInformationLine size={16} style={{ color: 'var(--accent-color)', flexShrink: 0, marginTop: '2px' }} />
               <div>
-                Your newly created Space will be assigned to <strong>@{user?.username || 'you'}</strong> with a starter set of Docs, Snippets, Learnings and Repos.
+                <strong>Your Space is ready to go.</strong><br></br>
+                After creation, you can add Docs, Snippets, Learnings, Repositories, Resources, and more.
               </div>
             </div>
           </div>
@@ -1354,11 +1704,22 @@ export default function CreateSpace() {
             currentThumbnail={activeThumbnail}
             selectedTool={selectedTool}
             onSelectThumbnail={(thumb, tool) => {
-              setCustomThumbnail(thumb);
               if (tool) {
                 setSelectedToolId(tool.id);
+                setCustomThumbnail(null);
+              } else {
+                setCustomThumbnail(thumb);
               }
             }}
+            onUploadCustomClick={() => {
+              fileInputRef.current?.click();
+            }}
+            onRemoveCustom={() => {
+              setCustomThumbnail(null);
+              message.info('Custom thumbnail removed. Predefined tool thumbnail active.');
+            }}
+            isCustomActive={Boolean(customThumbnail)}
+            uploadingCustom={uploadingThumbnail}
           />
         )}
       </AnimatePresence>
