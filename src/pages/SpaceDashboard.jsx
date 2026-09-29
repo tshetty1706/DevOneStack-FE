@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,10 +13,12 @@ import {
   RiArrowLeftLine, RiMenuLine, RiShareLine, RiSearchLine,
   RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
-  RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine, RiCloseLine
+  RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine, RiCloseLine,
+  RiCompass3Line, RiLoader4Line
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
+import { ALL_MODULES, getModuleById } from '../constants/templates';
 import DocsSection from '../components/spaces/DocsSection';
 import LearningsSection from '../components/spaces/LearningsSection';
 import SnippetsSection from '../components/spaces/SnippetsSection';
@@ -36,7 +38,7 @@ import {
 } from '../components/spaces/QuickAddModals';
 
 const SIDEBAR_ITEMS = [
-  { id: 'home', icon: RiHome4Line, label: 'Overview' },
+  { id: 'home', icon: RiCompass3Line, label: 'Explorer' },
   { id: 'learnings', icon: RiLightbulbLine, label: 'Learnings' },
   { id: 'snippets', icon: RiCodeSSlashLine, label: 'Snippets' },
   { id: 'docs', icon: RiFileTextLine, label: 'Docs' },
@@ -140,6 +142,7 @@ function timeAgo(dateStr) {
 export default function SpaceDashboard() {
   const { spaceId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { theme } = useTheme();
   const { user } = useAuth();
   const isLight = theme === 'light';
@@ -155,6 +158,39 @@ export default function SpaceDashboard() {
   const [quickAddModal, setQuickAddModal] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const { data: space, isLoading, error } = useQuery({
+    queryKey: ['space', spaceId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/spaces/${spaceId}`);
+      return data;
+    },
+    retry: false,
+  });
+
+  const [showAddModuleModal, setShowAddModuleModal] = useState(false);
+  const [addingModuleId, setAddingModuleId] = useState(null);
+
+  // Compute enabled modules (Explorer/Home always included)
+  const enabledModules = useMemo(() => {
+    if (Array.isArray(space?.enabledModules) && space.enabledModules.length > 0) {
+      return space.enabledModules;
+    }
+    // Backward compatibility fallback for legacy spaces: enable all standard modules
+    return ['explorer', 'learnings', 'snippets', 'docs', 'repos', 'prompts', 'communities', 'tags'];
+  }, [space?.enabledModules]);
+
+  const visibleSidebarItems = useMemo(() => {
+    return SIDEBAR_ITEMS.filter(item => {
+      const mappedId = item.id === 'home' ? 'explorer' : item.id;
+      if (mappedId === 'explorer') return true; // Explorer is permanent and fixed
+      return enabledModules.includes(mappedId) || enabledModules.includes(item.id);
+    });
+  }, [enabledModules]);
+
+  const availableToAddModules = useMemo(() => {
+    return ALL_MODULES.filter(m => !m.isFixed && !enabledModules.includes(m.id));
+  }, [enabledModules]);
 
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -203,15 +239,6 @@ export default function SpaceDashboard() {
       setUserName(localStorage.getItem('dos_profile_name') || user.displayName || user.username || 'Developer');
     }
   }, [user]);
-
-  const { data: space, isLoading, error } = useQuery({
-    queryKey: ['space', spaceId],
-    queryFn: async () => {
-      const { data } = await api.get(`/api/spaces/${spaceId}`);
-      return data;
-    },
-    retry: false,
-  });
 
   // Track space visit
   useEffect(() => {
@@ -275,7 +302,28 @@ export default function SpaceDashboard() {
     return <NotFoundPage />;
   }
 
-  const SectionComp = SECTIONS[activeSection];
+
+
+
+
+  const handleAddModule = async (moduleId) => {
+    if (enabledModules.includes(moduleId)) return;
+    setAddingModuleId(moduleId);
+    try {
+      const updated = ['explorer', ...enabledModules.filter(m => m !== 'explorer'), moduleId];
+      await api.patch(`/api/spaces/${spaceId}`, { enabledModules: updated });
+      await queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
+      message.success(`Added ${moduleId} module to your Space!`);
+      handleSectionChange(moduleId);
+      setShowAddModuleModal(false);
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Failed to add module');
+    } finally {
+      setAddingModuleId(null);
+    }
+  };
+
+  const SectionComp = SECTIONS[activeSection] || SECTIONS.home || SECTIONS.docs;
 
   const sidebarContent = (isMobile = false) => (
     <div style={{
@@ -344,7 +392,7 @@ export default function SpaceDashboard() {
 
       {/* Nav items */}
       <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none', padding: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {SIDEBAR_ITEMS.map(item => {
+        {visibleSidebarItems.map(item => {
           const isActive = activeSection === item.id;
           const Icon = item.icon;
           return (
@@ -391,6 +439,47 @@ export default function SpaceDashboard() {
             </Tooltip>
           );
         })}
+
+        {/* Add Module Button */}
+        {availableToAddModules.length > 0 && (
+          <Tooltip title={!isHovered && !isMobile ? 'Add Module' : ''} placement="right">
+            <button
+              type="button"
+              onClick={() => setShowAddModuleModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: `1px dashed ${isLight ? '#cbd5e1' : 'rgba(255,255,255,0.15)'}`,
+                background: isLight ? 'rgba(79,70,229,0.03)' : 'rgba(99,102,241,0.04)',
+                color: accent,
+                fontFamily: 'var(--font-body)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left',
+                marginTop: '6px',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                minHeight: '36px',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = isLight ? 'rgba(79,70,229,0.03)' : 'rgba(99,102,241,0.04)'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+                <RiAddLine size={16} />
+              </div>
+              {(isMobile || isHovered) && (
+                <span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '12px' }}>
+                  + Add Module
+                </span>
+              )}
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       {/* Footer */}
@@ -984,14 +1073,208 @@ export default function SpaceDashboard() {
       {/* ── Quick Add Modals ── */}
       {space && (
         <>
-          <QuickAddLearningModal   open={quickAddModal === 'learnings'}   onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddSnippetModal    open={quickAddModal === 'snippets'}    onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddDocModal        open={quickAddModal === 'docs'}        onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddRepoModal       open={quickAddModal === 'repos'}       onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddPromptModal     open={quickAddModal === 'prompts'}     onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddCommunityModal  open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddLearningModal open={quickAddModal === 'learnings'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddSnippetModal open={quickAddModal === 'snippets'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddDocModal open={quickAddModal === 'docs'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddRepoModal open={quickAddModal === 'repos'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddPromptModal open={quickAddModal === 'prompts'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddCommunityModal open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} />
         </>
       )}
+
+      {/* ── Add Module Modal ── */}
+      <AnimatePresence>
+        {showAddModuleModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+          >
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddModuleModal(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+              }}
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '480px',
+                background: isLight ? '#ffffff' : '#101018',
+                border: `1px solid ${cardBorder}`,
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: isLight ? '0 20px 40px rgba(0,0,0,0.1)' : '0 20px 50px rgba(0,0,0,0.5)',
+                zIndex: 1101,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <RiAddLine size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      color: textColor,
+                      margin: 0,
+                    }}>
+                      Add Module to Space
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '12px', color: textMuted }}>
+                      Enable additional tools in your sidebar anytime.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddModuleModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = textColor}
+                  onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                >
+                  <RiCloseLine size={20} />
+                </button>
+              </div>
+
+              {/* Module List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '360px', overflowY: 'auto' }}>
+                {availableToAddModules.map(mod => {
+                  const ModIcon = mod.icon;
+                  const isAdding = addingModuleId === mod.id;
+                  return (
+                    <div
+                      key={mod.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: `1px solid ${cardBorder}`,
+                        background: isLight ? '#f9fafb' : '#14141e',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: isLight ? '#ffffff' : '#1f1f2c',
+                          color: 'var(--accent-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          border: `1px solid ${cardBorder}`,
+                        }}>
+                          <ModIcon size={16} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: textColor }}>
+                            {mod.label}
+                          </p>
+                          <p style={{ margin: 0, fontSize: '11px', color: textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {mod.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isAdding}
+                        onClick={() => handleAddModule(mod.id)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'var(--accent-color)',
+                          color: '#ffffff',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: isAdding ? 'not-allowed' : 'pointer',
+                          opacity: isAdding ? 0.7 : 1,
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {isAdding ? (
+                          <>
+                            <RiLoader4Line size={13} className="animate-spin" />
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RiAddLine size={14} />
+                            <span>Add</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {availableToAddModules.length === 0 && (
+                  <div style={{ padding: '24px', textAlign: 'center', color: textMuted, fontSize: '13px' }}>
+                    All available modules are already enabled in this Space!
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

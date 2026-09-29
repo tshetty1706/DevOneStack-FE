@@ -6,10 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import api from '../../api/axios';
-import SpaceIcon from '../spaces/SpaceIcon';
 import SpaceThumbnail from '../common/SpaceThumbnail';
-import { getIconKeyByName } from '../../utils/iconMapping';
-import { resolveThumbnail, getDefaultThumbnail, getToolById, findToolByKeyword } from '../../constants/tools';
 import {
   RiLockLine,
   RiGlobalLine,
@@ -25,7 +22,8 @@ import {
   RiEditLine,
   RiDeleteBinLine,
   RiFileCopyLine,
-  RiExternalLinkLine
+  RiExternalLinkLine,
+  RiStackLine
 } from 'react-icons/ri';
 
 /**
@@ -85,16 +83,6 @@ export default function ToolSpaceCard({
     setStarsCount(data.starsCount || 0);
   }, [data.starredBy, data.starsCount, isInitiallyStarred]);
 
-  // Resolve Thumbnail Image
-  const resolvedThumb = resolveThumbnail(data.thumbnail || toolName || name, theme);
-  const finalThumbnail = imgError ? getDefaultThumbnail(theme) : resolvedThumb;
-
-  // Auto-detect icon
-  let iconKeyToUse = data.iconKey;
-  if (!iconKeyToUse || iconKeyToUse === 'folder' || iconKeyToUse === 'lucide:folder') {
-    const matchedTool = getToolById(toolName) || findToolByKeyword(toolName || name);
-    iconKeyToUse = matchedTool?.iconKey || getIconKeyByName(toolName || name);
-  }
 
   // Card theme styling tokens
   const cardBg = isLight ? '#ffffff' : '#0d0d12';
@@ -286,9 +274,7 @@ export default function ToolSpaceCard({
         >
           {/* Thumbnail Image */}
           <SpaceThumbnail
-            thumbnail={data.thumbnail || toolName || name}
-            tool={toolName}
-            name={name}
+            thumbnail={data.thumbnail}
             theme={theme}
             interactive={!isPreview}
             objectPosition={data.thumbnailPosition || 'center'}
@@ -482,101 +468,9 @@ export default function ToolSpaceCard({
                         zIndex: 20,
                       }}
                     >
-                    <button
-                      type="button"
-                      onClick={handleCardClick}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: textPrimary,
-                        fontSize: '12.5px',
-                        fontWeight: 500,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <RiExternalLinkLine size={14} style={{ color: textSecondary }} />
-                      Open Space
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyLink}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: textPrimary,
-                        fontSize: '12.5px',
-                        fontWeight: 500,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <RiFileCopyLine size={14} style={{ color: textSecondary }} />
-                      Copy Link
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleTogglePin}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: textPrimary,
-                        fontSize: '12.5px',
-                        fontWeight: 500,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {isPinned ? (
-                        <>
-                          <RiPushpinFill size={14} style={{ color: 'var(--accent-color)' }} />
-                          Unpin Space
-                        </>
-                      ) : (
-                        <>
-                          <RiPushpinLine size={14} style={{ color: textSecondary }} />
-                          Pin Space
-                        </>
-                      )}
-                    </button>
-
-                    {onEditClick && (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDropdown(false);
-                          onEditClick();
-                        }}
+                        onClick={handleCardClick}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -596,46 +490,138 @@ export default function ToolSpaceCard({
                         onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <RiEditLine size={14} style={{ color: textSecondary }} />
-                        Edit Space
+                        <RiExternalLinkLine size={14} style={{ color: textSecondary }} />
+                        Open Space
                       </button>
-                    )}
 
-                    <div style={{ height: '1px', background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                      <button
+                        type="button"
+                        onClick={handleCopyLink}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: textPrimary,
+                          fontSize: '12.5px',
+                          fontWeight: 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <RiFileCopyLine size={14} style={{ color: textSecondary }} />
+                        Copy Link
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={handleDeleteSpace}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '8px 10px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ef4444',
-                        fontSize: '12.5px',
-                        fontWeight: 500,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: 'var(--font-body)',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.1)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <RiDeleteBinLine size={14} />
-                      Delete Space
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                      <button
+                        type="button"
+                        onClick={handleTogglePin}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: textPrimary,
+                          fontSize: '12.5px',
+                          fontWeight: 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {isPinned ? (
+                          <>
+                            <RiPushpinFill size={14} style={{ color: 'var(--accent-color)' }} />
+                            Unpin Space
+                          </>
+                        ) : (
+                          <>
+                            <RiPushpinLine size={14} style={{ color: textSecondary }} />
+                            Pin Space
+                          </>
+                        )}
+                      </button>
+
+                      {onEditClick && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            onEditClick();
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            width: '100%',
+                            padding: '8px 10px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: textPrimary,
+                            fontSize: '12.5px',
+                            fontWeight: 500,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            fontFamily: 'var(--font-body)',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <RiEditLine size={14} style={{ color: textSecondary }} />
+                          Edit Space
+                        </button>
+                      )}
+
+                      <div style={{ height: '1px', background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+
+                      <button
+                        type="button"
+                        onClick={handleDeleteSpace}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#ef4444',
+                          fontSize: '12.5px',
+                          fontWeight: 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <RiDeleteBinLine size={14} />
+                        Delete Space
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Card Body Section: Icon + Title, Description, Statistics, Tags */}
       <div
@@ -647,23 +633,25 @@ export default function ToolSpaceCard({
           flex: 1,
         }}
       >
-        {/* Space Identity Row: Tool Icon + Space Title */}
+        {/* Space Identity Row: Generic Space Icon + Space Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Rounded square tool icon */}
+          {/* Rounded square generic space icon */}
           <div
             style={{
               width: '32px',
               height: '32px',
               borderRadius: '8px',
-              background: isLight ? '#f1f5f9' : '#1e1e28',
-              border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.06)'}`,
+              background: isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.12)',
+              border: `1px solid ${isLight ? 'rgba(79, 70, 229, 0.18)' : 'rgba(99, 102, 241, 0.22)'}`,
+              color: isLight ? '#4f46e5' : '#818cf8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              transition: 'all 0.2s ease',
             }}
           >
-            <SpaceIcon iconKey={iconKeyToUse} size={18} />
+            <RiStackLine size={17} />
           </div>
 
           {/* Space Title */}
@@ -700,7 +688,7 @@ export default function ToolSpaceCard({
             minHeight: '36px',
           }}
         >
-          {description || (toolName ? `Knowledge, snippets and documentation for ${toolName}.` : 'Organize notes, code snippets and resources.')}
+          {description || 'Organize notes, code snippets and resources.'}
         </p>
 
         {/* Statistics Row: Stars, Views, Shares, Contributors */}

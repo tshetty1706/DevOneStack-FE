@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RiFolder5Line, RiTerminalBoxLine } from 'react-icons/ri';
+import { RiFolder5Line, RiTerminalBoxLine, RiStackLine } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
 
 const ICON_ALIASES = {
@@ -37,9 +37,9 @@ export default function SpaceIcon({ iconKey, size = 20, style = {}, className = 
   let rawKey = (iconKey || '').trim();
   const key = ICON_ALIASES[rawKey] || rawKey;
 
-  // If empty key or error, use default folder icon
-  if (!key || error) {
-    return <RiFolder5Line size={size} style={{ color: 'inherit', flexShrink: 0, ...style }} className={className} />;
+  // If stack, default, empty key or error, use standard DevOneStack Stack icon
+  if (!key || key === 'stack' || key === 'lucide:stack' || key === 'default' || error) {
+    return <RiStackLine size={size} style={{ color: 'inherit', flexShrink: 0, ...style }} className={className} />;
   }
 
   // Parse collection and name

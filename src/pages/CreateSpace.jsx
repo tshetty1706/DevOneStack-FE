@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -7,442 +6,26 @@ import { useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import api from '../api/axios';
 import Logo from '../components/layout/Logo';
-import SpaceIcon from '../components/spaces/SpaceIcon';
 import SpaceThumbnail from '../components/common/SpaceThumbnail';
 import ToolSpaceCard from '../components/dashboard/ToolSpaceCard';
-import {
-  TOOLS,
-  TOOL_CATEGORIES,
-  getToolById,
-  getDefaultThumbnail,
-  resolveThumbnail,
-  getToolThumbnail,
-} from '../constants/tools';
+import { TEMPLATES, getTemplateById, ALL_MODULES, getModuleById } from '../constants/templates';
 import {
   RiArrowLeftLine,
-  RiCheckLine,
   RiLockLine,
   RiGlobalLine,
   RiLinkM,
-  RiSearchLine,
-  RiImageEditLine,
-  RiMagicLine,
   RiAddLine,
   RiCloseLine,
   RiInformationLine,
-  RiRefreshLine,
-  RiFolder5Line,
   RiUpload2Line,
   RiDeleteBinLine,
   RiLoader4Line,
   RiImageLine,
+  RiSparklingLine,
+  RiCheckLine,
+  RiLayoutGridLine,
+  RiCompass3Line,
 } from 'react-icons/ri';
-
-/**
- * Modal to customize/edit the Space Thumbnail
- */
-function ThumbnailPickerModal({
-  open,
-  onClose,
-  currentThumbnail,
-  selectedTool,
-  onSelectThumbnail,
-  onUploadCustomClick,
-  onRemoveCustom,
-  isCustomActive,
-  uploadingCustom,
-}) {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-
-  const filteredTools = useMemo(() => {
-    return TOOLS.filter(tool => {
-      const matchesCategory = selectedCategory === 'All' || tool.category === selectedCategory;
-      const matchesSearch = !search.trim() ||
-        tool.name.toLowerCase().includes(search.toLowerCase().trim()) ||
-        tool.slug.toLowerCase().includes(search.toLowerCase().trim());
-      return matchesCategory && matchesSearch;
-    });
-  }, [search, selectedCategory]);
-
-  if (!open) return null;
-
-  const bg = isLight ? '#ffffff' : '#111116';
-  const border = isLight ? '#e5e7eb' : 'rgba(255, 255, 255, 0.08)';
-  const textPrimary = isLight ? '#111827' : '#f8fafc';
-  const textSecondary = isLight ? '#64748b' : '#94a3b8';
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 3000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(6px)',
-        }}
-      />
-
-      {/* Modal Content */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: '680px',
-          background: bg,
-          border: `1px solid ${border}`,
-          borderRadius: '18px',
-          padding: '24px',
-          zIndex: 3001,
-          boxShadow: isLight
-            ? '0 25px 50px -12px rgba(0, 0, 0, 0.15)'
-            : '0 25px 60px -12px rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '88vh',
-          fontFamily: 'var(--font-body)',
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-display)', color: textPrimary }}>
-              Choose Space Thumbnail
-            </h3>
-            <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: textSecondary }}>
-              Select a {isLight ? 'Light Mode' : 'Dark Mode'} 3D artwork, upload your own, or reset to default.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: textSecondary,
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-            }}
-          >
-            <RiCloseLine size={20} />
-          </button>
-        </div>
-
-        {/* Custom Upload Banner inside Modal */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 14px',
-          borderRadius: '12px',
-          background: isCustomActive
-            ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)')
-            : (isLight ? '#f8fafc' : '#161620'),
-          border: `1px solid ${isCustomActive ? 'var(--accent-color)' : border}`,
-          marginBottom: '14px',
-          flexWrap: 'wrap',
-          gap: '10px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '8px',
-              background: isLight ? '#ffffff' : '#0e0e14',
-              border: `1px solid ${border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              flexShrink: 0,
-            }}>
-              {isCustomActive ? (
-                <img
-                  src={currentThumbnail}
-                  alt="Custom preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <RiUpload2Line size={18} style={{ color: 'var(--accent-color)' }} />
-              )}
-            </div>
-            <div>
-              <span style={{ fontSize: '12.5px', fontWeight: 600, color: textPrimary, display: 'block' }}>
-                {isCustomActive ? 'Custom Upload Active' : 'Custom Space Thumbnail'}
-              </span>
-              <span style={{ fontSize: '11px', color: textSecondary }}>
-                {isCustomActive ? 'Stored securely via Cloudinary' : 'Upload PNG, JPG, or WEBP from your device'}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              disabled={uploadingCustom}
-              onClick={onUploadCustomClick}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--accent-color)',
-                background: 'var(--accent-color)',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: uploadingCustom ? 'not-allowed' : 'pointer',
-                opacity: uploadingCustom ? 0.7 : 1,
-              }}
-            >
-              {uploadingCustom ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
-              <span>{isCustomActive ? 'Replace from Device' : 'Upload from Device'}</span>
-            </button>
-
-            {isCustomActive && (
-              <button
-                type="button"
-                onClick={onRemoveCustom}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 10px',
-                  borderRadius: '8px',
-                  border: `1px solid ${border}`,
-                  background: isLight ? '#ffffff' : '#1f1f2a',
-                  color: isLight ? '#dc2626' : '#f87171',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <RiDeleteBinLine size={14} />
-                <span>Remove</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Search & Default Controls */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-          <div style={{
-            flex: 1,
-            minWidth: '180px',
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-          }}>
-            <RiSearchLine
-              size={15}
-              style={{ position: 'absolute', left: '12px', color: textSecondary }}
-            />
-            <input
-              type="text"
-              placeholder="Search 3D artwork..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                height: '36px',
-                padding: '0 12px 0 36px',
-                borderRadius: '9px',
-                border: `1px solid ${border}`,
-                background: isLight ? '#f9fafb' : '#181820',
-                color: textPrimary,
-                fontSize: '13px',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              onSelectThumbnail(getDefaultThumbnail(theme), null);
-              onClose();
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 14px',
-              borderRadius: '9px',
-              border: `1px solid ${border}`,
-              background: isLight ? '#f9fafb' : '#181820',
-              color: textPrimary,
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            <RiRefreshLine size={14} />
-            Theme Default
-          </button>
-        </div>
-
-        {/* Category Tabs */}
-        <div
-          data-lenis-prevent
-          style={{
-            display: 'flex',
-            gap: '6px',
-            overflowX: 'auto',
-            paddingBottom: '8px',
-            marginBottom: '10px',
-          }}
-        >
-          {['All', ...Object.values(TOOL_CATEGORIES).filter(c => c !== 'All')].map(cat => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              style={{
-                padding: '4px 11px',
-                borderRadius: '20px',
-                border: selectedCategory === cat
-                  ? `1px solid var(--accent-color)`
-                  : `1px solid ${border}`,
-                background: selectedCategory === cat
-                  ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)')
-                  : 'transparent',
-                color: selectedCategory === cat ? 'var(--accent-color)' : textSecondary,
-                fontSize: '11.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Thumbnail Visual Grid */}
-        <div
-          data-lenis-prevent
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
-            gap: '10px',
-            overflowY: 'auto',
-            padding: '4px',
-            flex: 1,
-            maxHeight: '320px',
-          }}
-        >
-          {filteredTools.map(tool => {
-            const toolThemedThumb = resolveThumbnail(tool.id, theme);
-            const isSelected = !isCustomActive && (currentThumbnail === tool.id || currentThumbnail === toolThemedThumb || currentThumbnail === tool.thumbnail);
-            return (
-              <div
-                key={tool.id}
-                onClick={() => {
-                  onSelectThumbnail(tool.id, tool);
-                  onClose();
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '10px 8px',
-                  borderRadius: '12px',
-                  border: isSelected
-                    ? '2px solid var(--accent-color)'
-                    : `1px solid ${border}`,
-                  background: isSelected
-                    ? (isLight ? 'rgba(79, 70, 229, 0.06)' : 'rgba(99, 102, 241, 0.12)')
-                    : (isLight ? '#fafafa' : '#15151c'),
-                  cursor: 'pointer',
-                  gap: '8px',
-                  position: 'relative',
-                  transition: 'transform 0.15s, border-color 0.15s',
-                }}
-                onMouseEnter={e => {
-                  if (!isSelected) {
-                    e.currentTarget.style.borderColor = isLight ? '#c7d2fe' : 'rgba(99, 102, 241, 0.4)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!isSelected) {
-                    e.currentTarget.style.borderColor = border;
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <SpaceThumbnail
-                    thumbnail={tool.id}
-                    theme={theme}
-                    aspectRatio="1"
-                    objectFit="contain"
-                    style={{ background: 'transparent' }}
-                  />
-                </div>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: textPrimary,
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  width: '100%',
-                }}>
-                  {tool.name}
-                </span>
-                {isSelected && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '6px',
-                    right: '6px',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    background: 'var(--accent-color)',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <RiCheckLine size={11} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 export default function CreateSpace() {
   const { user } = useAuth();
@@ -456,26 +39,24 @@ export default function CreateSpace() {
   // Form State
   const [spaceName, setSpaceName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedToolId, setSelectedToolId] = useState('react');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('blank');
   const [customThumbnail, setCustomThumbnail] = useState(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
   const [visibility, setVisibility] = useState('private');
-  const [tags, setTags] = useState(['Frontend', 'Interview', 'Learning', 'Projects']);
+  const [tags, setTags] = useState(['Frontend', 'Notes', 'Projects']);
   const [tagInput, setTagInput] = useState('');
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [toolSearch, setToolSearch] = useState('');
 
   // Submission State
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const selectedTool = useMemo(() => {
-    return getToolById(selectedToolId) || TOOLS[0];
-  }, [selectedToolId]);
+  // Active Template object
+  const selectedTemplate = useMemo(() => {
+    return getTemplateById(selectedTemplateId);
+  }, [selectedTemplateId]);
 
-  // Current effective thumbnail
-  const activeThumbnail = customThumbnail || (selectedToolId ? resolveThumbnail(selectedToolId, theme) : getDefaultThumbnail(theme));
+  // Current effective thumbnail: null means default theme-aware DevOneStack thumbnail
+  const activeThumbnail = customThumbnail || null;
 
   // Handle Custom Thumbnail File Upload to Cloudinary
   const handleFileUpload = async (e) => {
@@ -497,12 +78,11 @@ export default function CreateSpace() {
       return;
     }
 
-    // Instant local preview
+    // Instant local preview for immediate visual feedback
     const localPreviewUrl = URL.createObjectURL(file);
     const previousThumb = customThumbnail;
     setCustomThumbnail(localPreviewUrl);
     setUploadingThumbnail(true);
-    setUploadError(null);
 
     try {
       const formData = new FormData();
@@ -514,44 +94,25 @@ export default function CreateSpace() {
 
       if (res.data?.url) {
         setCustomThumbnail(res.data.url);
-        message.success('Custom thumbnail uploaded to Cloudinary!');
+        message.success('Custom thumbnail uploaded successfully!');
       } else {
         throw new Error('No URL returned from server');
       }
     } catch (err) {
       console.error('Custom thumbnail upload failed:', err);
-      // Rollback to previous
+      // Rollback to previous thumbnail
       setCustomThumbnail(previousThumb);
       const errText = err?.response?.data?.error || 'Unable to upload thumbnail. Please try again.';
-      setUploadError(errText);
       message.error(errText);
     } finally {
       setUploadingThumbnail(false);
     }
   };
 
-  // Handle Tool Selection (Predefined tool becomes active as per Requirement 12)
-  const handleSelectTool = (tool) => {
-    setSelectedToolId(tool.id);
+  // Remove custom thumbnail and revert to default
+  const handleRemoveCustomThumbnail = () => {
     setCustomThumbnail(null);
-    setUploadError(null);
-
-    // If space name is blank or standard default, auto-populate with helpful title
-    if (!spaceName.trim() || spaceName.endsWith('Mastery') || spaceName.endsWith('Stack') || spaceName.endsWith('Essentials')) {
-      setSpaceName(`${tool.name} Mastery`);
-    }
-    // Auto populate description if empty
-    if (!description.trim() && tool.defaultDescription) {
-      setDescription(tool.defaultDescription);
-    }
-    // Suggest relevant default tags
-    if (tool.defaultTags && tool.defaultTags.length > 0) {
-      setTags(tool.defaultTags);
-    }
-
-    if (errors.spaceName) {
-      setErrors(prev => ({ ...prev, spaceName: null }));
-    }
+    message.info('Reverted to DevOneStack default theme thumbnail.');
   };
 
   // Add Tag
@@ -559,14 +120,20 @@ export default function CreateSpace() {
     if (e) e.preventDefault();
     const clean = tagInput.trim().replace(/^#/, '');
     if (!clean) return;
+
+    // Duplicate check
     if (tags.some(t => t.toLowerCase() === clean.toLowerCase())) {
+      message.warning(`Tag "${clean}" is already added.`);
       setTagInput('');
       return;
     }
+
+    // Maximum 8 tags
     if (tags.length >= 8) {
-      message.warning('Maximum 8 tags per Space');
+      message.warning('Maximum 8 tags per Space.');
       return;
     }
+
     setTags(prev => [...prev, clean]);
     setTagInput('');
   };
@@ -604,16 +171,17 @@ export default function CreateSpace() {
       const payload = {
         name: spaceName.trim(),
         description: description.trim(),
-        tool: selectedTool?.name || '',
-        thumbnail: activeThumbnail,
+        thumbnail: customThumbnail || '',
         visibility: visibility,
         tags: tags,
-        iconKey: selectedTool?.iconKey || 'lucide:folder',
+        template: selectedTemplateId,
+        enabledModules: selectedTemplate.modules,
+        iconKey: 'lucide:stack',
       };
 
       const response = await api.post('/api/spaces', payload);
 
-      // Invalidate queries so My Spaces & Dashboard stay perfectly in sync
+      // Invalidate queries so My Spaces & Dashboard stay in sync
       await queryClient.invalidateQueries({ queryKey: ['spaces'] });
       await queryClient.invalidateQueries({ queryKey: ['history'] });
 
@@ -645,35 +213,28 @@ export default function CreateSpace() {
     }
   };
 
-  // Filter tools for the creation tool selector
-  const filteredTools = useMemo(() => {
-    const q = toolSearch.toLowerCase().trim();
-    if (!q) return TOOLS;
-    return TOOLS.filter(t => t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
-  }, [toolSearch]);
-
-  // Color tokens
+  // Color tokens matching DevOneStack design system
   const bg = 'var(--bg-color)';
   const cardBg = isLight ? '#ffffff' : '#0e0e14';
-  const cardBorder = isLight ? '#e5e7eb' : 'rgba(255, 255, 255, 0.07)';
+  const cardBorder = isLight ? '#e5e7eb' : 'rgba(255, 255, 255, 0.08)';
   const inputBg = isLight ? '#ffffff' : '#14141c';
   const inputBorder = isLight ? '#d1d5db' : 'rgba(255, 255, 255, 0.12)';
   const textPrimary = isLight ? '#111827' : '#f8fafc';
   const textSecondary = isLight ? '#64748b' : '#94a3b8';
 
-  // Live preview dummy space object
+  // Live preview space object
   const previewSpaceData = {
-    name: spaceName.trim() || `${selectedTool?.name || 'Technology'} Mastery`,
-    description: description.trim() || selectedTool?.defaultDescription || 'Create notes, snippets and resources for this technology stack.',
-    tool: selectedTool?.name || 'React',
+    name: spaceName.trim() || 'New Space',
+    description: description.trim() || 'Create notes, snippets, documentation, and technical resources in this space.',
     thumbnail: activeThumbnail,
     visibility: visibility,
-    tags: tags.length > 0 ? tags : (selectedTool?.defaultTags || ['Frontend']),
+    tags: tags.length > 0 ? tags : ['Notes', 'Docs', 'Snippets'],
     starsCount: 0,
     viewsCount: 0,
     sharesCount: 0,
     contributorsCount: 1,
-    iconKey: selectedTool?.iconKey || 'simple-icons:react',
+    isPinned: false,
+    iconKey: 'lucide:stack',
   };
 
   return (
@@ -701,7 +262,7 @@ export default function CreateSpace() {
         style={{
           height: '64px',
           borderBottom: `1px solid ${cardBorder}`,
-          background: isLight ? 'rgba(255, 255, 255, 0.85)' : 'rgba(8, 8, 12, 0.85)',
+          background: isLight ? 'rgba(255, 255, 255, 0.88)' : 'rgba(8, 8, 12, 0.88)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           display: 'flex',
@@ -721,7 +282,7 @@ export default function CreateSpace() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
+              padding: '7px 14px',
               borderRadius: '8px',
               border: `1px solid ${cardBorder}`,
               background: 'transparent',
@@ -755,7 +316,7 @@ export default function CreateSpace() {
       <main
         style={{
           flex: 1,
-          maxWidth: '1280px',
+          maxWidth: '1240px',
           width: '100%',
           margin: '0 auto',
           padding: 'clamp(20px, 3.5vw, 36px) clamp(16px, 3vw, 32px) 80px',
@@ -777,7 +338,7 @@ export default function CreateSpace() {
             letterSpacing: '0.08em',
             marginBottom: '6px',
           }}>
-            <RiMagicLine size={14} />
+            <RiSparklingLine size={14} />
             <span>New Workspace</span>
           </div>
           <h1 style={{
@@ -795,8 +356,9 @@ export default function CreateSpace() {
             color: textSecondary,
             margin: 0,
             maxWidth: '640px',
+            lineHeight: 1.5,
           }}>
-            Create a dedicated workspace for your technology, projects, documentation, and knowledge repository.
+            Choose how you want to start organizing your Space. Select a starting template and customize your modules.
           </p>
         </div>
 
@@ -823,7 +385,7 @@ export default function CreateSpace() {
         {/* Two-Column Form & Live Preview Layout */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 480px), 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))',
           gap: '32px',
           alignItems: 'start',
         }}>
@@ -847,15 +409,31 @@ export default function CreateSpace() {
               gap: '18px',
               boxShadow: isLight ? '0 4px 16px rgba(0,0,0,0.02)' : '0 4px 20px rgba(0,0,0,0.2)',
             }}>
-              <h2 style={{
-                fontSize: '16px',
-                fontWeight: 700,
-                fontFamily: 'var(--font-display)',
-                color: textPrimary,
-                margin: 0,
-              }}>
-                1. Space Details
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                  color: 'var(--accent-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}>
+                  1
+                </div>
+                <h2 style={{
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-display)',
+                  color: textPrimary,
+                  margin: 0,
+                }}>
+                  Space Details
+                </h2>
+              </div>
 
               {/* Space Name Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -872,7 +450,7 @@ export default function CreateSpace() {
                   type="text"
                   required
                   maxLength={80}
-                  placeholder="e.g. Spring Boot Mastery, React Systems, Python Automation"
+                  placeholder="e.g. System Architecture, React Notes, Backend Masterclass"
                   value={spaceName}
                   onChange={(e) => {
                     setSpaceName(e.target.value);
@@ -918,7 +496,7 @@ export default function CreateSpace() {
                 <textarea
                   rows={3}
                   maxLength={500}
-                  placeholder="Backend development notes, code implementations, architectures and practical resources."
+                  placeholder="Document patterns, code snippets, architectural decisions, and resources."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   style={{
@@ -932,7 +510,7 @@ export default function CreateSpace() {
                     fontFamily: 'var(--font-body)',
                     outline: 'none',
                     resize: 'vertical',
-                    minHeight: '80px',
+                    minHeight: '76px',
                     boxSizing: 'border-box',
                     lineHeight: 1.5,
                     transition: 'border-color 0.2s ease',
@@ -941,6 +519,165 @@ export default function CreateSpace() {
                   onBlur={e => e.target.style.borderColor = inputBorder}
                 />
               </div>
+            </div>
+
+            {/* SECTION 2: Space Template Selection */}
+            <div style={{
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
+              borderRadius: '16px',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px',
+              boxShadow: isLight ? '0 4px 16px rgba(0,0,0,0.02)' : '0 4px 20px rgba(0,0,0,0.2)',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                  }}>
+                    2
+                  </div>
+                  <h2 style={{
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    color: textPrimary,
+                    margin: 0,
+                  }}>
+                    Space Template
+                  </h2>
+                </div>
+                <p style={{ margin: '4px 0 0 34px', fontSize: '12.5px', color: textSecondary }}>
+                  Choose how you want to start organizing your Space. You can add more modules anytime.
+                </p>
+              </div>
+
+              {/* Template Selection Cards Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+                gap: '10px',
+              }}>
+                {TEMPLATES.map(tpl => {
+                  const isSelected = selectedTemplateId === tpl.id;
+                  const Icon = tpl.icon;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => setSelectedTemplateId(tpl.id)}
+                      style={{
+                        padding: '14px',
+                        borderRadius: '12px',
+                        border: isSelected
+                          ? '2px solid var(--accent-color)'
+                          : `1px solid ${inputBorder}`,
+                        background: isSelected
+                          ? (isLight ? 'rgba(79, 70, 229, 0.06)' : 'rgba(99, 102, 241, 0.12)')
+                          : (isLight ? '#f9fafb' : '#14141c'),
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        position: 'relative',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => {
+                        if (!isSelected) {
+                          e.currentTarget.style.borderColor = isLight ? '#c7d2fe' : 'rgba(99, 102, 241, 0.35)';
+                          e.currentTarget.style.background = isLight ? '#ffffff' : '#181824';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isSelected) {
+                          e.currentTarget.style.borderColor = inputBorder;
+                          e.currentTarget.style.background = isLight ? '#f9fafb' : '#14141c';
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: isSelected
+                            ? 'var(--accent-color)'
+                            : (isLight ? '#f1f5f9' : '#1f1f2c'),
+                          color: isSelected ? '#ffffff' : (isLight ? '#4f46e5' : '#818cf8'),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          transition: 'all 0.2s ease',
+                        }}>
+                          <Icon size={16} />
+                        </div>
+
+                        {isSelected ? (
+                          <div style={{
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            background: 'var(--accent-color)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                            <RiCheckLine size={12} />
+                          </div>
+                        ) : (
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '50%',
+                            border: `2px solid ${textSecondary}`,
+                          }} />
+                        )}
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: 700, color: textPrimary }}>
+                            {tpl.name}
+                          </span>
+                        </div>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)',
+                          color: 'var(--accent-color)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.03em',
+                          display: 'inline-block',
+                          marginBottom: '4px',
+                        }}>
+                          {tpl.badge}
+                        </span>
+                        <p style={{ margin: 0, fontSize: '11.5px', color: textSecondary, lineHeight: 1.35 }}>
+                          {tpl.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+
             </div>
 
             {/* Hidden File Input for Custom Thumbnail Upload */}
@@ -952,7 +689,7 @@ export default function CreateSpace() {
               onChange={handleFileUpload}
             />
 
-            {/* SECTION 2: Primary Technology Selection */}
+            {/* SECTION 3: Space Thumbnail (Default Theme Artwork OR Custom Upload) */}
             <div style={{
               background: cardBg,
               border: `1px solid ${cardBorder}`,
@@ -963,8 +700,22 @@ export default function CreateSpace() {
               gap: '18px',
               boxShadow: isLight ? '0 4px 16px rgba(0,0,0,0.02)' : '0 4px 20px rgba(0,0,0,0.2)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                  }}>
+                    3
+                  </div>
                   <h2 style={{
                     fontSize: '16px',
                     fontWeight: 700,
@@ -972,360 +723,168 @@ export default function CreateSpace() {
                     color: textPrimary,
                     margin: 0,
                   }}>
-                    2. Primary Technology / Tool
+                    Space Thumbnail
                   </h2>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: textSecondary }}>
-                    Selecting a tool automatically sets theme-aware 3D artwork, or upload your own image.
-                  </p>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {/* Upload Custom Button */}
-                  <button
-                    type="button"
-                    disabled={uploadingThumbnail}
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      height: '32px',
-                      padding: '0 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--accent-color)',
-                      background: isLight ? 'rgba(79, 70, 229, 0.06)' : 'rgba(99, 102, 241, 0.12)',
-                      color: 'var(--accent-color)',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.2s ease',
-                      opacity: uploadingThumbnail ? 0.7 : 1,
-                    }}
-                  >
-                    {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
-                    <span>{uploadingThumbnail ? 'Uploading...' : 'Upload Custom'}</span>
-                  </button>
-
-                  {/* Search Tools */}
-                  <div style={{ position: 'relative', width: '160px' }}>
-                    <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textSecondary }} />
-                    <input
-                      type="text"
-                      placeholder="Find tool..."
-                      value={toolSearch}
-                      onChange={e => setToolSearch(e.target.value)}
-                      style={{
-                        width: '100%',
-                        height: '32px',
-                        padding: '0 8px 0 30px',
-                        borderRadius: '8px',
-                        border: `1px solid ${inputBorder}`,
-                        background: inputBg,
-                        color: textPrimary,
-                        fontSize: '12px',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
+                <p style={{ margin: '4px 0 0 34px', fontSize: '12.5px', color: textSecondary }}>
+                  Choose a default image or upload your own.
+                </p>
               </div>
 
-              {/* Visual Technology Grid */}
-              <div
-                data-lenis-prevent
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
-                  gap: '8px',
-                  maxHeight: '220px',
-                  overflowY: 'auto',
-                  padding: '2px',
-                }}
-              >
-                {/* Upload Custom Card inside grid */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '10px 6px',
-                    borderRadius: '10px',
-                    border: customThumbnail
-                      ? '2px solid var(--accent-color)'
-                      : `1px dashed ${isLight ? '#c7d2fe' : 'rgba(99, 102, 241, 0.4)'}`,
-                    background: customThumbnail
-                      ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.16)')
-                      : (isLight ? '#f5f7ff' : '#13131e'),
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-color)' }}>
-                    {uploadingThumbnail ? <RiLoader4Line size={18} className="animate-spin" /> : <RiUpload2Line size={18} />}
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: 'var(--accent-color)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                    textAlign: 'center',
-                  }}>
-                    {uploadingThumbnail ? 'Uploading...' : (customThumbnail ? 'Custom Active' : '+ Custom')}
-                  </span>
-                </button>
+              {/* Thumbnail Container & Management Card */}
+              <div style={{
+                borderRadius: '14px',
+                border: `1px solid ${cardBorder}`,
+                background: isLight ? '#f9fafb' : '#14141c',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '20px',
+                flexWrap: 'wrap',
+              }}>
+                {/* Aspect Ratio 16:9 Thumbnail Preview */}
+                <div style={{
+                  width: '160px',
+                  aspectRatio: '16 / 9',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  border: `1px solid ${cardBorder}`,
+                  background: isLight ? '#f1f5f9' : '#07070b',
+                  position: 'relative',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                }}>
+                  <SpaceThumbnail
+                    thumbnail={customThumbnail || ''}
+                    theme={theme}
+                    style={{ width: '100%', height: '100%' }}
+                    objectFit="cover"
+                  />
+                  {uploadingThumbnail && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(0,0,0,0.65)',
+                      backdropFilter: 'blur(3px)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                    }}>
+                      <RiLoader4Line size={20} className="animate-spin" />
+                      <span>Uploading...</span>
+                    </div>
+                  )}
+                </div>
 
-                {filteredTools.map(tool => {
-                  const isSelected = !customThumbnail && selectedToolId === tool.id;
-                  return (
+                {/* Actions & Specs Column */}
+                <div style={{
+                  flex: 1,
+                  minWidth: '220px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  justifyContent: 'center',
+                }}>
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <button
-                      key={tool.id}
                       type="button"
-                      onClick={() => handleSelectTool(tool)}
+                      disabled={uploadingThumbnail}
+                      onClick={() => fileInputRef.current?.click()}
                       style={{
-                        display: 'flex',
-                        flexDirection: 'column',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
                         gap: '6px',
-                        padding: '10px 6px',
-                        borderRadius: '10px',
-                        border: isSelected
-                          ? '2px solid var(--accent-color)'
-                          : `1px solid ${inputBorder}`,
-                        background: isSelected
-                          ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.16)')
-                          : (isLight ? '#f9fafb' : '#14141c'),
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--accent-color)',
+                        background: isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)',
+                        color: 'var(--accent-color)',
+                        fontSize: '12.5px',
+                        fontWeight: 600,
+                        cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        opacity: uploadingThumbnail ? 0.7 : 1,
                       }}
                       onMouseEnter={e => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = isLight ? '#c7d2fe' : 'rgba(99, 102, 241, 0.4)';
+                        if (!uploadingThumbnail) {
+                          e.currentTarget.style.background = 'var(--accent-color)';
+                          e.currentTarget.style.color = '#ffffff';
                         }
                       }}
                       onMouseLeave={e => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = inputBorder;
+                        if (!uploadingThumbnail) {
+                          e.currentTarget.style.background = isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)';
+                          e.currentTarget.style.color = 'var(--accent-color)';
                         }
                       }}
                     >
-                      <div style={{ width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <SpaceIcon iconKey={tool.iconKey} size={20} />
-                      </div>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: isSelected ? 700 : 500,
-                        color: isSelected ? 'var(--accent-color)' : textPrimary,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        width: '100%',
-                        textAlign: 'center',
-                      }}>
-                        {tool.name}
-                      </span>
+                      {uploadingThumbnail ? <RiLoader4Line size={15} className="animate-spin" /> : <RiUpload2Line size={15} />}
+                      <span>{customThumbnail ? 'Replace Custom Image' : 'Upload Custom Thumbnail'}</span>
                     </button>
-                  );
-                })}
-              </div>
 
-              {/* Thumbnail Preview and Edit Bar */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                background: isLight ? '#f8fafc' : '#14141c',
-                border: `1px solid ${cardBorder}`,
-                flexWrap: 'wrap',
-                gap: '12px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '200px' }}>
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '8px',
-                    background: isLight ? '#ffffff' : '#0e0e14',
-                    border: `1px solid ${cardBorder}`,
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}>
-                    <SpaceThumbnail
-                      thumbnail={activeThumbnail}
-                      theme={theme}
-                      style={{ width: '100%', height: '100%' }}
-                      objectFit="cover"
-                    />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: textPrimary }}>
-                        {customThumbnail ? 'Custom Device Thumbnail' : 'Selected Thumbnail'}
-                      </span>
-                      {customThumbnail && (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          background: 'var(--accent-color)',
-                          color: '#ffffff',
-                        }}>
-                          Cloudinary
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '11.5px', color: textSecondary }}>
-                      {customThumbnail
-                        ? 'Custom image uploaded from device'
-                        : `${selectedTool?.name || 'Predefined'} Artwork (${isLight ? 'Light Mode' : 'Dark Mode'})`}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {customThumbnail ? (
-                    <>
+                    {customThumbnail && (
                       <button
                         type="button"
-                        disabled={uploadingThumbnail}
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${inputBorder}`,
-                          background: isLight ? '#ffffff' : '#1e1e28',
-                          color: textPrimary,
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
-                        <span>Replace</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomThumbnail(null);
-                          message.info('Custom thumbnail removed. Predefined tool thumbnail active.');
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${inputBorder}`,
-                          background: isLight ? '#ffffff' : '#1e1e28',
-                          color: isLight ? '#dc2626' : '#f87171',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <RiDeleteBinLine size={14} />
-                        <span>Remove</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsPickerOpen(true)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--accent-color)',
-                          background: 'transparent',
-                          color: 'var(--accent-color)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <RiImageEditLine size={14} />
-                        <span>Browse 3D Gallery</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        disabled={uploadingThumbnail}
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          border: `1px solid ${inputBorder}`,
-                          background: isLight ? '#ffffff' : '#1e1e28',
-                          color: textPrimary,
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {uploadingThumbnail ? <RiLoader4Line size={14} className="animate-spin" /> : <RiUpload2Line size={14} />}
-                        <span>Upload Custom</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsPickerOpen(true)}
+                        onClick={handleRemoveCustomThumbnail}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          padding: '6px 14px',
+                          padding: '8px 12px',
                           borderRadius: '8px',
                           border: `1px solid ${inputBorder}`,
                           background: isLight ? '#ffffff' : '#1e1e28',
-                          color: textPrimary,
-                          fontSize: '12px',
+                          color: isLight ? '#dc2626' : '#f87171',
+                          fontSize: '12.5px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          fontFamily: 'var(--font-body)',
                           transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = 'var(--accent-color)';
-                          e.currentTarget.style.color = 'var(--accent-color)';
+                          e.currentTarget.style.background = isLight ? '#fef2f2' : 'rgba(239, 68, 68, 0.15)';
+                          e.currentTarget.style.borderColor = isLight ? '#fca5a5' : '#ef4444';
                         }}
                         onMouseLeave={e => {
+                          e.currentTarget.style.background = isLight ? '#ffffff' : '#1e1e28';
                           e.currentTarget.style.borderColor = inputBorder;
-                          e.currentTarget.style.color = textPrimary;
                         }}
                       >
-                        <RiImageEditLine size={15} />
-                        <span>Edit Thumbnail</span>
+                        <RiDeleteBinLine size={14} />
+                        <span>Use Default</span>
                       </button>
-                    </>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Format & Size Specs */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <div style={{
+                      fontSize: '11.5px',
+                      color: textSecondary,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}>
+                      <RiImageLine size={13} />
+                      <span>Recommended: 1600 × 900 • PNG, JPG, WEBP • Max 10MB</span>
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '11.5px', color: textSecondary, opacity: 0.85 }}>
+                      {customThumbnail
+                        ? 'Custom image uploaded from your device.'
+                        : 'You can change this anytime.'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* SECTION 3: Visibility Selection */}
+            {/* SECTION 4: Visibility Selection */}
             <div style={{
               background: cardBg,
               border: `1px solid ${cardBorder}`,
@@ -1337,16 +896,32 @@ export default function CreateSpace() {
               boxShadow: isLight ? '0 4px 16px rgba(0,0,0,0.02)' : '0 4px 20px rgba(0,0,0,0.2)',
             }}>
               <div>
-                <h2 style={{
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-display)',
-                  color: textPrimary,
-                  margin: 0,
-                }}>
-                  3. Space Visibility
-                </h2>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: textSecondary }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '6px',
+                    background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                  }}>
+                    4
+                  </div>
+                  <h2 style={{
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    color: textPrimary,
+                    margin: 0,
+                  }}>
+                    Space Visibility
+                  </h2>
+                </div>
+                <p style={{ margin: '4px 0 0 34px', fontSize: '12.5px', color: textSecondary }}>
                   Control who can discover and access this space.
                 </p>
               </div>
@@ -1457,7 +1032,7 @@ export default function CreateSpace() {
               </div>
             </div>
 
-            {/* SECTION 4: Tags */}
+            {/* SECTION 5: Technology Tags */}
             <div style={{
               background: cardBg,
               border: `1px solid ${cardBorder}`,
@@ -1469,17 +1044,38 @@ export default function CreateSpace() {
               boxShadow: isLight ? '0 4px 16px rgba(0,0,0,0.02)' : '0 4px 20px rgba(0,0,0,0.2)',
             }}>
               <div>
-                <h2 style={{
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-display)',
-                  color: textPrimary,
-                  margin: 0,
-                }}>
-                  4. Technology Tags
-                </h2>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: textSecondary }}>
-                  Add up to 8 keywords to categorize and filter this space.
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '6px',
+                      background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                      color: 'var(--accent-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                    }}>
+                      5
+                    </div>
+                    <h2 style={{
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      color: textPrimary,
+                      margin: 0,
+                    }}>
+                      Technology Tags
+                    </h2>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: tags.length >= 8 ? '#ef4444' : textSecondary }}>
+                    {tags.length}/8 tags
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0 34px', fontSize: '12.5px', color: textSecondary }}>
+                  Add up to 8 keywords to categorize, search, and filter this space.
                 </p>
               </div>
 
@@ -1487,7 +1083,7 @@ export default function CreateSpace() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
-                  placeholder="Type a tag (e.g. Hooks, REST API, Dockerfile) and press Enter"
+                  placeholder="Type a tag (e.g. React, Architecture, Spring, APIs) and press Enter"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -1514,6 +1110,7 @@ export default function CreateSpace() {
                 <button
                   type="button"
                   onClick={handleAddTag}
+                  disabled={tags.length >= 8}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1526,7 +1123,8 @@ export default function CreateSpace() {
                     color: '#ffffff',
                     fontSize: '12.5px',
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: tags.length >= 8 ? 'not-allowed' : 'pointer',
+                    opacity: tags.length >= 8 ? 0.6 : 1,
                   }}
                 >
                   <RiAddLine size={15} />
@@ -1563,7 +1161,10 @@ export default function CreateSpace() {
                         color: textSecondary,
                         padding: 0,
                         display: 'flex',
+                        alignItems: 'center',
                       }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                      onMouseLeave={e => e.currentTarget.style.color = textSecondary}
                     >
                       <RiCloseLine size={14} />
                     </button>
@@ -1632,24 +1233,32 @@ export default function CreateSpace() {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span>{loading ? 'Creating Space...' : 'Create Space →'}</span>
+                {loading ? (
+                  <>
+                    <RiLoader4Line size={16} className="animate-spin" />
+                    <span>Creating Space...</span>
+                  </>
+                ) : (
+                  <span>Create Space →</span>
+                )}
               </button>
             </div>
           </form>
 
-          {/* Right Column: Live Space Card Preview */}
+          {/* Right Column: Live Space Card Preview & Initial Sidebar Preview */}
           <div style={{
             position: 'sticky',
             top: '84px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
+            gap: '20px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* 1. Space Card Preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <RiMagicLine size={16} style={{ color: 'var(--accent-color)' }} />
+                <RiSparklingLine size={16} style={{ color: 'var(--accent-color)' }} />
                 <h3 style={{
-                  fontSize: '14px',
+                  fontSize: '13px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-display)',
                   color: textPrimary,
@@ -1660,69 +1269,114 @@ export default function CreateSpace() {
                   Live Space Card Preview
                 </h3>
               </div>
+
+              {/* Reusable Real Rendered SpaceCard */}
+              <div style={{ maxWidth: '380px', width: '100%' }}>
+                <ToolSpaceCard
+                  space={previewSpaceData}
+                  isPreview={true}
+                  customValues={previewSpaceData}
+                />
+              </div>
             </div>
 
-            {/* Real Rendered SpaceCard */}
-            <div style={{ maxWidth: '380px', width: '100%' }}>
-              <ToolSpaceCard
-                space={previewSpaceData}
-                isPreview={true}
-                customValues={previewSpaceData}
-              />
-            </div>
-
-            {/* Informational helper note */}
+            {/* 2. Initial Sidebar Module Preview */}
             <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              padding: '12px 14px',
-              borderRadius: '12px',
-              background: isLight ? 'rgba(79, 70, 229, 0.04)' : 'rgba(99, 102, 241, 0.06)',
-              border: `1px solid ${isLight ? 'rgba(79, 70, 229, 0.12)' : 'rgba(99, 102, 241, 0.15)'}`,
-              color: textSecondary,
-              fontSize: '12px',
-              lineHeight: 1.45,
               maxWidth: '380px',
+              width: '100%',
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
+              borderRadius: '16px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.03)' : '0 4px 20px rgba(0,0,0,0.25)',
             }}>
-              <RiInformationLine size={16} style={{ color: 'var(--accent-color)', flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <strong>Your Space is ready to go.</strong><br></br>
-                After creation, you can add Docs, Snippets, Learnings, Repositories, Resources, and more.
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-display)',
+                  color: textPrimary,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}>
+                  Initial Sidebar Structure
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: isLight ? 'rgba(79, 70, 229, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                  color: 'var(--accent-color)',
+                }}>
+                  {selectedTemplate.name}
+                </span>
+              </div>
+
+              {/* Sidebar simulation */}
+              <div style={{
+                background: isLight ? '#f8fafc' : '#08080c',
+                border: `1px solid ${cardBorder}`,
+                borderRadius: '10px',
+                padding: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+              }}>
+                {selectedTemplate.modules.map(modId => {
+                  const mod = getModuleById(modId);
+                  if (!mod) return null;
+                  const ModIcon = mod.icon;
+                  const isExplorer = mod.isFixed;
+                  return (
+                    <div
+                      key={mod.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        background: isExplorer
+                          ? (isLight ? 'rgba(79, 70, 229, 0.08)' : 'rgba(99, 102, 241, 0.15)')
+                          : 'transparent',
+                        color: isExplorer ? 'var(--accent-color)' : textPrimary,
+                        fontSize: '12.5px',
+                        fontWeight: isExplorer ? 600 : 500,
+                        borderLeft: isExplorer ? '3px solid var(--accent-color)' : '3px solid transparent',
+                      }}
+                    >
+                      <ModIcon size={15} style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{mod.label}</span>
+                      {isExplorer && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, opacity: 0.75, textTransform: 'uppercase' }}>Fixed</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Explanatory helper note */}
+              <div style={{
+                fontSize: '11.5px',
+                color: textSecondary,
+                lineHeight: 1.4,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '6px',
+              }}>
+                <RiInformationLine size={14} style={{ color: 'var(--accent-color)', flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  These are your starting modules. You can add more modules after creating the Space.
+                </span>
               </div>
             </div>
           </div>
         </div>
       </main>
-
-      {/* Thumbnail Edit Modal */}
-      <AnimatePresence>
-        {isPickerOpen && (
-          <ThumbnailPickerModal
-            open={isPickerOpen}
-            onClose={() => setIsPickerOpen(false)}
-            currentThumbnail={activeThumbnail}
-            selectedTool={selectedTool}
-            onSelectThumbnail={(thumb, tool) => {
-              if (tool) {
-                setSelectedToolId(tool.id);
-                setCustomThumbnail(null);
-              } else {
-                setCustomThumbnail(thumb);
-              }
-            }}
-            onUploadCustomClick={() => {
-              fileInputRef.current?.click();
-            }}
-            onRemoveCustom={() => {
-              setCustomThumbnail(null);
-              message.info('Custom thumbnail removed. Predefined tool thumbnail active.');
-            }}
-            isCustomActive={Boolean(customThumbnail)}
-            uploadingCustom={uploadingThumbnail}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

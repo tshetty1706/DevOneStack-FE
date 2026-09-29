@@ -13,8 +13,6 @@ import { resolveThumbnail, getDefaultThumbnail } from '../../constants/tools';
   */
 export default function SpaceThumbnail({
   thumbnail,
-  tool,
-  name,
   theme: explicitTheme,
   alt,
   className = '',
@@ -36,13 +34,13 @@ export default function SpaceThumbnail({
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Reset error state if thumbnail, theme, tool, or name changes
+  // Reset error state if thumbnail or theme changes
   useEffect(() => {
     setHasError(false);
     setIsLoaded(false);
-  }, [thumbnail, currentTheme, tool, name]);
+  }, [thumbnail, currentTheme]);
 
-  const targetThumbnail = resolveThumbnail(thumbnail || tool || name, currentTheme);
+  const targetThumbnail = resolveThumbnail(thumbnail, currentTheme);
   const defaultFallback = getDefaultThumbnail(currentTheme);
   const rawSrc = hasError ? (fallback || defaultFallback) : (targetThumbnail || fallback || defaultFallback);
   // Auto-optimize Cloudinary delivery URLs with format & quality auto
@@ -79,7 +77,7 @@ export default function SpaceThumbnail({
     >
       <img
         src={finalSrc}
-        alt={alt || `${name || tool || 'Space'} thumbnail`}
+        alt={alt || `${'Space'} thumbnail`}
         loading="lazy"
         decoding="async"
         onError={handleError}
