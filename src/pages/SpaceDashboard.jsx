@@ -55,41 +55,80 @@ const SIDEBAR_ITEMS = [
 ];
 
 const SECTIONS = {
-  overview: ({ space, isLight, onNavigateSection }) => (
-    <OverviewSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} />
+  overview: ({ space, isLight, onNavigateSection, selectedFolderId, onSelectFolder }) => (
+    <OverviewSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} selectedFolderId={selectedFolderId} onSelectFolder={onSelectFolder} />
   ),
-  explorer: ({ space, isLight, onNavigateSection, highlightId, highlightFolderId }) => (
+  explorer: ({ space, isLight, onNavigateSection, highlightId, highlightFolderId, selectedFolderId, onSelectFolder }) => (
     <ExplorerSection
       space={space}
       isLight={isLight}
       onNavigateSection={onNavigateSection}
       highlightId={highlightId}
-      highlightFolderId={highlightFolderId}
+      highlightFolderId={highlightFolderId || selectedFolderId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
     />
   ),
-  notes: ({ space, isLight, openNoteId, highlightId, onNavigateSection }) => (
+  notes: ({ space, isLight, openNoteId, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
     <NotesSection
       space={space}
       isLight={isLight}
       openNoteId={openNoteId}
       highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
     />
   ),
-  docs: ({ space, isLight, highlightId, onNavigateSection }) => (
-    <DocsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  docs: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <DocsSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
-  learnings: ({ space, isLight, highlightId, onNavigateSection }) => (
-    <LearningsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  learnings: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <LearningsSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
-  snippets: ({ space, isLight, highlightId, onNavigateSection }) => (
-    <SnippetsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  snippets: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <SnippetsSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
-  repos: ({ space, isLight, highlightId, onNavigateSection }) => (
-    <ReposSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  repos: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <ReposSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
-  prompts: ({ space, isLight, highlightId, onNavigateSection }) => (
-    <PromptsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  prompts: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <PromptsSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
   communities: ({ space, isLight, highlightId }) => (
     <CommunitiesSection space={space} isLight={isLight} highlightId={highlightId} />
@@ -131,6 +170,8 @@ export default function SpaceDashboard() {
   const [highlightId, setHighlightId] = useState(null);
   const [highlightFolderId, setHighlightFolderId] = useState(null);
   const [quickAddModal, setQuickAddModal] = useState(null);
+
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -200,15 +241,37 @@ export default function SpaceDashboard() {
     }
     if (noteId) setOpenNoteId(noteId);
     if (id) setHighlightId(id);
-    if (folderId) setHighlightFolderId(folderId);
+    if (folderId) {
+      setHighlightFolderId(folderId);
+      setSelectedFolderId(folderId);
+    }
   }, [searchParams]);
+
+  const handleSelectFolder = (fId) => {
+    setSelectedFolderId(fId);
+    setHighlightFolderId(fId);
+    const params = {};
+    if (activeSection !== 'overview') params.section = activeSection;
+    if (highlightId) {
+      if (activeSection === 'notes') params.noteId = highlightId;
+      else params.id = highlightId;
+    }
+    if (fId) params.folderId = fId;
+    setSearchParams(params);
+  };
 
   const handleNavigateSection = (sectionId, id = null, folderId = null) => {
     const target = sectionId === 'home' ? 'overview' : sectionId;
     setActiveSection(target);
     if (target === 'notes') setOpenNoteId(id);
     setHighlightId(id);
-    setHighlightFolderId(folderId);
+    
+    // If folderId is passed, use it; otherwise preserve current selectedFolderId
+    const effectiveFolderId = folderId !== null ? folderId : selectedFolderId;
+    if (folderId !== null) {
+      setSelectedFolderId(folderId);
+      setHighlightFolderId(folderId);
+    }
     setMobileSidebarOpen(false);
 
     const params = {};
@@ -217,9 +280,9 @@ export default function SpaceDashboard() {
       if (target === 'notes') params.noteId = id;
       else params.id = id;
     }
-    if (folderId) params.folderId = folderId;
+    if (effectiveFolderId) params.folderId = effectiveFolderId;
 
-    if (target === 'overview' && !id && !folderId) {
+    if (target === 'overview' && !id && !effectiveFolderId) {
       setSearchParams({});
     } else {
       setSearchParams(params);
@@ -885,6 +948,8 @@ export default function SpaceDashboard() {
                     openNoteId={openNoteId}
                     highlightId={highlightId}
                     highlightFolderId={highlightFolderId}
+                    selectedFolderId={selectedFolderId}
+                    onSelectFolder={handleSelectFolder}
                     onNavigateSection={handleNavigateSection}
                   />
                 )}
@@ -900,12 +965,12 @@ export default function SpaceDashboard() {
       {/* ── Quick Add Modals ── */}
       {space && (
         <>
-          <QuickAddNoteModal open={quickAddModal === 'notes'} onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddLearningModal open={quickAddModal === 'learnings'} onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddSnippetModal open={quickAddModal === 'snippets'} onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddDocModal open={quickAddModal === 'docs'} onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddRepoModal open={quickAddModal === 'repos'} onClose={() => setQuickAddModal(null)} space={space} />
-          <QuickAddPromptModal open={quickAddModal === 'prompts'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddNoteModal open={quickAddModal === 'notes'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
+          <QuickAddLearningModal open={quickAddModal === 'learnings'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
+          <QuickAddSnippetModal open={quickAddModal === 'snippets'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
+          <QuickAddDocModal open={quickAddModal === 'docs'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
+          <QuickAddRepoModal open={quickAddModal === 'repos'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
+          <QuickAddPromptModal open={quickAddModal === 'prompts'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
           <QuickAddCommunityModal open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} />
         </>
       )}

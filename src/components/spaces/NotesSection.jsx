@@ -12,10 +12,22 @@ import {
   RiLayoutColumnLine, RiShareForwardLine, RiArrowLeftLine, RiMenuLine
 } from 'react-icons/ri';
 import { Modal, Input, Select, message, Tooltip, Popconfirm } from 'antd';
+import { RiFolderTransferLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import MarkdownRenderer from '../common/MarkdownRenderer';
+import SharedFolderTree from './SharedFolderTree';
+import FolderPicker from './FolderPicker';
+import MoveItemModal from './MoveItemModal';
 
-export default function NotesSection({ space, isLight, openNoteId, highlightId, onNavigateSection }) {
+export default function NotesSection({
+  space,
+  isLight,
+  openNoteId,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'recent'
@@ -42,14 +54,18 @@ export default function NotesSection({ space, isLight, openNoteId, highlightId, 
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'unsaved'
   const [viewMode, setViewMode] = useState('write'); // 'write', 'preview', 'split'
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Collapsed folders map
-  const [collapsedFolders, setCollapsedFolders] = useState({});
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
+  };
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
 
   // Destination Folder Modal for "+ New Note"
   const [newNoteModalOpen, setNewNoteModalOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
-  const [newNoteFolderId, setNewNoteFolderId] = useState(null);
+  const [newNoteFolderId, setNewNoteFolderId] = useState(selectedFolderId || null);
 
   // Textarea ref for toolbar insertions
   const textareaRef = useRef(null);
@@ -410,9 +426,9 @@ export default function NotesSection({ space, isLight, openNoteId, highlightId, 
           </div>
 
           {/* Workspaces / Folders Tree */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 2px', display: 'flex', flexDirection: 'column' }}>
             {activeTab === 'recent' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: textMuted, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Recently Modified
                 </div>
@@ -437,7 +453,7 @@ export default function NotesSection({ space, isLight, openNoteId, highlightId, 
                       width: '100%',
                     }}
                   >
-                    <RiStickyNoteLine size={14} style={{ flexShrink: 0, opacity: 0.8 }} />
+                    <RiStickyNoteLine size={14} style={{ flexShrink: 0, color: '#10b981' }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {note.title}
                     </span>
@@ -445,121 +461,17 @@ export default function NotesSection({ space, isLight, openNoteId, highlightId, 
                 ))}
               </div>
             ) : (
-              <>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: textMuted, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Workspaces & Folders
-                </div>
-
-                {groupedNotes.foldersList.map(({ folder, notes: folderNotes }) => {
-                  const isCollapsed = !!collapsedFolders[folder._id];
-                  return (
-                    <div key={folder._id} style={{ display: 'flex', flexDirection: 'column' }}>
-                      {/* Folder Row */}
-                      <div
-                        onClick={() => toggleFolderCollapse(folder._id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          color: textMuted,
-                          transition: 'background 0.15s ease',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                          {isCollapsed ? <RiArrowRightSLine size={14} /> : <RiArrowDownSLine size={14} />}
-                          <RiFolderLine size={14} style={{ color: accent }} />
-                          <span style={{ fontSize: '12px', fontWeight: 600, color: textColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {folder.name}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '10.5px', color: textMuted, fontWeight: 600 }}>
-                          {folderNotes.length}
-                        </span>
-                      </div>
-
-                      {/* Notes in this folder (Alphabetical) */}
-                      {!isCollapsed && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingLeft: '16px' }}>
-                          {folderNotes.map(note => (
-                            <button
-                              type="button"
-                              key={note._id}
-                              onClick={() => handleSelectNote(note._id)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '6px 10px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: selectedNoteId === note._id ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
-                                color: selectedNoteId === note._id ? accent : textColor,
-                                fontSize: '12.5px',
-                                fontWeight: selectedNoteId === note._id ? 600 : 500,
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                width: '100%',
-                              }}
-                              onMouseEnter={e => {
-                                if (selectedNoteId !== note._id) e.currentTarget.style.background = isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)';
-                              }}
-                              onMouseLeave={e => {
-                                if (selectedNoteId !== note._id) e.currentTarget.style.background = 'transparent';
-                              }}
-                            >
-                              <RiStickyNoteLine size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {note.title}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Root Notes */}
-                {groupedNotes.rootNotes.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '6px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: textMuted, padding: '4px 8px', textTransform: 'uppercase' }}>
-                      Other Notes
-                    </div>
-                    {groupedNotes.rootNotes.map(note => (
-                      <button
-                        type="button"
-                        key={note._id}
-                        onClick={() => handleSelectNote(note._id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: selectedNoteId === note._id ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
-                          color: selectedNoteId === note._id ? accent : textColor,
-                          fontSize: '12.5px',
-                          fontWeight: selectedNoteId === note._id ? 600 : 500,
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          width: '100%',
-                        }}
-                      >
-                        <RiStickyNoteLine size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {note.title}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              <SharedFolderTree
+                spaceId={space._id}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={handleSelectFolder}
+                onSelectItem={(item) => setSelectedNoteId(item._id)}
+                selectedItemId={selectedNoteId}
+                filterItemType="note"
+                isLight={isLight}
+                showHeader={true}
+                showSearch={false}
+              />
             )}
           </div>
         </aside>

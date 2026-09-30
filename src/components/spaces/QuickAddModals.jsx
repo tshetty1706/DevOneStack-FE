@@ -12,6 +12,7 @@ import {
 } from 'react-icons/ri';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import FolderPicker from './FolderPicker';
 
 const { Dragger } = Upload;
 
@@ -100,11 +101,12 @@ const modalBodyStyles = {
 };
 
 // ─── 1. LEARNING MODAL ────────────────────────────────────────────────────────
-export function QuickAddLearningModal({ open, onClose, space, editingLearning = null, onSuccess }) {
+export function QuickAddLearningModal({ open, onClose, space, editingLearning = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [title, setTitle]               = useState('');
   const [type, setType]                 = useState('learning');
   const [content, setContent]           = useState('');
+  const [folderId, setFolderId]         = useState(defaultFolderId);
   const [tags, setTags]                 = useState([]);
   const [hasCode, setHasCode]           = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('javascript');
@@ -116,6 +118,7 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
         setTitle(editingLearning.title || '');
         setType(editingLearning.type || 'learning');
         setContent(editingLearning.content || '');
+        setFolderId(editingLearning.folderId || defaultFolderId || null);
         setTags(editingLearning.tags || []);
         setHasCode(!!editingLearning.codeExample?.code);
         setCodeLanguage(editingLearning.codeExample?.language || 'javascript');
@@ -124,13 +127,14 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
         setTitle('');
         setType('learning');
         setContent('');
+        setFolderId(defaultFolderId || null);
         setTags([]);
         setHasCode(false);
         setCodeLanguage('javascript');
         setCodeContent('');
       }
     }
-  }, [open, editingLearning]);
+  }, [open, editingLearning, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
@@ -159,6 +163,7 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
       title,
       type,
       content,
+      folderId,
       tags,
       codeExample: hasCode ? { language: codeLanguage, code: codeContent } : { language: '', code: '' }
     });
@@ -178,6 +183,15 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>PURPOSE / TYPE</label>
           <Select
@@ -243,10 +257,11 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
 }
 
 // ─── 2. SNIPPET MODAL ────────────────────────────────────────────────────────
-export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = null, onSuccess }) {
+export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [caption, setCaption]   = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId);
   const [language, setLanguage] = useState('javascript');
   const [code, setCode]         = useState('');
   const [tags, setTags]         = useState([]);
@@ -256,18 +271,20 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
       if (editingSnippet) {
         setName(editingSnippet.name || '');
         setCaption(editingSnippet.caption || '');
+        setFolderId(editingSnippet.folderId || defaultFolderId || null);
         setLanguage(editingSnippet.language || 'javascript');
         setCode(editingSnippet.code || '');
         setTags(editingSnippet.tags || []);
       } else {
         setName('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setLanguage('javascript');
         setCode('');
         setTags([]);
       }
     }
-  }, [open, editingSnippet]);
+  }, [open, editingSnippet, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
@@ -289,7 +306,7 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
 
   const handleOk = () => {
     if (!name || !code) { message.error('Name and Code are required'); return; }
-    mutation.mutate({ name, caption, language, code, tags });
+    mutation.mutate({ name, caption, folderId, language, code, tags });
   };
 
   const handleKeyDown = (e) => {
@@ -316,6 +333,15 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>SNIPPET NAME</label>
           <Input placeholder="e.g. Express Server Middleware Setup" value={name} onChange={e => setName(e.target.value)} />
@@ -350,12 +376,13 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
 }
 
 // ─── 3. DOC MODAL ────────────────────────────────────────────────────────────
-export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
+export function QuickAddDocModal({ open, onClose, space, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('url');
   const [title, setTitle]         = useState('');
   const [url, setUrl]             = useState('');
   const [caption, setCaption]     = useState('');
+  const [folderId, setFolderId]   = useState(defaultFolderId);
   const [tags, setTags]           = useState([]);
   const [file, setFile]           = useState(null);
   const [loading, setLoading]     = useState(false);
@@ -366,11 +393,12 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
       setTitle('');
       setUrl('');
       setCaption('');
+      setFolderId(defaultFolderId || null);
       setTags([]);
       setFile(null);
       setLoading(false);
     }
-  }, [open]);
+  }, [open, defaultFolderId]);
 
   const addUrlMutation = useMutation({
     mutationFn: (payload) => api.post(`/api/spaces/${space._id}/docs/url`, payload),
@@ -392,6 +420,7 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
     formData.append('file', file);
     formData.append('title', title || file.name);
     formData.append('caption', caption);
+    if (folderId) formData.append('folderId', folderId);
     formData.append('tags', JSON.stringify(tags));
     try {
       await api.post(`/api/spaces/${space._id}/docs/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -409,7 +438,7 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
   const handleOk = () => {
     if (activeTab === 'url') {
       if (!title || !url) { message.error('Title and URL are required'); return; }
-      addUrlMutation.mutate({ title, url, caption, tags });
+      addUrlMutation.mutate({ title, url, caption, folderId, tags });
     } else { handleUpload(); }
   };
 
@@ -444,6 +473,15 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         {activeTab === 'url' ? (
           <>
             <div>
@@ -495,11 +533,12 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
 }
 
 // ─── 4. REPO MODAL ───────────────────────────────────────────────────────────
-export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, onSuccess }) {
+export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [url, setUrl]            = useState('');
   const [caption, setCaption]    = useState('');
+  const [folderId, setFolderId]  = useState(defaultFolderId);
   const [platform, setPlatform]  = useState('github');
   const [tags, setTags]          = useState([]);
   const [isOwn, setIsOwn]        = useState(false);
@@ -510,6 +549,7 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
         setName(editingRepo.name || '');
         setUrl(editingRepo.url || '');
         setCaption(editingRepo.caption || '');
+        setFolderId(editingRepo.folderId || defaultFolderId || null);
         setPlatform(editingRepo.platform || 'github');
         setTags(editingRepo.tags || []);
         setIsOwn(!!editingRepo.isOwn);
@@ -517,12 +557,13 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
         setName('');
         setUrl('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setPlatform('github');
         setTags([]);
         setIsOwn(false);
       }
     }
-  }, [open, editingRepo]);
+  }, [open, editingRepo, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
@@ -560,7 +601,7 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
 
   const handleOk = () => {
     if (!name || !url) { message.error('Name and URL are required'); return; }
-    mutation.mutate({ name, url, caption, platform, tags, isOwn });
+    mutation.mutate({ name, url, caption, folderId, platform, tags, isOwn });
   };
 
   return (
@@ -577,6 +618,15 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>REPOSITORY URL</label>
           <Input placeholder="e.g. https://github.com/facebook/react" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => detectPlatformAndName(url)} />
@@ -609,11 +659,12 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
 }
 
 // ─── 5. PROMPT MODAL ─────────────────────────────────────────────────────────
-export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null, onSuccess }) {
+export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [title, setTitle]             = useState('');
   const [body, setBody]               = useState('');
   const [caption, setCaption]         = useState('');
+  const [folderId, setFolderId]       = useState(defaultFolderId);
   const [model, setModel]             = useState('Claude 3.5 Sonnet');
   const [customModel, setCustomModel] = useState('');
   const [tags, setTags]               = useState([]);
@@ -624,6 +675,7 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
         setTitle(editingPrompt.title || '');
         setBody(editingPrompt.body || '');
         setCaption(editingPrompt.caption || '');
+        setFolderId(editingPrompt.folderId || defaultFolderId || null);
         const isStandard = AI_MODELS.some(m => m.value === editingPrompt.model);
         if (isStandard) {
           setModel(editingPrompt.model);
@@ -637,12 +689,13 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
         setTitle('');
         setBody('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setModel('Claude 3.5 Sonnet');
         setCustomModel('');
         setTags([]);
       }
     }
-  }, [open, editingPrompt]);
+  }, [open, editingPrompt, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
@@ -665,7 +718,7 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
   const handleOk = () => {
     if (!title || !body) { message.error('Title and Prompt Body are required'); return; }
     const finalModel = model === 'Custom' ? customModel : model;
-    mutation.mutate({ title, body, caption, model: finalModel, tags });
+    mutation.mutate({ title, body, caption, folderId, model: finalModel, tags });
   };
 
   return (
@@ -682,6 +735,15 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>PROMPT TITLE</label>
           <Input placeholder="e.g. Code Review Assistant" value={title} onChange={e => setTitle(e.target.value)} />
@@ -918,16 +980,12 @@ export function QuickAddNoteModal({ open, onClose, space, defaultFolderId = null
         </div>
 
         <div>
-          <label style={labelStyle}>DESTINATION FOLDER</label>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="Select folder"
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
             value={folderId}
             onChange={setFolderId}
-            options={[
-              { value: null, label: '📁 Workspace (Root)' },
-              ...folders.map(f => ({ value: f._id, label: `📁 ${f.path || f.name}` }))
-            ]}
+            allowRoot={true}
           />
         </div>
 

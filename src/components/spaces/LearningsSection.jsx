@@ -5,11 +5,14 @@ import {
   RiAddLine, RiSearchLine, RiLightbulbLine, RiBugLine,
   RiErrorWarningLine, RiCheckboxCircleLine, RiQuestionLine,
   RiSparklingLine, RiPushpinLine, RiPushpinFill, RiDeleteBinLine,
-  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine, RiFolderLine
+  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine, RiFolderLine,
+  RiFolderTransferLine
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { QuickAddLearningModal } from './QuickAddModals';
+import SharedFolderTree from './SharedFolderTree';
+import MoveItemModal from './MoveItemModal';
 import api from '../../api/axios';
 
 const TYPE_CONFIG = {
@@ -37,11 +40,27 @@ const LANGUAGES = [
   { value: 'other', label: 'Other' }
 ];
 
-export default function LearningsSection({ space, isLight, highlightId, onNavigateSection }) {
+export default function LearningsSection({
+  space,
+  isLight,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [foldersSectionOpen, setFoldersSectionOpen] = useState(true);
+
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
+  };
   
   // Modal forms state
   const [modalOpen, setModalOpen] = useState(false);
@@ -80,21 +99,24 @@ export default function LearningsSection({ space, isLight, highlightId, onNaviga
     return learnings.find(l => l._id === selectedId) || null;
   }, [selectedId, learnings]);
 
-  // Client-side filtering & search
+  // Client-side filtering & search & folder
   const filteredItems = useMemo(() => {
     return learnings.filter(item => {
       const matchesType = filterType === 'all' || item.type === filterType;
       
+      const itemFolderId = item.folderId ? (typeof item.folderId === 'object' ? item.folderId._id : item.folderId) : null;
+      const matchesFolder = !selectedFolderId || itemFolderId === selectedFolderId;
+
       const query = searchQuery.toLowerCase().trim();
-      if (!query) return matchesType;
+      if (!query) return matchesType && matchesFolder;
 
       const titleMatches = item.title.toLowerCase().includes(query);
       const contentMatches = item.content.toLowerCase().includes(query);
       const tagMatches = item.tags?.some(t => t.toLowerCase().includes(query));
 
-      return matchesType && (titleMatches || contentMatches || tagMatches);
+      return matchesType && matchesFolder && (titleMatches || contentMatches || tagMatches);
     });
-  }, [learnings, filterType, searchQuery]);
+  }, [learnings, filterType, searchQuery, selectedFolderId]);
 
   // Split into pinned and unpinned lists
   const pinnedLearnings = useMemo(() => filteredItems.filter(l => l.isPinned), [filteredItems]);
@@ -337,7 +359,7 @@ export default function LearningsSection({ space, isLight, highlightId, onNaviga
         </div>
 
         {/* Create Button */}
-        <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ padding: '0 16px 10px' }}>
           <Button
             type="dashed"
             icon={<RiAddLine />}
@@ -354,8 +376,81 @@ export default function LearningsSection({ space, isLight, highlightId, onNaviga
           </Button>
         </div>
 
+        {/* Collapsible Shared Folders Section */}
+        <div style={{
+          borderTop: `1px solid ${themeBorder}`,
+          borderBottom: `1px solid ${themeBorder}`,
+          background: isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.015)',
+        }}>
+          <div
+            onClick={() => setFoldersSectionOpen(prev => !prev)}
+            style={{
+              padding: '8px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Workspaces & Folders
+            </span>
+            <span style={{ fontSize: '12px', color: '#888' }}>
+              {foldersSectionOpen ? '▾' : '▸'}
+            </span>
+          </div>
+          {foldersSectionOpen && (
+            <div style={{ padding: '0 8px 8px' }}>
+              <SharedFolderTree
+                spaceId={space._id}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={handleSelectFolder}
+                onSelectItem={(item) => {
+                  if (item.type === 'learning') {
+                    setSelectedId(item._id);
+                  } else if (onNavigateSection) {
+                    onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
+                  }
+                }}
+                selectedItemId={selectedId}
+                filterItemType="learning"
+                isLight={isLight}
+                showHeader={false}
+                showSearch={false}
+                maxHeight="170px"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Active Folder Filter Banner */}
+        {selectedFolderId && (
+          <div style={{
+            margin: '8px 16px 0',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
+            border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px',
+            color: isLight ? '#4f46e5' : '#818cf8',
+          }}>
+            <span>Filtered by folder</span>
+            <button
+              onClick={() => handleSelectFolder(null)}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 700 }}
+              title="Show all folders"
+            >
+              ✕ Clear
+            </button>
+          </div>
+        )}
+
         {/* Learnings list */}
-        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
+        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 20px' }}>
           {isLoading ? (
             <Skeleton active paragraph={{ rows: 6 }} />
           ) : filteredItems.length === 0 ? (
@@ -491,6 +586,15 @@ export default function LearningsSection({ space, isLight, highlightId, onNaviga
                   style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
                 >
                   Edit
+                </Button>
+
+                <Button
+                  size="small"
+                  icon={<RiFolderTransferLine />}
+                  onClick={() => setMoveModalOpen(true)}
+                  style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
+                >
+                  Move
                 </Button>
 
                 <Popconfirm
@@ -757,9 +861,22 @@ export default function LearningsSection({ space, isLight, highlightId, onNaviga
         open={modalOpen}
         onClose={closeModal}
         space={space}
+        defaultFolderId={selectedFolderId}
         editingLearning={editingLearning}
         onSuccess={(learning) => {
           if (learning?._id) setSelectedId(learning._id);
+        }}
+      />
+
+      {/* MOVE ITEM MODAL */}
+      <MoveItemModal
+        open={moveModalOpen}
+        onClose={() => setMoveModalOpen(false)}
+        space={space}
+        item={selectedItem}
+        onSuccess={() => {
+          queryClient.invalidateQueries(['learnings', space._id]);
+          queryClient.invalidateQueries(['items', space._id]);
         }}
       />
     </div>

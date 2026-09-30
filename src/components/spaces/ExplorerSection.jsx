@@ -24,10 +24,31 @@ const TYPE_META = {
   repo: { label: 'Repo', icon: RiGitRepositoryLine, color: '#fb923c', section: 'repos', bg: 'rgba(249,115,22,0.1)' },
 };
 
-export default function ExplorerSection({ space, isLight, onNavigateSection, highlightId, highlightFolderId }) {
+export default function ExplorerSection({
+  space,
+  isLight,
+  onNavigateSection,
+  highlightId,
+  highlightFolderId,
+  selectedFolderId,
+  onSelectFolder,
+}) {
   const queryClient = useQueryClient();
 
-  const [currentFolderId, setCurrentFolderId] = useState(highlightFolderId || null);
+  const [currentFolderId, setCurrentFolderId] = useState(highlightFolderId || selectedFolderId || null);
+
+  React.useEffect(() => {
+    if (highlightFolderId) {
+      setCurrentFolderId(highlightFolderId);
+    } else if (selectedFolderId !== undefined) {
+      setCurrentFolderId(selectedFolderId);
+    }
+  }, [highlightFolderId, selectedFolderId]);
+
+  const handleSetCurrentFolder = (fId) => {
+    setCurrentFolderId(fId);
+    if (onSelectFolder) onSelectFolder(fId);
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('all');
   const [selectedItem, setSelectedItem] = useState(null);
