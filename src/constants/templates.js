@@ -13,6 +13,7 @@ import {
   RiDraftLine,
   RiServerLine,
   RiRoadMapLine,
+  RiStickyNoteLine,
 } from 'react-icons/ri';
 
 /**
@@ -20,17 +21,30 @@ import {
  */
 export const ALL_MODULES = [
   {
+    id: 'overview',
+    label: 'Overview',
+    icon: RiHome4Line,
+    description: 'Summary of your space, quick stats, and recent activity',
+    isFixed: true,
+  },
+  {
     id: 'explorer',
     label: 'Explorer',
     icon: RiCompass3Line,
-    description: 'File and folder navigator with README viewer',
-    isFixed: true, // Explorer is permanent and cannot be disabled
+    description: 'Files and folders navigator with README viewer',
+    isFixed: true,
+  },
+  {
+    id: 'notes',
+    label: 'Notes',
+    icon: RiStickyNoteLine,
+    description: 'Markdown-based notes, ideas, and workspace docs',
   },
   {
     id: 'learnings',
     label: 'Learnings',
     icon: RiLightbulbLine,
-    description: 'Curated knowledge items, takeaways, and lessons',
+    description: 'Key takeaways, bug fixes, and knowledge items',
   },
   {
     id: 'snippets',
@@ -42,7 +56,7 @@ export const ALL_MODULES = [
     id: 'docs',
     label: 'Docs',
     icon: RiFileTextLine,
-    description: 'Markdown documentation, guides, and PDF resources',
+    description: 'Documentation, guides, and external resources',
   },
   {
     id: 'repos',
@@ -54,7 +68,7 @@ export const ALL_MODULES = [
     id: 'prompts',
     label: 'Prompts',
     icon: RiRobot2Line,
-    description: 'AI prompts, system templates, and engineering queries',
+    description: 'AI prompts, templates, and engineering queries',
   },
   {
     id: 'communities',
@@ -80,49 +94,49 @@ export const TEMPLATES = [
     id: 'blank',
     name: 'Blank',
     badge: 'Clean Canvas',
-    description: 'Start fresh with foundational essentials: Explorer, Learnings, Snippets, and Docs.',
+    description: 'Start fresh with foundational essentials: Overview, Explorer, Notes, Learnings, Snippets, and Docs.',
     icon: RiDraftLine,
-    modules: ['explorer', 'learnings', 'snippets', 'docs'],
+    modules: ['overview', 'explorer', 'notes', 'learnings', 'snippets', 'docs'],
   },
   {
     id: 'learning-roadmap',
     name: 'Learning Roadmap',
     badge: 'Study & Upskill',
-    description: 'Structured path for mastering technologies with Learnings, Docs, and Repos.',
+    description: 'Structured path for mastering technologies with Learnings, Docs, Notes, and Repos.',
     icon: RiBookOpenLine,
-    modules: ['explorer', 'learnings', 'docs', 'repos'],
+    modules: ['overview', 'explorer', 'learnings', 'docs', 'notes', 'repos'],
   },
   {
     id: 'interview-prep',
     name: 'Interview Prep',
     badge: 'Coding & Concepts',
-    description: 'Prepare for technical interviews with algorithms, Snippets, Learnings, and Docs.',
+    description: 'Prepare for technical interviews with algorithms, Snippets, Learnings, Docs, and Notes.',
     icon: RiTerminalBoxLine,
-    modules: ['explorer', 'learnings', 'snippets', 'docs'],
+    modules: ['overview', 'explorer', 'learnings', 'snippets', 'docs', 'notes'],
   },
   {
     id: 'project-docs',
     name: 'Project Docs',
     badge: 'Architecture & Repos',
-    description: 'Comprehensive documentation hub with Docs, Repos, and code Snippets.',
+    description: 'Comprehensive documentation hub with Docs, Repos, Snippets, and Notes.',
     icon: RiFileTextLine,
-    modules: ['explorer', 'docs', 'repos', 'snippets'],
+    modules: ['overview', 'explorer', 'docs', 'repos', 'snippets', 'notes'],
   },
   {
     id: 'prompt-library',
     name: 'Prompt Library',
     badge: 'AI & Workflows',
-    description: 'Store, organize, and categorize AI system prompts and workflows with Tags.',
+    description: 'Store, organize, and categorize AI system prompts and workflows with Tags and Notes.',
     icon: RiRobot2Line,
-    modules: ['explorer', 'prompts', 'tags'],
+    modules: ['overview', 'explorer', 'prompts', 'tags', 'notes'],
   },
   {
     id: 'backend-development',
     name: 'Backend Development',
     badge: 'APIs & Architecture',
-    description: 'Full backend toolkit covering Learnings, Snippets, Docs, and Prompts.',
+    description: 'Full backend toolkit covering Learnings, Snippets, Docs, Notes, and Prompts.',
     icon: RiServerLine,
-    modules: ['explorer', 'learnings', 'snippets', 'docs', 'prompts'],
+    modules: ['overview', 'explorer', 'learnings', 'snippets', 'docs', 'notes', 'prompts'],
   },
 ];
 

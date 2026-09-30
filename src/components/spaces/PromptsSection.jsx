@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiFileCopyLine, RiCheckLine, RiRobotLine, RiRobot2Line, RiHistoryLine } from 'react-icons/ri';
+import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiFileCopyLine, RiCheckLine, RiRobotLine, RiRobot2Line, RiHistoryLine, RiFolderLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddPromptModal } from './QuickAddModals';
 import PinButton from '../common/PinButton';
@@ -28,7 +28,7 @@ const MODELS = [
   { value: 'Custom',            label: 'Custom Model' },
 ];
 
-export default function PromptsSection({ space, isLight, highlightId }) {
+export default function PromptsSection({ space, isLight, highlightId, onNavigateSection }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
@@ -297,6 +297,33 @@ export default function PromptsSection({ space, isLight, highlightId }) {
                 <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px' }}>
                   {prompt.title}
                 </h4>
+
+                {prompt.folderPath && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onNavigateSection) {
+                        onNavigateSection('explorer', prompt._id, prompt.folderId);
+                      }
+                    }}
+                    style={{
+                      fontSize: '11.5px',
+                      color: 'var(--accent-color)',
+                      cursor: 'pointer',
+                      margin: '0 0 6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      textDecoration: 'underline',
+                      fontWeight: 500,
+                    }}
+                    title="View in Explorer"
+                  >
+                    <RiFolderLine size={12} />
+                    <span>{prompt.folderPath}</span>
+                  </div>
+                )}
+
                 {prompt.caption ? (
                   <p style={{
                     fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,

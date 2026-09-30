@@ -57,6 +57,7 @@ export default function NewSpaceModal({ open, onClose }) {
         name: finalName,
         description: description.trim(),
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        enabledModules: ['overview', 'explorer', 'notes', 'learnings', 'snippets', 'docs'],
         iconKey: 'lucide:stack'
       });
 

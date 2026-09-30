@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, Switch, message, Tooltip } from 'antd';
-import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearchLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiGitRepositoryLine, RiTeamLine, RiExternalLinkLine } from 'react-icons/ri';
+import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearchLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiGitRepositoryLine, RiTeamLine, RiExternalLinkLine, RiFolderLine } from 'react-icons/ri';
 import { SiBitbucket } from 'react-icons/si';
 import api from '../../api/axios';
 import { QuickAddRepoModal } from './QuickAddModals';
@@ -15,7 +15,7 @@ const PLATFORMS = [
   { value: 'other', label: 'Other' }
 ];
 
-export default function ReposSection({ space, isLight, highlightId }) {
+export default function ReposSection({ space, isLight, highlightId, onNavigateSection }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRepo, setEditingRepo] = useState(null);
@@ -299,6 +299,33 @@ export default function ReposSection({ space, isLight, highlightId }) {
                       {repo.name}
                     </a>
                   </h4>
+
+                  {repo.folderPath && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onNavigateSection) {
+                          onNavigateSection('explorer', repo._id, repo.folderId);
+                        }
+                      }}
+                      style={{
+                        fontSize: '11.5px',
+                        color: 'var(--accent-color)',
+                        cursor: 'pointer',
+                        margin: '0 0 6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        textDecoration: 'underline',
+                        fontWeight: 500,
+                      }}
+                      title="View in Explorer"
+                    >
+                      <RiFolderLine size={12} />
+                      <span>{repo.folderPath}</span>
+                    </div>
+                  )}
+
                   {repo.caption ? (
                     <p style={{
                       fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,

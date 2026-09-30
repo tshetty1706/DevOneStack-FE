@@ -14,11 +14,14 @@ import {
   RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
   RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine, RiCloseLine,
-  RiCompass3Line, RiLoader4Line
+  RiCompass3Line, RiLoader4Line, RiStickyNoteLine
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
 import { ALL_MODULES, getModuleById } from '../constants/templates';
+import OverviewSection from '../components/spaces/OverviewSection';
+import ExplorerSection from '../components/spaces/ExplorerSection';
+import NotesSection from '../components/spaces/NotesSection';
 import DocsSection from '../components/spaces/DocsSection';
 import LearningsSection from '../components/spaces/LearningsSection';
 import SnippetsSection from '../components/spaces/SnippetsSection';
@@ -29,6 +32,7 @@ import TagsSection from '../components/spaces/TagsSection';
 import SettingsSection from '../components/spaces/SettingsSection';
 import SpaceIcon from '../components/spaces/SpaceIcon';
 import {
+  QuickAddNoteModal,
   QuickAddLearningModal,
   QuickAddSnippetModal,
   QuickAddDocModal,
@@ -38,7 +42,9 @@ import {
 } from '../components/spaces/QuickAddModals';
 
 const SIDEBAR_ITEMS = [
-  { id: 'home', icon: RiCompass3Line, label: 'Explorer' },
+  { id: 'overview', icon: RiHome4Line, label: 'Overview', isFixed: true },
+  { id: 'explorer', icon: RiCompass3Line, label: 'Explorer', isFixed: true },
+  { id: 'notes', icon: RiStickyNoteLine, label: 'Notes' },
   { id: 'learnings', icon: RiLightbulbLine, label: 'Learnings' },
   { id: 'snippets', icon: RiCodeSSlashLine, label: 'Snippets' },
   { id: 'docs', icon: RiFileTextLine, label: 'Docs' },
@@ -48,87 +54,55 @@ const SIDEBAR_ITEMS = [
   { id: 'tags', icon: RiPriceTag3Line, label: 'Tags' },
 ];
 
-const STAT_CARDS = [
-  { key: 'docsCount', icon: RiFileTextLine, label: 'Docs', iconBg: 'rgba(59,130,246,0.15)', iconColor: '#60a5fa' },
-  { key: 'learningsCount', icon: RiLightbulbLine, label: 'Learnings', iconBg: 'rgba(234,179,8,0.15)', iconColor: '#eab308' },
-  { key: 'snippetsCount', icon: RiCodeSSlashLine, label: 'Snippets', iconBg: 'rgba(99,102,241,0.15)', iconColor: '#818cf8' },
-  { key: 'reposCount', icon: RiGitRepositoryLine, label: 'Repos', iconBg: 'rgba(249,115,22,0.15)', iconColor: '#fb923c' },
-  { key: 'promptsCount', icon: RiRobot2Line, label: 'Prompts', iconBg: 'rgba(236,72,153,0.15)', iconColor: '#f472b6' },
-  { key: 'communitiesCount', icon: RiTeamLine, label: 'Communities', iconBg: 'rgba(6,182,212,0.15)', iconColor: '#22d3ee' },
-];
-
 const SECTIONS = {
-  docs: ({ space, isLight, highlightId }) => <DocsSection space={space} isLight={isLight} highlightId={highlightId} />,
-  learnings: ({ space, isLight, highlightId }) => <LearningsSection space={space} isLight={isLight} highlightId={highlightId} />,
-  snippets: ({ space, isLight, highlightId }) => <SnippetsSection space={space} isLight={isLight} highlightId={highlightId} />,
-  repos: ({ space, isLight, highlightId }) => <ReposSection space={space} isLight={isLight} highlightId={highlightId} />,
-  prompts: ({ space, isLight, highlightId }) => <PromptsSection space={space} isLight={isLight} highlightId={highlightId} />,
-  communities: ({ space, isLight, highlightId }) => <CommunitiesSection space={space} isLight={isLight} highlightId={highlightId} />,
-  tags: ({ space, isLight }) => <TagsSection space={space} isLight={isLight} />,
-  settings: ({ space, isLight }) => <SettingsSection space={space} isLight={isLight} />,
+  overview: ({ space, isLight, onNavigateSection }) => (
+    <OverviewSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} />
+  ),
+  explorer: ({ space, isLight, onNavigateSection, highlightId, highlightFolderId }) => (
+    <ExplorerSection
+      space={space}
+      isLight={isLight}
+      onNavigateSection={onNavigateSection}
+      highlightId={highlightId}
+      highlightFolderId={highlightFolderId}
+    />
+  ),
+  notes: ({ space, isLight, openNoteId, highlightId, onNavigateSection }) => (
+    <NotesSection
+      space={space}
+      isLight={isLight}
+      openNoteId={openNoteId}
+      highlightId={highlightId}
+      onNavigateSection={onNavigateSection}
+    />
+  ),
+  docs: ({ space, isLight, highlightId, onNavigateSection }) => (
+    <DocsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  ),
+  learnings: ({ space, isLight, highlightId, onNavigateSection }) => (
+    <LearningsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  ),
+  snippets: ({ space, isLight, highlightId, onNavigateSection }) => (
+    <SnippetsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  ),
+  repos: ({ space, isLight, highlightId, onNavigateSection }) => (
+    <ReposSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  ),
+  prompts: ({ space, isLight, highlightId, onNavigateSection }) => (
+    <PromptsSection space={space} isLight={isLight} highlightId={highlightId} onNavigateSection={onNavigateSection} />
+  ),
+  communities: ({ space, isLight, highlightId }) => (
+    <CommunitiesSection space={space} isLight={isLight} highlightId={highlightId} />
+  ),
+  tags: ({ space, isLight, onNavigateSection }) => (
+    <TagsSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} />
+  ),
+  settings: ({ space, isLight }) => (
+    <SettingsSection space={space} isLight={isLight} />
+  ),
 };
 
-function useCountUp(target, duration = 800) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!target) { setCount(0); return; }
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      setCount(Math.floor(progress * target));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration]);
-  return count;
-}
 
-function StatCard({ stat, value, isLight }) {
-  const count = useCountUp(value);
-  const Icon = stat.icon;
-  return (
-    <div style={{
-      background: 'var(--card-bg)',
-      border: '1px solid var(--card-border)',
-      borderRadius: '12px', padding: '16px 14px',
-      display: 'flex', flexDirection: 'column', gap: '10px',
-      transition: 'all 0.2s ease',
-      minWidth: 0,
-    }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--card-hover-border)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--card-border)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
-    >
-      <div style={{
-        width: '32px', height: '32px', borderRadius: '8px',
-        background: stat.iconBg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: stat.iconColor,
-        flexShrink: 0,
-      }}>
-        <Icon size={16} />
-      </div>
-      <div>
-        <div style={{
-          fontSize: '22px', fontWeight: 700, lineHeight: 1,
-          color: 'var(--text-color)',
-          fontFamily: 'var(--font-display)',
-        }}>
-          {count}
-        </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 500 }}>
-          {stat.label}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function timeAgo(dateStr) {
   if (!dateStr) return 'just now';
@@ -150,11 +124,12 @@ export default function SpaceDashboard() {
   const [isHovered, setIsHovered] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
+  const [activeSection, setActiveSection] = useState('overview');
   const [userName, setUserName] = useState('Developer');
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [openNoteId, setOpenNoteId] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
+  const [highlightFolderId, setHighlightFolderId] = useState(null);
   const [quickAddModal, setQuickAddModal] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,20 +146,20 @@ export default function SpaceDashboard() {
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [addingModuleId, setAddingModuleId] = useState(null);
 
-  // Compute enabled modules (Explorer/Home always included)
+  // Compute enabled modules (Overview & Explorer are ALWAYS fixed as first two)
   const enabledModules = useMemo(() => {
     if (Array.isArray(space?.enabledModules) && space.enabledModules.length > 0) {
-      return space.enabledModules;
+      const rest = space.enabledModules.filter(m => m !== 'overview' && m !== 'explorer');
+      return ['overview', 'explorer', ...rest];
     }
     // Backward compatibility fallback for legacy spaces: enable all standard modules
-    return ['explorer', 'learnings', 'snippets', 'docs', 'repos', 'prompts', 'communities', 'tags'];
+    return ['overview', 'explorer', 'notes', 'learnings', 'snippets', 'docs', 'repos', 'prompts', 'communities', 'tags'];
   }, [space?.enabledModules]);
 
   const visibleSidebarItems = useMemo(() => {
     return SIDEBAR_ITEMS.filter(item => {
-      const mappedId = item.id === 'home' ? 'explorer' : item.id;
-      if (mappedId === 'explorer') return true; // Explorer is permanent and fixed
-      return enabledModules.includes(mappedId) || enabledModules.includes(item.id);
+      if (item.id === 'overview' || item.id === 'explorer') return true; // Fixed modules
+      return enabledModules.includes(item.id);
     });
   }, [enabledModules]);
 
@@ -216,22 +191,43 @@ export default function SpaceDashboard() {
     const section = searchParams.get('section');
     const noteId = searchParams.get('noteId');
     const id = searchParams.get('id');
+    const folderId = searchParams.get('folderId');
 
-    if (section) setActiveSection(section);
+    if (section) {
+      setActiveSection(section === 'home' ? 'overview' : section);
+    } else {
+      setActiveSection('overview');
+    }
     if (noteId) setOpenNoteId(noteId);
     if (id) setHighlightId(id);
+    if (folderId) setHighlightFolderId(folderId);
   }, [searchParams]);
 
-  const handleSectionChange = (sectionId) => {
-    setActiveSection(sectionId);
-    setOpenNoteId(null);
-    setHighlightId(null);
+  const handleNavigateSection = (sectionId, id = null, folderId = null) => {
+    const target = sectionId === 'home' ? 'overview' : sectionId;
+    setActiveSection(target);
+    if (target === 'notes') setOpenNoteId(id);
+    setHighlightId(id);
+    setHighlightFolderId(folderId);
     setMobileSidebarOpen(false);
-    if (sectionId === 'home') {
+
+    const params = {};
+    if (target !== 'overview') params.section = target;
+    if (id) {
+      if (target === 'notes') params.noteId = id;
+      else params.id = id;
+    }
+    if (folderId) params.folderId = folderId;
+
+    if (target === 'overview' && !id && !folderId) {
       setSearchParams({});
     } else {
-      setSearchParams({ section: sectionId });
+      setSearchParams(params);
     }
+  };
+
+  const handleSectionChange = (sectionId) => {
+    handleNavigateSection(sectionId);
   };
 
   useEffect(() => {
@@ -310,13 +306,21 @@ export default function SpaceDashboard() {
     if (enabledModules.includes(moduleId)) return;
     setAddingModuleId(moduleId);
     try {
-      const updated = ['explorer', ...enabledModules.filter(m => m !== 'explorer'), moduleId];
-      await api.patch(`/api/spaces/${spaceId}`, { enabledModules: updated });
+      const rest = enabledModules.filter(m => m !== 'overview' && m !== 'explorer' && m !== moduleId);
+      const updated = ['overview', 'explorer', ...rest, moduleId];
+      const targetId = space?._id || spaceId;
+      const res = await api.patch(`/api/spaces/${targetId}`, { enabledModules: updated });
+      if (res.data) {
+        queryClient.setQueryData(['space', spaceId], res.data);
+      }
       await queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
-      message.success(`Added ${moduleId} module to your Space!`);
-      handleSectionChange(moduleId);
+      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      const modLabel = getModuleById(moduleId)?.label || moduleId;
+      message.success(`Added ${modLabel} to your Space!`);
       setShowAddModuleModal(false);
+      handleSectionChange(moduleId);
     } catch (err) {
+      console.error('Error adding module:', err);
       message.error(err?.response?.data?.error || 'Failed to add module');
     } finally {
       setAddingModuleId(null);
@@ -804,8 +808,12 @@ export default function SpaceDashboard() {
           data-lenis-prevent
           style={{
             flex: 1,
-            overflowY: 'auto',
-            padding: 'clamp(16px, 3.5vw, 28px)',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            height: '100%',
+            overflowY: activeSection === 'notes' ? 'hidden' : 'auto',
+            padding: activeSection === 'notes' ? '0' : 'clamp(16px, 3.5vw, 28px)',
             scrollBehavior: 'smooth',
             scrollbarWidth: 'thin',
             scrollbarColor: 'var(--border) transparent',
@@ -813,226 +821,24 @@ export default function SpaceDashboard() {
           }}
         >
           <AnimatePresence mode="wait">
-            {/* ── Home ── */}
-            {activeSection === 'home' ? (
-              <motion.div
-                key="home"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}
-              >
-                {/* Welcome Banner */}
-                <div>
-                  <h1 style={{
-                    fontSize: 'clamp(20px, 3.5vw, 24px)',
-                    fontWeight: 700,
-                    color: textColor,
-                    margin: '0 0 4px',
-                    fontFamily: 'var(--font-display)',
-                    letterSpacing: '-0.01em',
-                  }}>
-                    Welcome back, {userName.split(' ')[0]} 👋
-                  </h1>
-                  <p style={{ fontSize: '13px', color: textMuted, margin: 0 }}>
-                    Your {space.name} workspace is ready.
-                  </p>
-                </div>
-
-                {/* Stats Responsive Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
-                  gap: '12px',
-                  width: '100%',
-                }}>
-                  {STAT_CARDS.map(stat => (
-                    <StatCard key={stat.key} stat={stat} value={space[stat.key] || 0} isLight={isLight} />
-                  ))}
-                </div>
-
-                {/* Recent Activity + Quick Add Responsive Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-                  gap: '20px',
-                  width: '100%',
-                }}>
-                  {/* ── Recent Activity Timeline ── */}
-                  <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: textColor, margin: 0, letterSpacing: '-0.01em' }}>
-                        Recent Activity
-                      </p>
-                    </div>
-
-                    {activity.length === 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '32px 0', textAlign: 'center' }}>
-                        <RiHistoryLine size={36} style={{ color: textSub }} />
-                        <div>
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: textColor, margin: '0 0 4px' }}>No activity yet</p>
-                          <p style={{ fontSize: '12px', color: textMuted, margin: 0, lineHeight: 1.5 }}>
-                            Start adding docs, notes, or snippets — your activity will appear here.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative' }}>
-                        <div style={{
-                          position: 'absolute',
-                          left: '15px',
-                          top: '6px',
-                          bottom: '6px',
-                          width: '2px',
-                          background: isLight ? '#e5e5e5' : 'rgba(255,255,255,0.06)',
-                          borderRadius: '1px',
-                          zIndex: 0,
-                        }} />
-
-                        {activity.map((item, i) => {
-                          const actionMap = {
-                            created_learning: { icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.12)', tag: 'Learning' },
-                            created_snippet: { icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.12)', tag: 'Snippet' },
-                            created_doc: { icon: RiFileTextLine, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', tag: 'Doc' },
-                            created_repo: { icon: RiGitRepositoryLine, color: '#fb923c', bg: 'rgba(249,115,22,0.12)', tag: 'Repository' },
-                            created_prompt: { icon: RiRobot2Line, color: '#f472b6', bg: 'rgba(236,72,153,0.12)', tag: 'Prompt' },
-                            created_community: { icon: RiTeamLine, color: '#22d3ee', bg: 'rgba(6,182,212,0.12)', tag: 'Community' },
-                          };
-                          const meta = actionMap[item.action] || { icon: RiHistoryLine, color: isLight ? '#888' : '#666', bg: isLight ? '#f0f0f0' : 'rgba(255,255,255,0.06)', tag: item.action?.replace('created_', '').replace('_', ' ') || 'Activity' };
-                          const ActIcon = meta.icon;
-
-                          return (
-                            <div
-                              key={item._id || i}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '14px',
-                                padding: '10px 10px 10px 0', position: 'relative',
-                                borderRadius: '9px', transition: 'background 0.15s ease',
-                                cursor: 'default',
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >
-                              <div style={{
-                                width: '30px', height: '30px', borderRadius: '8px',
-                                background: meta.bg,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0, zIndex: 1,
-                                color: meta.color,
-                                border: `2px solid ${isLight ? '#fff' : '#0a0a10'}`,
-                              }}>
-                                <ActIcon size={14} />
-                              </div>
-
-                              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '240px' }}>
-                                  {item.label}
-                                </p>
-                                <span style={{
-                                  fontSize: '10px', fontWeight: 600,
-                                  padding: '2px 8px', borderRadius: '20px',
-                                  background: meta.bg, color: meta.color,
-                                  whiteSpace: 'nowrap',
-                                  letterSpacing: '0.02em',
-                                }}>
-                                  {meta.tag}
-                                </span>
-                              </div>
-
-                              <span style={{ fontSize: '11px', color: textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                {timeAgo(item.createdAt)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Quick Add Panel ── */}
-                  <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
-                      <RiFlashlightLine size={15} style={{ color: '#eab308' }} />
-                      <p style={{
-                        fontSize: '12px', fontWeight: 800, color: textColor,
-                        margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
-                        fontFamily: 'var(--font-display)',
-                      }}>
-                        Quick Add
-                      </p>
-                    </div>
-
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
-                      gap: '10px',
-                      flex: 1,
-                    }}>
-                      {[
-                        { label: 'Learning', section: 'learnings', icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234,179,8,0.08)' },
-                        { label: 'Snippet', section: 'snippets', icon: RiCodeSSlashLine, color: '#818cf8', bg: 'rgba(99,102,241,0.08)' },
-                        { label: 'Doc', section: 'docs', icon: RiFileTextLine, color: '#60a5fa', bg: 'rgba(59,130,246,0.08)' },
-                        { label: 'Repository', section: 'repos', icon: RiGitRepositoryLine, color: '#fb923c', bg: 'rgba(249,115,22,0.08)' },
-                        { label: 'Prompt', section: 'prompts', icon: RiRobot2Line, color: '#f472b6', bg: 'rgba(236,72,153,0.08)' },
-                        { label: 'Community', section: 'communities', icon: RiTeamLine, color: '#22d3ee', bg: 'rgba(6,182,212,0.08)' },
-                      ].map(qa => {
-                        const QaIcon = qa.icon;
-                        return (
-                          <button
-                            type="button"
-                            key={qa.section}
-                            onClick={() => setQuickAddModal(qa.section)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '8px',
-                              padding: '10px 12px', borderRadius: '10px',
-                              border: `1px solid ${isLight ? '#e8e8e8' : 'rgba(255,255,255,0.07)'}`,
-                              background: 'transparent',
-                              color: textColor,
-                              fontSize: '12.5px', fontWeight: 600,
-                              cursor: 'pointer',
-                              fontFamily: 'var(--font-body)',
-                              transition: 'all 0.2s ease',
-                              textAlign: 'left',
-                              minHeight: '44px',
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = qa.bg;
-                              e.currentTarget.style.borderColor = qa.color + '44';
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.borderColor = isLight ? '#e8e8e8' : 'rgba(255,255,255,0.07)';
-                              e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                          >
-                            <div style={{
-                              width: '26px', height: '26px', borderRadius: '6px',
-                              background: qa.bg,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: qa.color, flexShrink: 0,
-                            }}>
-                              <QaIcon size={14} />
-                            </div>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>+ {qa.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              /* ── Sub section ── */
-              <motion.div
-                key={activeSection}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}
-              >
+            <motion.div
+              key={activeSection}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                maxWidth: activeSection === 'notes' ? '100%' : '1200px',
+                margin: activeSection === 'notes' ? '0' : '0 auto',
+                width: '100%',
+                height: activeSection === 'notes' ? '100%' : 'auto',
+                flex: activeSection === 'notes' ? 1 : 'none',
+                display: activeSection === 'notes' ? 'flex' : 'block',
+                flexDirection: 'column',
+                minHeight: 0,
+              }}
+            >
+              {activeSection !== 'notes' && activeSection !== 'overview' && activeSection !== 'explorer' && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
                   <h2 style={{
                     fontSize: 'clamp(18px, 3vw, 22px)',
@@ -1041,28 +847,49 @@ export default function SpaceDashboard() {
                     marginBottom: 4,
                     letterSpacing: '-0.01em',
                   }}>
-                    {activeSection === 'snippets' ? 'Boilerplates & Snippets'
+                    {activeSection === 'snippets' ? 'Snippets'
                       : activeSection === 'settings' ? 'Settings'
                         : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
                   </h2>
                   <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 0 }}>
-                    {activeSection === 'docs' ? 'Reference documents, PDFs and external links'
-                      : activeSection === 'learnings' ? 'Structured developer learnings and logs'
-                        : activeSection === 'snippets' ? 'Reusable boilerplates, scripts and configuration'
-                          : activeSection === 'repos' ? 'Tracked code repositories and platforms'
-                            : activeSection === 'prompts' ? 'Saved AI prompt engineering templates'
-                              : activeSection === 'communities' ? 'Linked developer communities and channels'
-                                : activeSection === 'tags' ? 'Manage workspace tags and taxonomy'
-                                  : activeSection === 'settings' ? 'Customize space workspace settings'
+                    {activeSection === 'docs' ? 'Documentation, guides, and links'
+                      : activeSection === 'learnings' ? 'Key takeaways, bug fixes, and knowledge items'
+                        : activeSection === 'snippets' ? 'Reusable code blocks and syntax solutions'
+                          : activeSection === 'repos' ? 'GitHub and repository bookmarks'
+                            : activeSection === 'prompts' ? 'AI prompts and templates'
+                              : activeSection === 'communities' ? 'Discussion forums and community channels'
+                                : activeSection === 'tags' ? 'Categories and cross-resource indexing'
+                                  : activeSection === 'settings' ? 'Manage your Space settings'
                                     : ''}
                   </p>
                 </div>
+              )}
 
-                <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '14px', minHeight: '300px', padding: activeSection === 'settings' ? '20px' : '0', overflow: 'hidden' }}>
-                  {SectionComp && <SectionComp space={space} isLight={isLight} openNoteId={openNoteId} highlightId={highlightId} />}
-                </div>
-              </motion.div>
-            )}
+              <div style={{
+                flex: activeSection === 'notes' ? 1 : 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+                height: activeSection === 'notes' ? '100%' : 'auto',
+                width: '100%',
+                background: (activeSection === 'notes' || activeSection === 'overview' || activeSection === 'explorer') ? 'transparent' : cardBg,
+                border: (activeSection === 'notes' || activeSection === 'overview' || activeSection === 'explorer') ? 'none' : `1px solid ${cardBorder}`,
+                borderRadius: activeSection === 'notes' ? 0 : '14px',
+                padding: activeSection === 'settings' ? '20px' : '0',
+                overflow: 'hidden',
+              }}>
+                {SectionComp && (
+                  <SectionComp
+                    space={space}
+                    isLight={isLight}
+                    openNoteId={openNoteId}
+                    highlightId={highlightId}
+                    highlightFolderId={highlightFolderId}
+                    onNavigateSection={handleNavigateSection}
+                  />
+                )}
+              </div>
+            </motion.div>
           </AnimatePresence>
         </main>
       </div>
@@ -1073,6 +900,7 @@ export default function SpaceDashboard() {
       {/* ── Quick Add Modals ── */}
       {space && (
         <>
+          <QuickAddNoteModal open={quickAddModal === 'notes'} onClose={() => setQuickAddModal(null)} space={space} />
           <QuickAddLearningModal open={quickAddModal === 'learnings'} onClose={() => setQuickAddModal(null)} space={space} />
           <QuickAddSnippetModal open={quickAddModal === 'snippets'} onClose={() => setQuickAddModal(null)} space={space} />
           <QuickAddDocModal open={quickAddModal === 'docs'} onClose={() => setQuickAddModal(null)} space={space} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiSearchLine, RiFileCopyLine, RiCheckLine, RiCodeLine, RiCodeSSlashLine, RiHistoryLine } from 'react-icons/ri';
+import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiSearchLine, RiFileCopyLine, RiCheckLine, RiCodeLine, RiCodeSSlashLine, RiHistoryLine, RiFolderLine } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import api from '../../api/axios';
@@ -26,7 +26,7 @@ const LANGUAGES = [
   { value: 'other', label: 'Other' }
 ];
 
-export default function SnippetsSection({ space, isLight, highlightId }) {
+export default function SnippetsSection({ space, isLight, highlightId, onNavigateSection }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState(null);
@@ -308,6 +308,33 @@ export default function SnippetsSection({ space, isLight, highlightId }) {
                 <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px' }}>
                   {snip.name}
                 </h4>
+
+                {snip.folderPath && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onNavigateSection) {
+                        onNavigateSection('explorer', snip._id, snip.folderId);
+                      }
+                    }}
+                    style={{
+                      fontSize: '11.5px',
+                      color: 'var(--accent-color)',
+                      cursor: 'pointer',
+                      margin: '0 0 6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      textDecoration: 'underline',
+                      fontWeight: 500,
+                    }}
+                    title="View in Explorer"
+                  >
+                    <RiFolderLine size={12} />
+                    <span>{snip.folderPath}</span>
+                  </div>
+                )}
+
                 {snip.caption ? (
                   <p style={{
                     fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 10px', lineHeight: 1.4,

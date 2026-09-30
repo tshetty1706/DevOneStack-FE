@@ -5,7 +5,7 @@ import {
   RiAddLine, RiSearchLine, RiLightbulbLine, RiBugLine,
   RiErrorWarningLine, RiCheckboxCircleLine, RiQuestionLine,
   RiSparklingLine, RiPushpinLine, RiPushpinFill, RiDeleteBinLine,
-  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine
+  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine, RiFolderLine
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -37,7 +37,7 @@ const LANGUAGES = [
   { value: 'other', label: 'Other' }
 ];
 
-export default function LearningsSection({ space, isLight, highlightId }) {
+export default function LearningsSection({ space, isLight, highlightId, onNavigateSection }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -578,6 +578,30 @@ export default function LearningsSection({ space, isLight, highlightId }) {
               }}>
                 {selectedItem.title}
               </h1>
+
+              {selectedItem.folderPath && (
+                <div
+                  onClick={() => {
+                    if (onNavigateSection) {
+                      onNavigateSection('explorer', selectedItem._id, selectedItem.folderId);
+                    }
+                  }}
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--accent-color)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    textDecoration: 'underline',
+                    fontWeight: 600,
+                  }}
+                  title="View in Explorer"
+                >
+                  <RiFolderLine size={13} />
+                  <span>{selectedItem.folderPath}</span>
+                </div>
+              )}
 
               {/* Tags */}
               {selectedItem.tags?.length > 0 && (

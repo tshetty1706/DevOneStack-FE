@@ -10,7 +10,7 @@ import {
   RiLightbulbLine, RiBugLine, RiErrorWarningLine,
   RiCheckboxCircleLine, RiQuestionLine, RiSparklingLine
 } from 'react-icons/ri';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 
 const { Dragger } = Upload;
@@ -825,6 +825,125 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
         <div>
           <label style={labelStyle}>TAGS</label>
           <Select mode="tags" style={{ width: '100%' }} placeholder="Tags..." value={tags} onChange={setTags} />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── 7. NOTE MODAL ───────────────────────────────────────────────────────────
+export function QuickAddNoteModal({ open, onClose, space, defaultFolderId = null, onSuccess }) {
+  const queryClient = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId);
+  const [tags, setTags] = useState([]);
+
+  // Fetch folders for destination selection
+  const { data: foldersData } = useQuery({
+    queryKey: ['folders', space?._id],
+    queryFn: async () => {
+      if (!space?._id) return [];
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    },
+    enabled: !!space?._id
+  });
+
+  const folders = foldersData || [];
+
+  useEffect(() => {
+    if (open) {
+      setTitle('');
+      setContent('');
+      setTags([]);
+      setFolderId(defaultFolderId || folders[0]?._id || null);
+    }
+  }, [open, defaultFolderId, folders]);
+
+  const mutation = useMutation({
+    mutationFn: (payload) => {
+      return api.post(`/api/spaces/${space._id}/items`, {
+        type: 'note',
+        ...payload
+      });
+    },
+    onSuccess: (res) => {
+      message.success('Note created!');
+      queryClient.invalidateQueries(['items', space._id]);
+      queryClient.invalidateQueries(['folders', space._id]);
+      queryClient.invalidateQueries(['space', space._id]);
+      queryClient.invalidateQueries(['history', space._id]);
+      onSuccess?.(res.data?.item);
+      onClose();
+    },
+    onError: (err) => message.error(err.response?.data?.error || 'Failed to create note'),
+  });
+
+  const handleOk = () => {
+    if (!title.trim()) {
+      message.error('Note title is required');
+      return;
+    }
+    mutation.mutate({
+      title: title.trim(),
+      content: content || `# ${title.trim()}\n\nStart writing notes...`,
+      folderId,
+      tags
+    });
+  };
+
+  return (
+    <Modal
+      title="Create New Note"
+      open={open}
+      onCancel={onClose}
+      onOk={handleOk}
+      okText="Create Note"
+      cancelText="Cancel"
+      confirmLoading={mutation.isPending}
+      width={540}
+      style={{ top: 30 }}
+      styles={modalBodyStyles}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>NOTE TITLE</label>
+          <Input
+            placeholder="e.g. Authentication Flow, Spring Security JWT"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>DESTINATION FOLDER</label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Select folder"
+            value={folderId}
+            onChange={setFolderId}
+            options={[
+              { value: null, label: '📁 Workspace (Root)' },
+              ...folders.map(f => ({ value: f._id, label: `📁 ${f.path || f.name}` }))
+            ]}
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>INITIAL CONTENT (OPTIONAL MARKDOWN)</label>
+          <Input.TextArea
+            rows={4}
+            placeholder="Add initial notes or draft content..."
+            value={content}
+            onChange={e => setContent(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>TAGS</label>
+          <Select mode="tags" style={{ width: '100%' }} placeholder="Add tags..." value={tags} onChange={setTags} />
         </div>
       </div>
     </Modal>

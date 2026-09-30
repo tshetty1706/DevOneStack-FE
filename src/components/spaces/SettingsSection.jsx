@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Modal, Input, Select, Button, message } from 'antd';
+import { Modal, Input, Select, Button, Switch, message } from 'antd';
 import { RiSearchLine, RiFolder5Line, RiArrowUpSLine, RiArrowDownSLine, RiRefreshLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import SpaceIcon from './SpaceIcon';
 import { ICON_MAPPING, getIconKeyByName } from '../../utils/iconMapping';
+import { ALL_MODULES } from '../../constants/templates';
 
 export default function SettingsSection({ space, isLight }) {
   const { user } = useAuth();
@@ -16,6 +17,12 @@ export default function SettingsSection({ space, isLight }) {
   // Rename states
   const [name, setName] = useState(space.name || '');
   const [tags, setTags] = useState(space.tags || []);
+  const [enabledModules, setEnabledModules] = useState(() => {
+    if (Array.isArray(space?.enabledModules) && space.enabledModules.length > 0) {
+      return space.enabledModules;
+    }
+    return ['overview', 'explorer', 'notes', 'learnings', 'snippets', 'docs', 'repos', 'prompts', 'communities', 'tags'];
+  });
   const [iconKey, setIconKey] = useState(() => {
     const current = space.iconKey || space.icon || 'lucide:folder';
     return current === 'folder' ? 'lucide:folder' : current;
@@ -42,6 +49,13 @@ export default function SettingsSection({ space, isLight }) {
     }
   }, [name, isCustomIcon]);
 
+  // Keep local enabledModules in sync with space updates
+  useEffect(() => {
+    if (Array.isArray(space?.enabledModules) && space.enabledModules.length > 0) {
+      setEnabledModules(space.enabledModules);
+    }
+  }, [space?.enabledModules]);
+
   // Save changes mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -49,11 +63,13 @@ export default function SettingsSection({ space, isLight }) {
       return api.patch(`/api/spaces/${space._id}`, {
         name: name.trim(),
         tags,
-        iconKey
+        iconKey,
+        enabledModules,
       });
     },
     onSuccess: (res) => {
       message.success('Space settings updated successfully');
+      queryClient.setQueryData(['space', space._id], res.data);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['spaces']);
     },
@@ -276,6 +292,70 @@ export default function SettingsSection({ space, isLight }) {
             value={tags}
             onChange={(val) => setTags(val)}
           />
+        </div>
+
+        {/* Enabled Modules */}
+        <div>
+          <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
+            Active Modules
+          </label>
+          <p style={{ fontSize: '12px', color: '#888', margin: '0 0 10px' }}>
+            Enable or disable workspace modules in your sidebar.
+          </p>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            background: isLight ? '#f9fafb' : '#14141e',
+            padding: '12px',
+            borderRadius: '10px',
+            border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)'}`,
+          }}>
+            {ALL_MODULES.map(mod => {
+              const isFixed = mod.isFixed;
+              const isEnabled = isFixed || enabledModules.includes(mod.id);
+              const ModIcon = mod.icon;
+              return (
+                <div
+                  key={mod.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    background: isLight ? '#ffffff' : '#1a1a24',
+                    border: `1px solid ${isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)'}`,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ModIcon size={16} style={{ color: isLight ? '#4f46e5' : '#818cf8' }} />
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: isLight ? '#111' : '#fff' }}>
+                      {mod.label}
+                    </span>
+                    {isFixed && (
+                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: isLight ? '#e5e7eb' : '#27272a', color: '#888' }}>
+                        Fixed
+                      </span>
+                    )}
+                  </div>
+                  <Switch
+                    size="small"
+                    disabled={isFixed}
+                    checked={isEnabled}
+                    onChange={(checked) => {
+                      if (isFixed) return;
+                      if (checked) {
+                        setEnabledModules(prev => [...prev.filter(m => m !== mod.id), mod.id]);
+                      } else {
+                        setEnabledModules(prev => prev.filter(m => m !== mod.id));
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Save button */}

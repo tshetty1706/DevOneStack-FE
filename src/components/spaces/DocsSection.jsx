@@ -5,7 +5,7 @@ import {
   RiAddLine, RiGlobalLine, RiFilePdfLine, RiImageLine, RiPushpinLine, 
   RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiUploadCloudLine,
   RiDownloadLine, RiExternalLinkLine, RiFileCopyLine, RiEyeLine, 
-  RiHistoryLine, RiTeamLine 
+  RiHistoryLine, RiTeamLine, RiFolderLine 
 } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddDocModal } from './QuickAddModals';
@@ -14,7 +14,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 
 const { Dragger } = Upload;
 
-export default function DocsSection({ space, isLight, highlightId }) {
+export default function DocsSection({ space, isLight, highlightId, onNavigateSection }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('url'); // 'url', 'pdf', 'image'
@@ -424,6 +424,32 @@ export default function DocsSection({ space, isLight, highlightId }) {
                     >
                       {doc.title}
                     </h4>
+
+                    {doc.folderPath && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onNavigateSection) {
+                            onNavigateSection('explorer', doc._id, doc.folderId);
+                          }
+                        }}
+                        style={{
+                          fontSize: '11.5px',
+                          color: accentColor,
+                          cursor: 'pointer',
+                          margin: '0 0 6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          textDecoration: 'underline',
+                          fontWeight: 500,
+                        }}
+                        title="View in Explorer"
+                      >
+                        <RiFolderLine size={12} />
+                        <span>{doc.folderPath}</span>
+                      </div>
+                    )}
                     
                     {doc.caption ? (
                       <p style={{
