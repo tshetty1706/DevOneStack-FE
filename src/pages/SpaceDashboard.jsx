@@ -403,14 +403,17 @@ export default function SpaceDashboard() {
       {/* Brand */}
       <div
         style={{
-          padding: isMobile ? '16px 20px' : (isHovered ? '16px 20px' : '16px 14px'),
+          padding: isMobile ? '0 20px' : (isHovered ? '0 20px' : '0 16px'),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          minHeight: '52px',
+          height: '56px',
+          minHeight: '56px',
+          maxHeight: '56px',
           overflow: 'hidden',
           whiteSpace: 'nowrap',
           borderBottom: `1px solid ${sidebarBrd}`,
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -676,6 +679,8 @@ export default function SpaceDashboard() {
         {/* Top bar */}
         <header style={{
           height: '56px',
+          minHeight: '56px',
+          maxHeight: '56px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -690,6 +695,7 @@ export default function SpaceDashboard() {
           top: 0,
           zIndex: 50,
           transition: 'background 0.3s ease',
+          boxSizing: 'border-box',
         }}>
           {/* Left Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>

@@ -8,16 +8,14 @@ import {
   RiListOrdered, RiListUnordered, RiLink, RiImageLine,
   RiTableLine, RiSeparator, RiSave3Line, RiCheckLine,
   RiLoader4Line, RiDeleteBinLine, RiPushpinLine, RiPushpinFill,
-  RiFullscreenLine, RiFullscreenExitLine, RiEyeLine, RiEditLine,
-  RiLayoutColumnLine, RiShareForwardLine, RiArrowLeftLine, RiMenuLine
+  RiFullscreenLine, RiFullscreenExitLine, RiArrowLeftLine,
+  RiUploadCloudLine
 } from 'react-icons/ri';
-import { Modal, Input, Select, message, Tooltip, Popconfirm } from 'antd';
-import { RiFolderTransferLine } from 'react-icons/ri';
+import { Modal, Input, Select, Button, message, Tooltip, Popconfirm } from 'antd';
 import api from '../../api/axios';
 import MarkdownRenderer from '../common/MarkdownRenderer';
 import SharedFolderTree from './SharedFolderTree';
-import FolderPicker from './FolderPicker';
-import MoveItemModal from './MoveItemModal';
+import notesIllustration from '../../assets/editor/notes.svg';
 
 export default function NotesSection({
   space,
@@ -67,8 +65,9 @@ export default function NotesSection({
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteFolderId, setNewNoteFolderId] = useState(selectedFolderId || null);
 
-  // Textarea ref for toolbar insertions
+  // Textarea ref for toolbar insertions & file input ref
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const autosaveTimerRef = useRef(null);
 
   // Fetch folders
@@ -114,7 +113,6 @@ export default function NotesSection({
   const groupedNotes = useMemo(() => {
     const map = new Map();
 
-    // Default workspace folder or folders list
     folders.forEach(f => {
       map.set(f._id, {
         folder: f,
@@ -125,10 +123,9 @@ export default function NotesSection({
     const rootNotes = [];
 
     notes.forEach(note => {
-      // Filter search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchesTitle = note.title.toLowerCase().includes(q);
+        const matchesTitle = note.title?.toLowerCase().includes(q);
         const matchesContent = note.content?.toLowerCase().includes(q);
         const matchesTag = note.tags?.some(t => t.toLowerCase().includes(q));
         if (!matchesTitle && !matchesContent && !matchesTag) return;
@@ -141,7 +138,6 @@ export default function NotesSection({
       }
     });
 
-    // Sort notes alphabetically inside each folder
     map.forEach(group => {
       group.notes.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
     });
@@ -161,12 +157,12 @@ export default function NotesSection({
 
   // Mutations
   const createNoteMutation = useMutation({
-    mutationFn: async ({ title, folderId }) => {
+    mutationFn: async ({ title, folderId, content }) => {
       const res = await api.post(`/api/spaces/${space._id}/items`, {
         type: 'note',
         title: title || 'Untitled Note',
         folderId,
-        content: '# ' + (title || 'Untitled Note') + '\n\nStart writing markdown here...'
+        content: content !== undefined ? content : '# ' + (title || 'Untitled Note') + '\n\nStart writing markdown here...'
       });
       return res.data;
     },
@@ -255,6 +251,40 @@ export default function NotesSection({
     triggerAutosave(noteTitle, val);
   };
 
+  // Handle Markdown file upload / Open from device
+  const handleMarkdownUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileName = file.name;
+    const isMd = /\.(md|markdown|txt)$/i.test(fileName);
+    if (!isMd) {
+      message.error('Please select a valid Markdown (.md) or text file');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result;
+        const title = fileName.replace(/\.(md|markdown|txt)$/i, '') || 'Imported Note';
+        createNoteMutation.mutate({
+          title,
+          folderId: selectedFolderId || folders[0]?._id || null,
+          content: typeof content === 'string' ? content : '',
+        });
+      } catch (err) {
+        message.error('Failed to read Markdown file');
+      }
+    };
+    reader.onerror = () => {
+      message.error('Error reading selected file');
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // Markdown Toolbar helper to insert text at cursor
   const insertMarkdown = (before, after = '') => {
     const textarea = textareaRef.current;
@@ -275,18 +305,14 @@ export default function NotesSection({
     }, 10);
   };
 
-  const cardBg = 'var(--card-bg)';
-  const cardBorder = 'var(--card-border)';
-  const textColor = 'var(--text-color)';
-  const textMuted = 'var(--text-secondary)';
-  const accent = 'var(--accent-color)';
-
-  const toggleFolderCollapse = (folderId) => {
-    setCollapsedFolders(prev => ({
-      ...prev,
-      [folderId]: !prev[folderId]
-    }));
-  };
+  // Standard DevOneStack theme tokens matching LearningsSection & SnippetsSection
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const sidebarBg = isLight ? '#fafafa' : '#0a0a0f';
+  const editorBg = isLight ? '#ffffff' : '#0b0b0e';
+  const headerBg = isLight ? '#fafafa' : '#101017';
+  const textColor = isLight ? '#111827' : '#ffffff';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
 
   const handleSelectNote = (id) => {
     setSelectedNoteId(id);
@@ -306,65 +332,69 @@ export default function NotesSection({
       position: isFullscreen ? 'fixed' : 'relative',
       inset: isFullscreen ? 0 : 'auto',
       zIndex: isFullscreen ? 1200 : 'auto',
-      background: isLight ? '#ffffff' : '#0a0a12',
-      border: isFullscreen ? 'none' : `1px solid ${cardBorder}`,
-      borderRadius: isFullscreen ? 0 : '14px',
+      background: editorBg,
       overflow: 'hidden',
     }}>
 
-      {/* ── LEFT SIDEBAR (Notes Navigation) ── */}
+      {/* ── LEFT COLUMN: Notes Sidebar ── */}
       {(!isMobile || (!activeNote || mobileSidebarVisible)) && (
         <aside style={{
-          width: isMobile ? '100%' : '280px',
+          width: isMobile ? '100%' : '260px',
           minWidth: isMobile ? '100%' : '240px',
-          maxWidth: isMobile ? '100%' : '320px',
+          maxWidth: isMobile ? '100%' : '300px',
           borderRight: isMobile ? 'none' : `1px solid ${cardBorder}`,
-          background: isLight ? '#f9fafb' : '#0d0d16',
+          background: sidebarBg,
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
           minHeight: 0,
           flexShrink: 0,
+          overflow: 'hidden',
         }}>
           {/* Header & New Note CTA */}
-          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${cardBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{
+            height: '48px',
+            minHeight: '48px',
+            maxHeight: '48px',
+            padding: '0 14px',
+            borderBottom: `1px solid ${cardBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            boxSizing: 'border-box',
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RiStickyNoteLine size={18} style={{ color: accent }} />
-              <span style={{ fontSize: '14px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
+              <RiStickyNoteLine size={17} style={{ color: accent }} />
+              <span style={{ fontSize: '13.5px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
                 Notes
               </span>
             </div>
 
-            <button
-              type="button"
+            <Button
+              type="primary"
+              size="small"
+              icon={<RiAddLine />}
               onClick={() => {
-                setNewNoteFolderId(folders[0]?._id || null);
+                setNewNoteFolderId(selectedFolderId || folders[0]?._id || null);
                 setNewNoteModalOpen(true);
               }}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '5px 10px',
-                borderRadius: '6px',
-                border: 'none',
                 background: accent,
-                color: '#ffffff',
-                fontSize: '12px',
+                borderColor: accent,
+                borderRadius: '6px',
                 fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'opacity 0.15s ease',
+                fontSize: '12px',
               }}
             >
-              <RiAddLine size={15} />
-              <span>New Note</span>
-            </button>
+              New Note
+            </Button>
           </div>
 
           {/* Search Input */}
-          <div style={{ padding: '10px 14px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
+          <div style={{ padding: '8px 12px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
             <div style={{ position: 'relative' }}>
-              <RiSearchLine size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textMuted }} />
+              <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textMuted }} />
               <input
                 type="text"
                 placeholder="Search notes..."
@@ -372,10 +402,10 @@ export default function NotesSection({
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '6px 10px 6px 30px',
+                  padding: '6px 10px 6px 28px',
                   borderRadius: '6px',
-                  border: `1px solid ${cardBorder}`,
-                  background: isLight ? '#ffffff' : '#14141f',
+                  border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
+                  background: isLight ? '#ffffff' : '#1a1a1a',
                   color: textColor,
                   fontSize: '12px',
                   outline: 'none',
@@ -386,16 +416,16 @@ export default function NotesSection({
           </div>
 
           {/* Tabs: All & Recent */}
-          <div style={{ display: 'flex', padding: '6px 14px', gap: '6px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', padding: '6px 12px', gap: '6px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
             <button
               type="button"
               onClick={() => setActiveTab('all')}
               style={{
                 flex: 1,
-                padding: '5px 0',
+                padding: '4px 0',
                 borderRadius: '5px',
                 border: 'none',
-                background: activeTab === 'all' ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
+                background: activeTab === 'all' ? (isLight ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.2)') : 'transparent',
                 color: activeTab === 'all' ? accent : textMuted,
                 fontWeight: activeTab === 'all' ? 700 : 500,
                 fontSize: '12px',
@@ -410,10 +440,10 @@ export default function NotesSection({
               onClick={() => setActiveTab('recent')}
               style={{
                 flex: 1,
-                padding: '5px 0',
+                padding: '4px 0',
                 borderRadius: '5px',
                 border: 'none',
-                background: activeTab === 'recent' ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
+                background: activeTab === 'recent' ? (isLight ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.2)') : 'transparent',
                 color: activeTab === 'recent' ? accent : textMuted,
                 fontWeight: activeTab === 'recent' ? 700 : 500,
                 fontSize: '12px',
@@ -432,33 +462,39 @@ export default function NotesSection({
                 <div style={{ fontSize: '10px', fontWeight: 700, color: textMuted, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Recently Modified
                 </div>
-                {recentNotes.map(note => (
-                  <button
-                    type="button"
-                    key={note._id}
-                    onClick={() => handleSelectNote(note._id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 10px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: selectedNoteId === note._id ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
-                      color: selectedNoteId === note._id ? accent : textColor,
-                      fontSize: '12.5px',
-                      fontWeight: selectedNoteId === note._id ? 600 : 500,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                  >
-                    <RiStickyNoteLine size={14} style={{ flexShrink: 0, color: '#10b981' }} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {note.title}
-                    </span>
-                  </button>
-                ))}
+                {recentNotes.length === 0 ? (
+                  <div style={{ padding: '12px 8px', fontSize: '12px', color: textMuted, textAlign: 'center' }}>
+                    No recent notes
+                  </div>
+                ) : (
+                  recentNotes.map(note => (
+                    <button
+                      type="button"
+                      key={note._id}
+                      onClick={() => handleSelectNote(note._id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: selectedNoteId === note._id ? (isLight ? 'rgba(99,102,241,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
+                        color: selectedNoteId === note._id ? accent : textColor,
+                        fontSize: '12.5px',
+                        fontWeight: selectedNoteId === note._id ? 600 : 500,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      <RiStickyNoteLine size={14} style={{ flexShrink: 0, color: '#10b981' }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {note.title}
+                      </span>
+                    </button>
+                  ))
+                )}
               </div>
             ) : (
               <SharedFolderTree
@@ -477,7 +513,7 @@ export default function NotesSection({
         </aside>
       )}
 
-      {/* ── MAIN EDITOR / EMPTY STATE AREA ── */}
+      {/* ── RIGHT COLUMN: MAIN EDITOR / EMPTY STATE AREA ── */}
       {(!isMobile || (activeNote && !mobileSidebarVisible)) && (
         <main style={{
           flex: 1,
@@ -486,12 +522,12 @@ export default function NotesSection({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: isLight ? '#ffffff' : '#0e0e18',
-          overflow: 'hidden'
+          background: editorBg,
+          overflow: 'hidden',
         }}>
 
           {!activeNote ? (
-            /* ── Clean Empty State (Inspired by reference image) ── */
+            /* ── Clean Empty State with Notes SVG Illustration ── */
             <div style={{
               flex: 1,
               minHeight: 0,
@@ -500,75 +536,112 @@ export default function NotesSection({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '40px 20px',
+              padding: '32px 20px',
               textAlign: 'center',
+              userSelect: 'none',
             }}>
-              {/* Clean Markdown/Note Icon Card */}
-              <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '14px',
-                background: isLight ? '#1f2937' : '#181824',
-                border: `1px solid ${cardBorder}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontFamily: 'var(--font-display)',
-                fontSize: '22px',
-                fontWeight: 800,
-                marginBottom: '16px',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-              }}>
-                M
-              </div>
+              {/* Centered Notes Illustration (No decorative box, responsive sizing) */}
+              <img
+                src={notesIllustration}
+                alt="Notes Workspace"
+                style={{
+                  width: '100%',
+                  maxWidth: '180px',
+                  maxHeight: '150px',
+                  height: 'auto',
+                  objectFit: 'contain',
+                  marginBottom: '18px',
+                  opacity: isLight ? 0.9 : 0.8,
+                  pointerEvents: 'none',
+                }}
+              />
 
-              <span style={{ fontSize: '11px', fontWeight: 700, color: textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: textMuted,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: '6px',
+                display: 'block'
+              }}>
                 NO NOTE OPEN
               </span>
 
               <h2 style={{
-                fontSize: '22px',
-                fontWeight: 800,
+                fontSize: '18px',
+                fontWeight: 700,
                 color: textColor,
-                margin: '0 0 8px',
+                margin: '0 0 6px',
                 fontFamily: 'var(--font-display)',
+                letterSpacing: '-0.01em',
               }}>
                 Your notes workspace is ready
               </h2>
 
-              <p style={{ fontSize: '13px', color: textMuted, margin: '0 0 24px', maxWidth: '360px', lineHeight: 1.5 }}>
+              <p style={{
+                fontSize: '13px',
+                color: textMuted,
+                margin: '0 0 20px',
+                maxWidth: '380px',
+                lineHeight: 1.5,
+              }}>
                 Start writing a note or choose one from the sidebar.
               </p>
 
-              {/* Primary CTA: + New Note */}
-              <button
-                type="button"
-                onClick={() => {
-                  setNewNoteFolderId(folders[0]?._id || null);
-                  setNewNoteModalOpen(true);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: accent,
-                  color: '#ffffff',
-                  fontSize: '13.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(79,70,229,0.25)',
-                  transition: 'transform 0.15s ease',
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                <RiAddLine size={18} />
-                <span>+ New Note</span>
-              </button>
+              {/* Action Buttons: [+ New Note] and [Upload Markdown] */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                flexWrap: 'wrap',
+                maxWidth: '100%',
+              }}>
+                <Button
+                  type="primary"
+                  icon={<RiAddLine />}
+                  onClick={() => {
+                    setNewNoteFolderId(selectedFolderId || folders[0]?._id || null);
+                    setNewNoteModalOpen(true);
+                  }}
+                  style={{
+                    background: accent,
+                    borderColor: accent,
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    height: '36px',
+                    padding: '0 16px',
+                  }}
+                >
+                  New Note
+                </Button>
+
+                <Button
+                  icon={<RiUploadCloudLine />}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+                    borderColor: cardBorder,
+                    color: textColor,
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    height: '36px',
+                    padding: '0 16px',
+                  }}
+                >
+                  Upload Markdown
+                </Button>
+
+                {/* Hidden file input for Markdown Upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleMarkdownUpload}
+                  accept=".md,.markdown,.txt,text/markdown,text/plain"
+                  style={{ display: 'none' }}
+                />
+              </div>
             </div>
           ) : (
             /* ── Active Note Editor View ── */
@@ -576,14 +649,18 @@ export default function NotesSection({
 
               {/* Editor Top Bar: Folder Path & Save Status */}
               <div style={{
+                height: '48px',
+                minHeight: '48px',
+                maxHeight: '48px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '10px 18px',
+                padding: '0 16px',
                 borderBottom: `1px solid ${cardBorder}`,
-                background: isLight ? '#f9fafb' : '#0d0d16',
+                background: headerBg,
                 gap: '12px',
                 flexShrink: 0,
+                boxSizing: 'border-box',
               }}>
                 {/* Clickable Folder Path / Mobile Back */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
@@ -723,7 +800,7 @@ export default function NotesSection({
                   <button
                     type="button"
                     onClick={() => setIsFullscreen(!isFullscreen)}
-                    style={{ background: 'transparent', border: 'none', color: textMuted, cursor: 'pointer', padding: '4px' }}
+                    style={{ background: 'transparent', border: 'none', color: textMuted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                     title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                   >
                     {isFullscreen ? <RiFullscreenExitLine size={16} /> : <RiFullscreenLine size={16} />}
@@ -733,7 +810,7 @@ export default function NotesSection({
                   <button
                     type="button"
                     onClick={() => togglePinMutation.mutate(activeNote._id)}
-                    style={{ background: 'transparent', border: 'none', color: activeNote.isPinned ? '#eab308' : textMuted, cursor: 'pointer', padding: '4px' }}
+                    style={{ background: 'transparent', border: 'none', color: activeNote.isPinned ? '#eab308' : textMuted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                     title="Pin Note"
                   >
                     {activeNote.isPinned ? <RiPushpinFill size={16} /> : <RiPushpinLine size={16} />}
@@ -748,7 +825,7 @@ export default function NotesSection({
                   >
                     <button
                       type="button"
-                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                       title="Delete Note"
                     >
                       <RiDeleteBinLine size={16} />
@@ -764,9 +841,9 @@ export default function NotesSection({
                   alignItems: 'center',
                   flexWrap: 'wrap',
                   gap: '2px',
-                  padding: '6px 14px',
+                  padding: '5px 14px',
                   borderBottom: `1px solid ${cardBorder}`,
-                  background: isLight ? '#ffffff' : '#10101a',
+                  background: isLight ? '#ffffff' : '#0e0e12',
                   flexShrink: 0,
                 }}>
                   {[
@@ -804,7 +881,7 @@ export default function NotesSection({
                             border: 'none',
                             color: textMuted,
                             cursor: 'pointer',
-                            padding: '5px',
+                            padding: '4px',
                             borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
@@ -829,7 +906,7 @@ export default function NotesSection({
               )}
 
               {/* Note Title Input */}
-              <div style={{ padding: '12px 20px 8px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
+              <div style={{ padding: '10px 18px 6px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
                 <input
                   type="text"
                   placeholder="Note title..."
@@ -837,14 +914,14 @@ export default function NotesSection({
                   onChange={handleTitleChange}
                   style={{
                     width: '100%',
-                    fontSize: '20px',
-                    fontWeight: 800,
+                    fontSize: '18px',
+                    fontWeight: 700,
                     fontFamily: 'var(--font-display)',
                     color: textColor,
                     background: 'transparent',
                     border: 'none',
                     outline: 'none',
-                    paddingBottom: '4px',
+                    paddingBottom: '2px',
                   }}
                 />
               </div>
@@ -872,11 +949,11 @@ export default function NotesSection({
                         minHeight: 0,
                         height: '100%',
                         width: '100%',
-                        padding: '16px 20px',
+                        padding: '16px 18px',
                         background: 'transparent',
                         color: textColor,
                         fontSize: '13.5px',
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono, monospace)',
                         lineHeight: 1.6,
                         border: 'none',
                         outline: 'none',
@@ -895,9 +972,9 @@ export default function NotesSection({
                     minWidth: 0,
                     minHeight: 0,
                     height: '100%',
-                    padding: '16px 20px',
+                    padding: '16px 18px',
                     overflowY: 'auto',
-                    background: isLight ? '#f9fafb' : '#0c0c14',
+                    background: isLight ? '#fafafa' : '#0e0e12',
                     boxSizing: 'border-box',
                   }}>
                     <MarkdownRenderer content={noteContent || '*No content written yet.*'} isLight={isLight} />
