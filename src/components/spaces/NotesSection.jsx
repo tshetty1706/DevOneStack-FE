@@ -8,12 +8,12 @@ import {
   RiTableLine, RiSeparator, RiCheckLine,
   RiLoader4Line, RiDeleteBinLine, RiPushpinLine, RiPushpinFill,
   RiFullscreenLine, RiFullscreenExitLine, RiArrowLeftLine,
-  RiUploadCloudLine
+  RiUploadCloudLine, RiMenuFoldLine, RiMenuUnfoldLine
 } from 'react-icons/ri';
-import { Modal, Input, Select, Button, message, Tooltip, Popconfirm } from 'antd';
+import { Button, message, Tooltip, Popconfirm } from 'antd';
 import api from '../../api/axios';
 import MarkdownRenderer from '../common/MarkdownRenderer';
-import SharedFolderTree from './SharedFolderTree';
+import ModuleSidebar from './ModuleSidebar';
 import notesIllustration from '../../assets/editor/notes.svg';
 
 export default function NotesSection({
@@ -27,11 +27,10 @@ export default function NotesSection({
 }) {
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'recent'
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState(openNoteId || highlightId || null);
 
-  // Responsive state
+  // Responsive & Sidebar state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   const [mobileSidebarVisible, setMobileSidebarVisible] = useState(true);
 
@@ -57,12 +56,6 @@ export default function NotesSection({
     if (propOnSelectFolder) propOnSelectFolder(fId);
     else setLocalFolderId(fId);
   };
-  const [moveModalOpen, setMoveModalOpen] = useState(false);
-
-  // Destination Folder Modal for "+ New Note"
-  const [newNoteModalOpen, setNewNoteModalOpen] = useState(false);
-  const [newNoteTitle, setNewNoteTitle] = useState('');
-  const [newNoteFolderId, setNewNoteFolderId] = useState(selectedFolderId || null);
 
   // Textarea ref for toolbar insertions & file input ref
   const textareaRef = useRef(null);
@@ -108,76 +101,60 @@ export default function NotesSection({
     }
   }, [activeNote, openNoteId, highlightId, notes, selectedNoteId]);
 
-  // Group notes by folder
-  const groupedNotes = useMemo(() => {
-    const map = new Map();
-
-    folders.forEach(f => {
-      map.set(f._id, {
-        folder: f,
-        notes: []
-      });
-    });
-
-    const rootNotes = [];
-
-    notes.forEach(note => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = note.title?.toLowerCase().includes(q);
-        const matchesContent = note.content?.toLowerCase().includes(q);
-        const matchesTag = note.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesTitle && !matchesContent && !matchesTag) return;
-      }
-
-      if (note.folderId && map.has(note.folderId)) {
-        map.get(note.folderId).notes.push(note);
-      } else {
-        rootNotes.push(note);
-      }
-    });
-
-    map.forEach(group => {
-      group.notes.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
-    });
-
-    rootNotes.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
-
-    return {
-      foldersList: Array.from(map.values()).sort((a, b) => a.folder.name.localeCompare(b.folder.name, undefined, { sensitivity: 'base' })),
-      rootNotes
-    };
-  }, [folders, notes, searchQuery]);
-
-  // Recent notes list (sorted by updatedAt)
-  const recentNotes = useMemo(() => {
-    return [...notes].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 10);
-  }, [notes]);
-
   // Mutations
   const createNoteMutation = useMutation({
     mutationFn: async ({ title, folderId, content }) => {
       const res = await api.post(`/api/spaces/${space._id}/items`, {
         type: 'note',
         title: title || 'Untitled Note',
-        folderId,
+        folderId: folderId || null,
         content: content !== undefined ? content : '# ' + (title || 'Untitled Note') + '\n\nStart writing markdown here...'
       });
       return res.data;
     },
     onSuccess: (data) => {
-      message.success('Note created!');
+      message.success('Note created');
       queryClient.invalidateQueries({ queryKey: ['items', space._id] });
       queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
       queryClient.invalidateQueries({ queryKey: ['space', space._id] });
-      setSelectedNoteId(data.item._id);
-      setNewNoteModalOpen(false);
-      setNewNoteTitle('');
+      if (data?.item?._id) {
+        setSelectedNoteId(data.item._id);
+        setNoteTitle(data.item.title || '');
+        setNoteContent(data.item.content || '');
+        setSaveStatus('saved');
+      }
+      if (isMobile) {
+        setMobileSidebarVisible(false);
+      }
     },
     onError: (err) => {
       message.error(err.response?.data?.error || 'Failed to create note');
     }
   });
+
+  const handleCreateNewNote = useCallback((folderId) => {
+    const existingTitles = new Set(
+      notes.map(n => (n.title || '').trim().toLowerCase())
+    );
+    let count = 1;
+    while (
+      existingTitles.has(`note ${count}`.toLowerCase()) ||
+      existingTitles.has(`note(${count})`.toLowerCase()) ||
+      existingTitles.has(`note (${count})`.toLowerCase())
+    ) {
+      count++;
+    }
+    const defaultTitle = `Note ${count}`;
+    const destinationFolderId = (folderId !== undefined && folderId !== 'undefined')
+      ? (folderId && folderId !== 'root' && folderId !== 'null' ? folderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
+
+    createNoteMutation.mutate({
+      title: defaultTitle,
+      folderId: destinationFolderId,
+      content: `# ${defaultTitle}\n\nStart writing markdown here...`
+    });
+  }, [notes, selectedFolderId, createNoteMutation]);
 
   const saveNoteMutation = useMutation({
     mutationFn: async ({ noteId, title, content }) => {
@@ -219,6 +196,7 @@ export default function NotesSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
     }
   });
 
@@ -284,6 +262,61 @@ export default function NotesSection({
     e.target.value = '';
   };
 
+  // Image input ref for note inline images
+  const imageInputRef = useRef(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Upload an image and insert markdown link at cursor
+  const handleInsertImageFile = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      message.error('Please select an image file (PNG, JPG, WebP, GIF)');
+      return;
+    }
+
+    try {
+      setIsUploadingImage(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'image');
+      formData.append('title', file.name || 'image');
+      if (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null') {
+        formData.append('folderId', selectedFolderId);
+      }
+
+      const res = await api.post(`/api/spaces/${space._id}/items/upload`, formData);
+      const uploadedItem = res.data?.item || res.data?.doc;
+      const imageUrl = uploadedItem?.cloudinaryUrl || uploadedItem?.url;
+
+      if (imageUrl) {
+        const altText = (uploadedItem.title || 'image').replace(/[\[\]]/g, '');
+        insertMarkdown(`![${altText}](${imageUrl})\n`, '');
+        message.success('Image uploaded and inserted');
+        queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      }
+    } catch (err) {
+      console.error('Note image upload error:', err);
+      message.error(err.response?.data?.error || 'Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        if (blob) {
+          e.preventDefault();
+          handleInsertImageFile(blob);
+          break;
+        }
+      }
+    }
+  };
+
   // Markdown Toolbar helper to insert text at cursor
   const insertMarkdown = (before, after = '') => {
     const textarea = textareaRef.current;
@@ -336,177 +369,25 @@ export default function NotesSection({
     }}>
 
       {/* ── LEFT COLUMN: Notes Sidebar ── */}
-      {(!isMobile || (!activeNote || mobileSidebarVisible)) && (
-        <aside style={{
-          width: isMobile ? '100%' : '260px',
-          minWidth: isMobile ? '100%' : '240px',
-          maxWidth: isMobile ? '100%' : '300px',
-          borderRight: isMobile ? 'none' : `1px solid ${cardBorder}`,
-          background: sidebarBg,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          minHeight: 0,
-          flexShrink: 0,
-          overflow: 'hidden',
-        }}>
-          {/* Header & New Note CTA */}
-          <div style={{
-            padding: '12px 14px',
-            borderBottom: `1px solid ${cardBorder}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexShrink: 0,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RiStickyNoteLine size={17} style={{ color: accent }} />
-              <span style={{ fontSize: '13.5px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
-                Notes
-              </span>
-            </div>
-
-            <Button
-              type="primary"
-              size="small"
-              icon={<RiAddLine />}
-              onClick={() => {
-                setNewNoteFolderId(selectedFolderId || folders[0]?._id || null);
-                setNewNoteModalOpen(true);
-              }}
-              style={{
-                background: accent,
-                borderColor: accent,
-                borderRadius: '6px',
-                fontWeight: 600,
-                fontSize: '12px',
-              }}
-            >
-              New Note
-            </Button>
-          </div>
-
-          {/* Search Input */}
-          <div style={{ padding: '8px 12px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
-            <div style={{ position: 'relative' }}>
-              <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textMuted }} />
-              <input
-                type="text"
-                placeholder="Search notes..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px 6px 28px',
-                  borderRadius: '6px',
-                  border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-                  background: isLight ? '#ffffff' : '#1a1a1a',
-                  color: textColor,
-                  fontSize: '12px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Tabs: All & Recent */}
-          <div style={{ display: 'flex', padding: '6px 12px', gap: '6px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              style={{
-                flex: 1,
-                padding: '4px 0',
-                borderRadius: '5px',
-                border: 'none',
-                background: activeTab === 'all' ? (isLight ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.2)') : 'transparent',
-                color: activeTab === 'all' ? accent : textMuted,
-                fontWeight: activeTab === 'all' ? 700 : 500,
-                fontSize: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('recent')}
-              style={{
-                flex: 1,
-                padding: '4px 0',
-                borderRadius: '5px',
-                border: 'none',
-                background: activeTab === 'recent' ? (isLight ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.2)') : 'transparent',
-                color: activeTab === 'recent' ? accent : textMuted,
-                fontWeight: activeTab === 'recent' ? 700 : 500,
-                fontSize: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Recent
-            </button>
-          </div>
-
-          {/* Workspaces / Folders Tree */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 2px', display: 'flex', flexDirection: 'column' }}>
-            {activeTab === 'recent' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, color: textMuted, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Recently Modified
-                </div>
-                {recentNotes.length === 0 ? (
-                  <div style={{ padding: '12px 8px', fontSize: '12px', color: textMuted, textAlign: 'center' }}>
-                    No recent notes
-                  </div>
-                ) : (
-                  recentNotes.map(note => (
-                    <button
-                      type="button"
-                      key={note._id}
-                      onClick={() => handleSelectNote(note._id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '7px 10px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: selectedNoteId === note._id ? (isLight ? 'rgba(99,102,241,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
-                        color: selectedNoteId === note._id ? accent : textColor,
-                        fontSize: '12.5px',
-                        fontWeight: selectedNoteId === note._id ? 600 : 500,
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        width: '100%',
-                      }}
-                    >
-                      <RiStickyNoteLine size={14} style={{ flexShrink: 0, color: '#10b981' }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {note.title}
-                      </span>
-                    </button>
-                  ))
-                )}
-              </div>
-            ) : (
-              <SharedFolderTree
-                spaceId={space._id}
-                selectedFolderId={selectedFolderId}
-                onSelectFolder={handleSelectFolder}
-                onSelectItem={(item) => setSelectedNoteId(item._id)}
-                selectedItemId={selectedNoteId}
-                filterItemType="note"
-                isLight={isLight}
-                showHeader={true}
-                showSearch={false}
-              />
-            )}
-          </div>
-        </aside>
-      )}
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Notes"
+        icon={RiStickyNoteLine}
+        addButtonLabel="New Note"
+        itemType="note"
+        items={notes}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedNoteId}
+        onSelectItem={(item) => handleSelectNote(item._id)}
+        onAddItem={(folderId) => handleCreateNewNote(folderId)}
+        isLight={isLight}
+        isMobile={isMobile}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+        mobileSidebarVisible={mobileSidebarVisible}
+        hasActiveItem={!!activeNote}
+      />
 
       {/* ── RIGHT COLUMN: MAIN EDITOR / EMPTY STATE AREA ── */}
       {(!isMobile || (activeNote && !mobileSidebarVisible)) && (
@@ -534,7 +415,33 @@ export default function NotesSection({
               padding: '32px 20px',
               textAlign: 'center',
               userSelect: 'none',
+              position: 'relative',
             }}>
+              {isSidebarCollapsed && !isMobile && (
+                <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10 }}>
+                  <Tooltip title="Open sidebar">
+                    <Button
+                      size="small"
+                      icon={<RiMenuUnfoldLine size={14} />}
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: isLight ? '#ffffff' : '#1a1a1f',
+                        borderColor: cardBorder,
+                        color: textColor,
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Open Sidebar
+                    </Button>
+                  </Tooltip>
+                </div>
+              )}
+
               {/* Centered Notes Illustration (No decorative box, responsive sizing) */}
               <img
                 src={notesIllustration}
@@ -596,10 +503,7 @@ export default function NotesSection({
                 <Button
                   type="primary"
                   icon={<RiAddLine />}
-                  onClick={() => {
-                    setNewNoteFolderId(selectedFolderId || folders[0]?._id || null);
-                    setNewNoteModalOpen(true);
-                  }}
+                  onClick={() => handleCreateNewNote(selectedFolderId || null)}
                   style={{
                     background: accent,
                     borderColor: accent,
@@ -655,6 +559,30 @@ export default function NotesSection({
               }}>
                 {/* Clickable Folder Path / Mobile Back */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  {isSidebarCollapsed && !isMobile && (
+                    <Tooltip title="Open sidebar">
+                      <button
+                        type="button"
+                        onClick={() => setIsSidebarCollapsed(false)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'transparent',
+                          border: 'none',
+                          color: textMuted,
+                          cursor: 'pointer',
+                          padding: '4px 6px',
+                          borderRadius: '6px',
+                          flexShrink: 0,
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = accent}
+                        onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                      >
+                        <RiMenuUnfoldLine size={16} />
+                      </button>
+                    </Tooltip>
+                  )}
                   {isMobile && (
                     <button
                       type="button"
@@ -856,7 +784,7 @@ export default function NotesSection({
                     { icon: RiSeparator, label: 'Divider', fn: () => insertMarkdown('\n---\n') },
                     { divider: true },
                     { icon: RiLink, label: 'Link', fn: () => insertMarkdown('[', '](https://)') },
-                    { icon: RiImageLine, label: 'Image', fn: () => insertMarkdown('![alt](', ')') },
+                    { icon: RiImageLine, label: 'Insert Image (Upload or Paste)', fn: () => imageInputRef.current?.click() },
                   ].map((tool, idx) => {
                     if (tool.divider) {
                       return <span key={idx} style={{ height: '14px', width: '1px', background: cardBorder, margin: '0 4px' }} />;
@@ -893,6 +821,23 @@ export default function NotesSection({
                       </Tooltip>
                     );
                   })}
+                  {/* Hidden image input for inline Markdown Image Insert */}
+                  <input
+                    type="file"
+                    ref={imageInputRef}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleInsertImageFile(f);
+                      e.target.value = '';
+                    }}
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    style={{ display: 'none' }}
+                  />
+                  {isUploadingImage && (
+                    <span style={{ fontSize: '11px', color: accent, display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
+                      <RiLoader4Line size={12} className="animate-spin" /> Uploading image...
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -934,7 +879,8 @@ export default function NotesSection({
                       ref={textareaRef}
                       value={noteContent}
                       onChange={handleContentChange}
-                      placeholder="Write markdown here..."
+                      onPaste={handlePaste}
+                      placeholder="Write markdown here... (you can paste images directly)"
                       style={{
                         flex: 1,
                         minHeight: 0,
@@ -977,46 +923,6 @@ export default function NotesSection({
           )}
         </main>
       )}
-
-      {/* ── New Note Destination Folder Modal ── */}
-      <Modal
-        title="Create New Note"
-        open={newNoteModalOpen}
-        onCancel={() => setNewNoteModalOpen(false)}
-        onOk={() => {
-          createNoteMutation.mutate({
-            title: newNoteTitle.trim() || 'Untitled Note',
-            folderId: newNoteFolderId
-          });
-        }}
-        confirmLoading={createNoteMutation.isPending}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '10px' }}>
-          <div>
-            <label style={{ fontSize: '12px', color: textMuted, display: 'block', marginBottom: '4px' }}>Note Title</label>
-            <Input
-              placeholder="e.g. Authentication Flow, System Design, JWT Patterns"
-              value={newNoteTitle}
-              onChange={e => setNewNoteTitle(e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '12px', color: textMuted, display: 'block', marginBottom: '4px' }}>Destination Folder</label>
-            <Select
-              style={{ width: '100%' }}
-              placeholder="Select folder"
-              value={newNoteFolderId}
-              onChange={val => setNewNoteFolderId(val)}
-              options={[
-                { value: null, label: '📁 Workspace (Root)' },
-                ...folders.map(f => ({ value: f._id, label: `📁 ${f.path || f.name}` }))
-              ]}
-            />
-          </div>
-        </div>
-      </Modal>
 
     </div>
   );

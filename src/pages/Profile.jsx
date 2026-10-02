@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { Button, Select, Tag, Tooltip } from 'antd';
+import { Button, Tooltip } from 'antd';
 import {
-  RiUserLine,
   RiEditLine,
   RiMailLine,
   RiPhoneLine,
@@ -19,10 +17,8 @@ import {
   RiLayoutGridLine,
   RiStarLine,
   RiEyeLine,
-  RiTeamLine,
   RiCameraLine,
-  RiBriefcaseLine,
-  RiListCheck2
+  RiBriefcaseLine
 } from 'react-icons/ri';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -48,11 +44,10 @@ export default function Profile() {
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Spaces sorting & view mode
-  const [sortBy, setSortBy] = useState('updated');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  // Spaces sorting
+  const [sortBy] = useState('updated');
 
-  const { data: rawSpaces = [], isLoading: spacesLoading } = useSpaces();
+  const { data: rawSpaces = [] } = useSpaces();
 
   // Filter and sort spaces
   const spaces = useMemo(() => {

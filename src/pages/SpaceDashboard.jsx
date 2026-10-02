@@ -130,8 +130,15 @@ const SECTIONS = {
       onNavigateSection={onNavigateSection}
     />
   ),
-  communities: ({ space, isLight, highlightId }) => (
-    <CommunitiesSection space={space} isLight={isLight} highlightId={highlightId} />
+  communities: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+    <CommunitiesSection
+      space={space}
+      isLight={isLight}
+      highlightId={highlightId}
+      selectedFolderId={selectedFolderId}
+      onSelectFolder={onSelectFolder}
+      onNavigateSection={onNavigateSection}
+    />
   ),
   tags: ({ space, isLight, onNavigateSection }) => (
     <TagsSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} />
@@ -874,7 +881,7 @@ export default function SpaceDashboard() {
 
         {/* Content */}
         {(() => {
-          const isEditorSection = ['notes', 'docs', 'snippets', 'learnings', 'prompts', 'repos'].includes(activeSection);
+          const isEditorSection = ['notes', 'docs', 'snippets', 'learnings', 'prompts', 'repos', 'communities'].includes(activeSection);
           return (
             <main
               data-lenis-prevent
@@ -978,7 +985,7 @@ export default function SpaceDashboard() {
           <QuickAddDocModal open={quickAddModal === 'docs'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
           <QuickAddRepoModal open={quickAddModal === 'repos'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
           <QuickAddPromptModal open={quickAddModal === 'prompts'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
-          <QuickAddCommunityModal open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} />
+          <QuickAddCommunityModal open={quickAddModal === 'communities'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
         </>
       )}
 

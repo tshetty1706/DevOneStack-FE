@@ -69,7 +69,7 @@ export const tagsApi = {
 
 export const dashboardApi = {
   getRecentActivity: () => api.get('/api/history').then((r) => r.data),
-  getPinned: () => api.get('/api/pinned').then((r) => r.data),
+  getPinned: () => api.get('/api/dashboard/pinned').then((r) => r.data),
   getInbox: () => api.get('/api/inbox').then((r) => r.data),
   addToInbox: (payload) => api.post('/api/inbox', payload).then((r) => r.data),
   deleteInboxItem: (id) => api.delete(`/api/inbox/${id}`).then((r) => r.data),

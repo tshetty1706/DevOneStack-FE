@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
+import { Input, Select, Button, Popconfirm, Tag, message, Tooltip } from 'antd';
 import {
-  RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine,
-  RiSearchLine, RiFileCopyLine, RiCheckLine, RiRobotLine,
-  RiRobot2Line, RiHistoryLine, RiFolderLine, RiFolderTransferLine,
-  RiChatVoiceLine, RiMenuFoldLine, RiMenuUnfoldLine
+  RiAddLine, RiPushpinLine, RiDeleteBinLine,
+  RiFileCopyLine, RiCheckLine, RiRobot2Line,
+  RiFolderLine, RiFolderTransferLine, RiMenuUnfoldLine,
+  RiEditLine, RiSaveLine, RiCloseLine
 } from 'react-icons/ri';
 import api from '../../api/axios';
-import { QuickAddPromptModal } from './QuickAddModals';
-import SharedFolderTree from './SharedFolderTree';
+import ModuleSidebar from './ModuleSidebar';
 import MoveItemModal from './MoveItemModal';
 import PinButton from '../common/PinButton';
-import { useDebounce } from '../../hooks/useDebounce';
+import promptsIllustration from '../../assets/editor/prompts.svg';
+
+const { TextArea } = Input;
 
 const MODELS = [
   { value: 'Claude 3.5 Sonnet', label: 'Claude 3.5 Sonnet' },
@@ -44,15 +45,21 @@ export default function PromptsSection({
   onNavigateSection,
 }) {
   const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, 300);
+  const [copied, setCopied] = useState(false);
 
   const [localFolderId, setLocalFolderId] = useState(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
-  const [itemToMove, setItemToMove] = useState(null);
+
+  // Form states
+  const [formTitle, setFormTitle] = useState('');
+  const [formBody, setFormBody] = useState('');
+  const [formCaption, setFormCaption] = useState('');
+  const [formModel, setFormModel] = useState('Claude 3.5 Sonnet');
+  const [formCustomModel, setFormCustomModel] = useState('');
+  const [formTags, setFormTags] = useState('');
 
   const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
   const handleSelectFolder = (fId) => {
@@ -60,272 +67,241 @@ export default function PromptsSection({
     else setLocalFolderId(fId);
   };
 
-  const [viewPrompt, setViewPrompt] = useState(null);
-
-  // Form states
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [caption, setCaption] = useState('');
-  const [model, setModel] = useState('Claude 3.5 Sonnet');
-  const [customModel, setCustomModel] = useState('');
-  const [tags, setTags] = useState([]);
-  const [copiedId, setCopiedId] = useState(null);
-
   // Fetch folders for breadcrumbs
-  const { data: folderTreeData } = useQuery({
+  const { data: folderData } = useQuery({
     queryKey: ['folders', space._id],
     queryFn: async () => {
       const res = await api.get(`/api/spaces/${space._id}/folders`);
       return res.data.folders || [];
-    },
-    staleTime: 30000,
-  });
-
-  const currentFolderPath = useMemo(() => {
-    if (!selectedFolderId) return 'Space Root';
-    const folder = (folderTreeData || []).find(f => String(f._id) === String(selectedFolderId));
-    return folder ? folder.path : 'Space Root';
-  }, [selectedFolderId, folderTreeData]);
-
-  // Fetch prompts
-  const { data: rawPrompts = [], isLoading } = useQuery({
-    queryKey: ['prompts', space._id, debouncedQuery],
-    queryFn: async () => {
-      const endpoint = debouncedQuery
-        ? `/api/spaces/${space._id}/prompts/search?q=${encodeURIComponent(debouncedQuery)}`
-        : `/api/spaces/${space._id}/prompts`;
-      const response = await api.get(endpoint);
-      return response.data.prompts || [];
     }
   });
 
-  const prompts = useMemo(() => {
-    if (!selectedFolderId) return rawPrompts;
-    return rawPrompts.filter(p => {
-      const fId = p.folderId ? (typeof p.folderId === 'object' ? p.folderId._id : p.folderId) : null;
-      return fId === selectedFolderId;
-    });
-  }, [rawPrompts, selectedFolderId]);
+  const folders = folderData || [];
 
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
+
+  // Fetch prompts using unified items endpoint
+  const { data: rawPrompts = [], isLoading } = useQuery({
+    queryKey: ['items', space._id, 'prompt'],
+    queryFn: async () => {
+      const response = await api.get(`/api/spaces/${space._id}/items?type=prompt`);
+      return response.data.items || [];
+    }
+  });
+
+  const prompts = rawPrompts || [];
+
+  // Deep-linking highlight handler
   useEffect(() => {
-    if (highlightId && prompts && prompts.length > 0) {
+    if (highlightId && prompts.length > 0) {
       const target = prompts.find(p => p._id === highlightId);
       if (target) {
-        openEditModal(target);
+        setSelectedId(target._id);
+        setIsEditing(false);
       }
     }
   }, [highlightId, prompts]);
 
-  // Toggle Pin
-  const togglePin = useMutation({
-    mutationFn: async (id) => {
-      return api.patch(`/api/spaces/${space._id}/prompts/${id}/pin`);
-    },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries(['prompts', space._id]);
-      const prev = queryClient.getQueryData(['prompts', space._id, debouncedQuery]);
-      if (prev) {
-        queryClient.setQueryData(['prompts', space._id, debouncedQuery], old =>
-          old.map(item => item._id === id ? { ...item, isPinned: !item.isPinned } : item)
-        );
+  // Selected item object
+  const selectedItem = useMemo(() => {
+    return prompts.find(p => p._id === selectedId) || null;
+  }, [selectedId, prompts]);
+
+  // Sync form state when active selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      setFormTitle(selectedItem.title || '');
+      setFormBody(selectedItem.content || selectedItem.body || '');
+      setFormCaption(selectedItem.caption || '');
+      if (MODELS.some(m => m.value === selectedItem.model)) {
+        setFormModel(selectedItem.model || 'Claude 3.5 Sonnet');
+        setFormCustomModel('');
+      } else if (selectedItem.model) {
+        setFormModel('Custom');
+        setFormCustomModel(selectedItem.model);
+      } else {
+        setFormModel('Claude 3.5 Sonnet');
+        setFormCustomModel('');
       }
-      return { prev };
-    },
-    onError: (_, __, context) => {
-      if (context && context.prev) {
-        queryClient.setQueryData(['prompts', space._id, debouncedQuery], context.prev);
-      }
-      message.error('Failed to update pin');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['prompts', space._id]);
+      setFormTags(Array.isArray(selectedItem.tags) ? selectedItem.tags.join(', ') : (selectedItem.tags || ''));
     }
-  });
+  }, [selectedItem]);
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      return api.delete(`/api/spaces/${space._id}/prompts/${id}`);
-    },
-    onSuccess: () => {
-      message.success('Prompt deleted');
-      queryClient.invalidateQueries(['prompts', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-    }
-  });
-
-  const openAddModal = () => {
-    setEditingPrompt(null);
-    setTitle('');
-    setBody('');
-    setCaption('');
-    setModel('Claude 3.5 Sonnet');
-    setCustomModel('');
-    setTags([]);
-    setModalOpen(true);
-  };
-
-  const openEditModal = (prompt) => {
-    setEditingPrompt(prompt);
-    setTitle(prompt.title);
-    setBody(prompt.body);
-    setCaption(prompt.caption || '');
-    if (MODELS.some(m => m.value === prompt.model)) {
-      setModel(prompt.model);
-      setCustomModel('');
-    } else {
-      setModel('Custom');
-      setCustomModel(prompt.model);
-    }
-    setTags(prompt.tags || []);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingPrompt(null);
-  };
-
-  const handleCopy = async (prompt) => {
-    if (!prompt) return;
-    try {
-      await navigator.clipboard.writeText(prompt.body);
-      setCopiedId(prompt._id);
-      setTimeout(() => setCopiedId(null), 1500);
-      message.success('Prompt copied to clipboard!');
-
-      queryClient.setQueriesData({ queryKey: ['prompts', space._id] }, (old) => {
-        if (!Array.isArray(old)) return old;
-        return old.map(item => {
-          const isTarget = item && item._id && String(item._id) === String(prompt._id);
-          return isTarget ? { ...item, usedCount: (item.usedCount || 0) + 1 } : item;
-        });
+  // Create prompt mutation
+  const createPromptMutation = useMutation({
+    mutationFn: async ({ title, folderId, body, model, caption }) => {
+      const res = await api.post(`/api/spaces/${space._id}/items`, {
+        type: 'prompt',
+        title,
+        folderId: folderId || null,
+        content: body || 'You are an expert developer...',
+        model: model || 'Claude 3.5 Sonnet',
+        caption: caption || '',
       });
-
-      await api.post(`/api/spaces/${space._id}/prompts/${prompt._id}/use`);
-    } catch {
-      message.error('Failed to copy prompt');
+      return res.data.item;
+    },
+    onSuccess: (newItem) => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'prompt'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(newItem._id);
+      setIsEditing(true);
+      message.success(`Created "${newItem.title}"`);
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't create prompt.");
     }
+  });
+
+  // Update prompt mutation
+  const updatePromptMutation = useMutation({
+    mutationFn: async ({ itemId, payload }) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}`, payload);
+      return res.data.item;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'prompt'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      setIsEditing(false);
+      message.success('Prompt saved successfully');
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't save prompt.");
+    }
+  });
+
+  // Delete prompt mutation
+  const deletePromptMutation = useMutation({
+    mutationFn: async (itemId) => {
+      await api.delete(`/api/spaces/${space._id}/items/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'prompt'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(null);
+      setIsEditing(false);
+      message.success('Prompt deleted');
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't delete prompt.");
+    }
+  });
+
+  // Pin prompt mutation
+  const pinMutation = useMutation({
+    mutationFn: async (itemId) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}/pin`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'prompt'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
+    }
+  });
+
+  // Direct prompt creation handler
+  const handleCreateNewPrompt = useCallback((targetFolderId) => {
+    const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
+      ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
+
+    const nextNumber = prompts.length + 1;
+    const defaultTitle = `Prompt ${nextNumber}`;
+
+    createPromptMutation.mutate({
+      title: defaultTitle,
+      folderId: validFolderId,
+      body: 'You are an expert AI assistant specialized in full-stack web development...',
+      model: 'Claude 3.5 Sonnet',
+      caption: '',
+    });
+  }, [prompts.length, selectedFolderId, createPromptMutation]);
+
+  // Handle save prompt form
+  const handleSavePrompt = () => {
+    if (!selectedId) return;
+    if (!formTitle.trim()) {
+      message.warning('Please enter a prompt title');
+      return;
+    }
+
+    const finalModel = formModel === 'Custom' ? (formCustomModel.trim() || 'Custom Model') : formModel;
+    const tagsArray = formTags
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    updatePromptMutation.mutate({
+      itemId: selectedId,
+      payload: {
+        title: formTitle.trim(),
+        content: formBody,
+        caption: formCaption.trim(),
+        model: finalModel,
+        tags: tagsArray,
+      }
+    });
   };
+
+  // Copy prompt handler
+  const handleCopyPrompt = (textToCopy) => {
+    const promptText = textToCopy !== undefined ? textToCopy : (formBody || selectedItem?.content || selectedItem?.body || '');
+    if (!promptText) return;
+    navigator.clipboard.writeText(promptText);
+    setCopied(true);
+    message.success('Prompt copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Theme design tokens
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const mainBg = isLight ? '#ffffff' : '#0d0d12';
+  const headerBg = isLight ? '#fafafa' : '#0f0f16';
+  const textColor = isLight ? '#111827' : '#f3f4f6';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
+  const boxBg = isLight ? '#f8f9fa' : '#14141d';
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'row',
-      flex: 1,
-      height: '100%',
-      width: '100%',
-      minHeight: 0,
-      overflow: 'hidden',
-      background: isLight ? '#ffffff' : '#0b0b0e'
-    }}>
-      {/* LEFT COLUMN: Folder Sidebar */}
-      {!isSidebarCollapsed && (
-        <aside style={{
-          width: '280px',
-          minWidth: '240px',
-          maxWidth: '320px',
-          borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          minHeight: 0,
-          flexShrink: 0,
-          background: isLight ? '#fafafa' : '#0a0a0f',
-          overflow: 'hidden'
-        }}>
-          {/* Module Sidebar Header */}
-          <div style={{
-            height: '48px',
-            padding: '0 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-            flexShrink: 0,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RiChatVoiceLine size={18} style={{ color: isLight ? '#4f46e5' : '#818cf8' }} />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111827' : '#ffffff' }}>
-                Prompts
-              </span>
-              <span style={{
-                fontSize: '11px',
-                padding: '1px 6px',
-                borderRadius: '10px',
-                background: isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.15)',
-                color: isLight ? '#4f46e5' : '#818cf8',
-                fontWeight: 600,
-              }}>
-                {rawPrompts.length}
-              </span>
-            </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        background: mainBg,
+        position: 'relative',
+      }}
+    >
+      {/* ── SHARED MODULE SIDEBAR ── */}
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Prompts"
+        icon={RiRobot2Line}
+        addButtonLabel="New Prompt"
+        itemType="prompt"
+        items={prompts}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedId}
+        onSelectItem={(item) => {
+          setSelectedId(item._id);
+          setIsEditing(false);
+        }}
+        onAddItem={(folderId) => handleCreateNewPrompt(folderId)}
+        isLight={isLight}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+      />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={openAddModal}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: isLight ? '#4f46e5' : '#6366f1',
-                  color: '#fff',
-                  fontSize: '11.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <RiAddLine size={14} />
-                <span>New</span>
-              </button>
-              <button
-                onClick={() => setIsSidebarCollapsed(true)}
-                title="Collapse Sidebar"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'transparent',
-                  border: 'none',
-                  color: isLight ? '#6b7280' : '#9ca3af',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '4px',
-                }}
-              >
-                <RiMenuFoldLine size={16} />
-              </button>
-            </div>
-          </div>
-
-          {/* Tree Explorer */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 4px' }}>
-            <SharedFolderTree
-              spaceId={space._id}
-              selectedFolderId={selectedFolderId}
-              onSelectFolder={handleSelectFolder}
-              onSelectItem={(item) => {
-                if (item.type === 'prompt') {
-                  setViewPrompt(item);
-                } else if (onNavigateSection) {
-                  onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
-                }
-              }}
-              selectedItemId={viewPrompt?._id || highlightId}
-              filterItemType="prompt"
-              isLight={isLight}
-              showHeader={false}
-              showSearch={true}
-            />
-          </div>
-        </aside>
-      )}
-
-      {/* RIGHT COLUMN: Prompts content */}
+      {/* ── MAIN CONTENT PANE (INLINE VIEWER & EDITOR) ── */}
       <main
         data-lenis-prevent
         style={{
@@ -334,352 +310,491 @@ export default function PromptsSection({
           flexDirection: 'column',
           height: '100%',
           minWidth: 0,
-          overflowY: 'auto',
-          background: isLight ? '#f9fafb' : '#07070b',
-          padding: 'clamp(16px, 3vw, 24px)'
+          background: mainBg,
+          overflow: 'hidden',
         }}
       >
-        {/* Header controls */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 'min(100%, 220px)' }}>
-            {isSidebarCollapsed && (
-              <button
-                onClick={() => setIsSidebarCollapsed(false)}
-                title="Expand Sidebar"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.1)'}`,
-                  background: isLight ? '#f9fafb' : '#14141c',
-                  color: isLight ? '#374151' : '#d1d5db',
-                  cursor: 'pointer',
-                  marginRight: '2px'
-                }}
-              >
-                <RiMenuUnfoldLine size={16} />
-              </button>
-            )}
+        {selectedItem ? (
+          <>
+            {/* Header bar */}
+            <div
+              style={{
+                padding: '10px 18px',
+                borderBottom: `1px solid ${cardBorder}`,
+                background: headerBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* Left: Sidebar Restore + Breadcrumb */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Show sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
+                )}
 
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
-              border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
-              fontSize: '12px',
-              fontWeight: 600,
-              color: isLight ? '#4f46e5' : '#818cf8',
-            }}>
-              <RiFolderLine size={14} />
-              <span>{currentFolderPath}</span>
-            </div>
-
-            <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
-              <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
-              <input
-                placeholder="Search prompts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%', padding: '7px 10px 7px 32px', borderRadius: '8px',
-                  border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-                  background: isLight ? '#ffffff' : '#1a1a1a',
-                  color: isLight ? '#111111' : '#ffffff',
-                  outline: 'none', fontSize: '13px'
-                }}
-              />
-            </div>
-          </div>
-
-          <Button
-            type="primary"
-            icon={<RiAddLine />}
-            onClick={openAddModal}
-            style={{ background: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1', borderRadius: '8px' }}
-          >
-            Add Prompt
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <Skeleton active paragraph={{ rows: 3 }} />
-        ) : prompts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
-            No saved prompts. Keep your best AI prompts here!
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
-            {prompts.map((prompt) => (
-              <div
-                key={prompt._id}
-                style={{
-                  background:   isLight ? '#ffffff' : '#14141c',
-                  border:       `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-                  borderRadius: '12px',
-                  padding:      '18px 20px',
-                  display:      'flex',
-                  flexDirection:'column',
-                  gap:          '14px',
-                  position:     'relative',
-                  transition:   'all 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
-                  e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                {/* Header Row: Badge & Pin */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                    padding: '2px 8px', borderRadius: '4px',
-                    background: isLight ? 'rgba(236, 72, 153, 0.08)' : 'rgba(236, 72, 153, 0.12)',
-                    border: `1px solid ${isLight ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.25)'}`,
-                    color: '#f472b6', display: 'flex', alignItems: 'center', gap: '4px'
-                  }}>
-                    <RiRobotLine size={12} />
-                    <span>{(prompt.model || 'AI MODEL').toUpperCase()}</span>
-                  </span>
-                  <PinButton isPinned={prompt.isPinned} onToggle={() => togglePin.mutate(prompt._id)} />
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: textMuted,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <RiFolderLine size={14} style={{ color: accent, flexShrink: 0 }} />
+                  <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
 
-                {/* Main Content info */}
-                <div style={{ cursor: 'pointer' }} onClick={() => setViewPrompt(prompt)}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px' }}>
-                    {prompt.title}
-                  </h4>
+                <Tooltip title="Move to folder">
+                  <button
+                    type="button"
+                    onClick={() => setMoveModalOpen(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                  >
+                    <RiFolderTransferLine size={13} />
+                    <span>Move</span>
+                  </button>
+                </Tooltip>
 
-                  {prompt.folderPath && (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onNavigateSection) {
-                          onNavigateSection('explorer', prompt._id, prompt.folderId);
-                        }
-                      }}
-                      style={{
-                        fontSize: '11.5px',
-                        color: 'var(--accent-color)',
-                        cursor: 'pointer',
-                        margin: '0 0 6px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        textDecoration: 'underline',
-                        fontWeight: 500,
-                      }}
-                      title="View in Explorer"
-                    >
-                      <RiFolderLine size={12} />
-                      <span>{prompt.folderPath}</span>
+                {selectedItem.model && (
+                  <Tag color="purple" style={{ margin: 0, borderRadius: '4px', fontSize: '10.5px', fontWeight: 600 }}>
+                    {selectedItem.model}
+                  </Tag>
+                )}
+              </div>
+
+              {/* Right: Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {/* 1-Click Copy */}
+                <Button
+                  size="small"
+                  icon={copied ? <RiCheckLine style={{ color: '#10b981' }} /> : <RiFileCopyLine />}
+                  onClick={() => handleCopyPrompt(isEditing ? formBody : (selectedItem.content || selectedItem.body))}
+                  style={{
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    borderColor: copied ? '#10b981' : (isLight ? '#e5e7eb' : 'rgba(255,255,255,0.12)'),
+                    color: copied ? '#10b981' : textColor,
+                    background: copied ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy Prompt'}
+                </Button>
+
+                {/* Edit / Save Toggle */}
+                {isEditing ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<RiSaveLine />}
+                    loading={updatePromptMutation.isPending}
+                    onClick={handleSavePrompt}
+                    style={{
+                      background: accent,
+                      borderColor: accent,
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                    }}
+                  >
+                    Save
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    icon={<RiEditLine />}
+                    onClick={() => setIsEditing(true)}
+                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                  >
+                    Edit
+                  </Button>
+                )}
+
+                {/* Pin Button */}
+                <PinButton
+                  isPinned={selectedItem.isPinned}
+                  onToggle={() => pinMutation.mutate(selectedItem._id)}
+                  isLight={isLight}
+                />
+
+                {/* Delete Button */}
+                <Popconfirm
+                  title="Delete Prompt"
+                  description="Are you sure you want to delete this prompt?"
+                  okText="Delete"
+                  okType="danger"
+                  cancelText="Cancel"
+                  onConfirm={() => deletePromptMutation.mutate(selectedItem._id)}
+                >
+                  <Button
+                    danger
+                    type="text"
+                    size="small"
+                    icon={<RiDeleteBinLine size={15} />}
+                    style={{ borderRadius: '6px' }}
+                  />
+                </Popconfirm>
+              </div>
+            </div>
+
+            {/* Scrollable Body: Editor or Viewer */}
+            <div
+              data-lenis-prevent
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px 28px',
+                scrollbarWidth: 'thin',
+              }}
+            >
+              {isEditing ? (
+                /* ── EDIT MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Title & Model Row */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '220px' }}>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        PROMPT TITLE
+                      </label>
+                      <Input
+                        placeholder="e.g. System architect prompt for microservices"
+                        value={formTitle}
+                        onChange={e => setFormTitle(e.target.value)}
+                        style={{ borderRadius: '8px', fontSize: '14px', fontWeight: 600, padding: '7px 12px' }}
+                      />
+                    </div>
+
+                    <div style={{ width: '200px' }}>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        TARGET AI MODEL
+                      </label>
+                      <Select
+                        value={formModel}
+                        onChange={setFormModel}
+                        options={MODELS}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </div>
+
+                  {formModel === 'Custom' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        CUSTOM MODEL NAME
+                      </label>
+                      <Input
+                        placeholder="e.g. Fine-tuned Llama 3 8B"
+                        value={formCustomModel}
+                        onChange={e => setFormCustomModel(e.target.value)}
+                        style={{ borderRadius: '8px', padding: '7px 12px' }}
+                      />
                     </div>
                   )}
 
-                  {prompt.caption ? (
-                    <p style={{
-                      fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
-                    }}>
-                      {prompt.caption}
-                    </p>
-                  ) : (
-                    <div style={{ height: '4px' }} />
-                  )}
-
-                  {/* Prompt block preview */}
-                  <div style={{
-                    background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
-                    borderRadius: '8px', padding: '10px',
-                    fontFamily: 'monospace', fontSize: '11px', color: isLight ? '#4b5563' : '#a1a1aa',
-                    lineHeight: 1.4, fontStyle: 'italic', marginBottom: '10px',
-                    border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.05)'}`,
-                    overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical'
-                  }}>
-                    {prompt.body}
+                  {/* Caption / Description */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      CAPTION / PURPOSE (OPTIONAL)
+                    </label>
+                    <Input
+                      placeholder="Context on when and how to use this prompt..."
+                      value={formCaption}
+                      onChange={e => setFormCaption(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
                   </div>
 
-                  {prompt.tags && prompt.tags.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      {prompt.tags.map(t => (
-                        <Tag key={t} style={{ fontSize: '10px', borderRadius: '4px', margin: 0 }}>
-                          #{t}
+                  {/* Prompt Text / Body */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      PROMPT BODY / INSTRUCTIONS
+                    </label>
+                    <TextArea
+                      value={formBody}
+                      onChange={e => setFormBody(e.target.value)}
+                      placeholder="Write your prompt or instructions here..."
+                      rows={14}
+                      style={{
+                        fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                        borderRadius: '8px',
+                        background: boxBg,
+                        color: textColor,
+                        border: `1px solid ${cardBorder}`,
+                        padding: '12px 14px',
+                      }}
+                    />
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      TAGS (COMMA SEPARATED)
+                    </label>
+                    <Input
+                      placeholder="system, coding, architecture, review"
+                      value={formTags}
+                      onChange={e => setFormTags(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  {/* Save button row */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    <Button
+                      type="primary"
+                      icon={<RiSaveLine />}
+                      loading={updatePromptMutation.isPending}
+                      onClick={handleSavePrompt}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        padding: '6px 18px',
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button onClick={() => setIsEditing(false)} style={{ borderRadius: '6px' }}>
+                      Done Editing
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* ── VIEW MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Title & Caption */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                      <h1
+                        style={{
+                          fontSize: '20px',
+                          fontWeight: 700,
+                          color: textColor,
+                          margin: 0,
+                          fontFamily: 'var(--font-display)',
+                        }}
+                      >
+                        {selectedItem.title}
+                      </h1>
+                      {selectedItem.model && (
+                        <Tag color="purple" style={{ margin: 0, borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                          {selectedItem.model}
+                        </Tag>
+                      )}
+                    </div>
+
+                    {selectedItem.caption && (
+                      <p style={{ margin: '6px 0 0', fontSize: '13.5px', color: textMuted, lineHeight: 1.5 }}>
+                        {selectedItem.caption}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Prompt Container */}
+                  <div
+                    style={{
+                      borderRadius: '10px',
+                      border: `1px solid ${cardBorder}`,
+                      background: boxBg,
+                      overflow: 'hidden',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 14px',
+                        borderBottom: `1px solid ${cardBorder}`,
+                        background: isLight ? '#f1f3f5' : '#171722',
+                      }}
+                    >
+                      <span style={{ fontSize: '11.5px', fontWeight: 600, color: textMuted }}>
+                        Prompt Content
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPrompt(selectedItem.content || selectedItem.body)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: copied ? '#10b981' : textMuted,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '11.5px',
+                          fontWeight: 500,
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                        }}
+                        onMouseEnter={e => {
+                          if (!copied) e.currentTarget.style.color = textColor;
+                        }}
+                        onMouseLeave={e => {
+                          if (!copied) e.currentTarget.style.color = textMuted;
+                        }}
+                      >
+                        {copied ? <RiCheckLine size={13} /> : <RiFileCopyLine size={13} />}
+                        <span>{copied ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px',
+                        fontSize: '13px',
+                        lineHeight: 1.6,
+                        whiteSpace: 'pre-wrap',
+                        color: textColor,
+                        fontFamily: "'Fira Code', Consolas, monospace",
+                      }}
+                    >
+                      {selectedItem.content || selectedItem.body || 'No prompt content'}
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  {Array.isArray(selectedItem.tags) && selectedItem.tags.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <span style={{ fontSize: '11.5px', color: textMuted }}>Tags:</span>
+                      {selectedItem.tags.map((tag, idx) => (
+                        <Tag key={idx} style={{ borderRadius: '4px', fontSize: '11px' }}>
+                          #{tag}
                         </Tag>
                       ))}
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* ── EMPTY STATE ── */
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '32px',
+              textAlign: 'center',
+            }}
+          >
+            {isSidebarCollapsed && (
+              <Button
+                icon={<RiMenuUnfoldLine />}
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{ position: 'absolute', top: '16px', left: '16px', borderRadius: '6px' }}
+              >
+                Open Sidebar
+              </Button>
+            )}
 
-                {/* Divider Line */}
-                <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
-
-                {/* Metadata Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {new Date(prompt.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiRobot2Line size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {prompt.model || 'Model'}
-                      </span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Engine</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiFileCopyLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff' }}>{prompt.usedCount || 0} Times</span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Used</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Footer */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleCopy(prompt); }}
-                    style={{
-                      background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
-                      color: isLight ? '#111111' : '#ffffff', cursor: 'pointer', padding: '5px 12px',
-                      borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
-                    }}
-                  >
-                    {copiedId === prompt._id ? <RiCheckLine size={14} style={{ color: '#22c55e' }} /> : <RiFileCopyLine size={14} />}
-                    <span>{copiedId === prompt._id ? 'Copied' : 'Copy'}</span>
-                  </button>
-
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button
-                      onClick={() => setViewPrompt(prompt)}
-                      style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#f472b6', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => openEditModal(prompt)}
-                      style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#f472b6', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => { setItemToMove(prompt); setMoveModalOpen(true); }}
-                      style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#f472b6', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      Move
-                    </button>
-                    <Popconfirm title="Delete this prompt?" onConfirm={() => deleteMutation.mutate(prompt._id)} okText="Delete" cancelText="Cancel">
-                      <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        Delete
-                      </button>
-                    </Popconfirm>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <img
+              src={promptsIllustration}
+              alt="Prompts"
+              style={{
+                width: '180px',
+                height: '180px',
+                marginBottom: '18px',
+                opacity: isLight ? 0.9 : 0.85,
+              }}
+            />
+            <h3
+              style={{
+                fontSize: '17px',
+                fontWeight: 600,
+                color: textColor,
+                marginBottom: '8px',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              No prompt selected
+            </h3>
+            <p
+              style={{
+                fontSize: '13px',
+                color: textMuted,
+                maxWidth: '360px',
+                lineHeight: 1.5,
+                margin: '0 0 18px',
+              }}
+            >
+              Select a prompt from the folder tree on the left, or create a new prompt directly in {currentFolderPath}.
+            </p>
+            <Button
+              type="primary"
+              icon={<RiAddLine />}
+              onClick={() => handleCreateNewPrompt(selectedFolderId)}
+              style={{
+                background: accent,
+                borderColor: accent,
+                borderRadius: '6px',
+                fontWeight: 600,
+                padding: '6px 18px',
+              }}
+            >
+              Create Prompt
+            </Button>
           </div>
         )}
       </main>
 
-      {/* Add / Edit Modal */}
-      <QuickAddPromptModal
-        open={modalOpen}
-        onClose={closeModal}
-        space={space}
-        defaultFolderId={selectedFolderId}
-        editingPrompt={editingPrompt}
-      />
-
-      {/* Move Item Modal */}
-      <MoveItemModal
-        open={moveModalOpen}
-        onClose={() => { setMoveModalOpen(false); setItemToMove(null); }}
-        space={space}
-        item={itemToMove}
-        onSuccess={() => {
-          queryClient.invalidateQueries(['prompts', space._id]);
-          queryClient.invalidateQueries(['items', space._id]);
-        }}
-      />
-
-      {/* Prompt Viewer Modal */}
-      <Modal
-        title={`View AI Prompt: ${viewPrompt?.title}`}
-        open={!!viewPrompt}
-        onCancel={() => setViewPrompt(null)}
-        footer={[
-          <Button key="close" onClick={() => setViewPrompt(null)}>
-            Close
-          </Button>
-        ]}
-        width={650}
-        style={{ top: 40 }}
-        styles={{
-          body: {
-            maxHeight: 'calc(100vh - 160px)',
-            overflowY: 'auto',
-            padding: '20px 24px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--border) transparent',
-          },
-          mask: { backdropFilter: 'blur(4px)' },
-        }}
-        getContainer={false}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
-          <div>
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', fontWeight: 600 }}>Model</span>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff', marginTop: '4px' }}>
-              {viewPrompt?.model || 'AI Model'}
-            </div>
-          </div>
-          {viewPrompt?.caption && (
-            <div>
-              <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', fontWeight: 600 }}>Description</span>
-              <p style={{ fontSize: '13px', color: isLight ? '#333' : '#ccc', margin: '4px 0 0', lineHeight: 1.5 }}>
-                {viewPrompt.caption}
-              </p>
-            </div>
-          )}
-          <div>
-            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', fontWeight: 600 }}>Prompt Body</span>
-            <div style={{
-              background: isLight ? '#f3f4f6' : '#18181b',
-              border: `1px solid ${isLight ? '#e5e7eb' : '#27272a'}`,
-              borderRadius: '8px',
-              padding: '12px',
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              color: isLight ? '#111' : '#e4e4e7',
-              whiteSpace: 'pre-wrap',
-              maxHeight: '350px',
-              overflowY: 'auto',
-              marginTop: '4px',
-              lineHeight: 1.5
-            }}>
-              {viewPrompt?.body}
-            </div>
-          </div>
-        </div>
-      </Modal>
+      {/* ── Move Item Modal ── */}
+      {selectedItem && (
+        <MoveItemModal
+          isOpen={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          spaceId={space._id}
+          item={selectedItem}
+          isLight={isLight}
+        />
+      )}
     </div>
   );
 }

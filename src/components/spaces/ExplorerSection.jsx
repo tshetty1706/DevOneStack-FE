@@ -14,6 +14,7 @@ import { Modal, Input, Select, message, Tooltip, Popconfirm, Tag } from 'antd';
 import api from '../../api/axios';
 import MarkdownRenderer from '../common/MarkdownRenderer';
 import { QuickAddNoteModal, QuickAddDocModal, QuickAddSnippetModal, QuickAddLearningModal, QuickAddPromptModal, QuickAddRepoModal } from './QuickAddModals';
+import { resolveFileUrl, isPdfFile, isImageFile } from '../../utils/fileResolver';
 
 const TYPE_META = {
   note: { label: 'Note', icon: RiStickyNoteLine, color: '#10b981', section: 'notes', bg: 'rgba(16,185,129,0.1)' },
@@ -53,6 +54,15 @@ export default function ExplorerSection({
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('all');
   const [selectedItem, setSelectedItem] = useState(null);
   const [isViewerMaximized, setIsViewerMaximized] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyText = (text, label = 'Code') => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    message.success(`${label} copied to clipboard!`);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Folder modals
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
@@ -587,9 +597,12 @@ export default function ExplorerSection({
                   if (selectedItem?._id !== item._id) e.currentTarget.style.background = 'transparent';
                 }}
               >
-                {/* Item Name (Clickable to open viewer) */}
+                {/* Item Name (Clickable to open full screen viewer) */}
                 <div
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => {
+                    setSelectedItem(item);
+                    setIsViewerMaximized(true);
+                  }}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', minWidth: 0 }}
                 >
                   <div style={{
@@ -714,155 +727,354 @@ export default function ExplorerSection({
         </div>
       </div>
 
-      {/* Item Viewer Card / Drawer (When Item is Clicked) */}
+      {/* ── Active Item Full-Screen / Modal Viewer Overlay ── */}
       {selectedItem && (
-        <div style={{
-          position: isViewerMaximized ? 'fixed' : 'relative',
-          inset: isViewerMaximized ? '24px' : 'auto',
-          zIndex: isViewerMaximized ? 1200 : 'auto',
-          background: isLight ? '#ffffff' : '#0e0e18',
-          border: `1px solid ${cardBorder}`,
-          borderRadius: '14px',
-          boxShadow: isViewerMaximized ? '0 25px 50px -12px rgba(0,0,0,0.6)' : 'none',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-          maxHeight: isViewerMaximized ? 'calc(100vh - 48px)' : 'auto',
-          overflowY: 'auto',
-        }}>
-          {/* Viewer Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${cardBorder}`, paddingBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '3px 8px',
-                borderRadius: '4px',
-                background: TYPE_META[selectedItem.type]?.bg || 'rgba(99,102,241,0.1)',
-                color: TYPE_META[selectedItem.type]?.color || accent,
-              }}>
-                {selectedItem.type?.toUpperCase()}
-              </span>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
-                {selectedItem.title}
-              </h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1300,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: isViewerMaximized ? '0' : '24px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedItem(null);
+            }
+          }}
+        >
+          <div
+            data-lenis-prevent
+            style={{
+              width: isViewerMaximized ? '100vw' : '960px',
+              maxWidth: isViewerMaximized ? '100vw' : '95vw',
+              height: isViewerMaximized ? '100vh' : '88vh',
+              maxHeight: isViewerMaximized ? '100vh' : '90vh',
+              background: isLight ? '#ffffff' : '#0d0d14',
+              border: isViewerMaximized ? 'none' : `1px solid ${cardBorder}`,
+              borderRadius: isViewerMaximized ? '0' : '16px',
+              boxShadow: '0 25px 60px -15px rgba(0,0,0,0.85)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Viewer Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 24px',
+              borderBottom: `1px solid ${cardBorder}`,
+              background: isLight ? '#f9fafb' : '#12121c',
+              flexShrink: 0,
+              gap: '14px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  background: TYPE_META[selectedItem.type]?.bg || 'rgba(99,102,241,0.1)',
+                  color: TYPE_META[selectedItem.type]?.color || accent,
+                  flexShrink: 0,
+                  textTransform: 'uppercase',
+                }}>
+                  {selectedItem.type}
+                </span>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedItem.title}
+                </h3>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {/* Redirect to Module Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const section = TYPE_META[selectedItem.type]?.section || 'docs';
+                    if (onNavigateSection) onNavigateSection(section, selectedItem._id);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${cardBorder}`,
+                    background: 'transparent',
+                    color: accent,
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RiShareForwardLine size={14} />
+                  <span>Open in {TYPE_META[selectedItem.type]?.label}s</span>
+                </button>
+
+                {/* Maximize / Minimize Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsViewerMaximized(!isViewerMaximized)}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${cardBorder}`,
+                    color: textColor,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                  title={isViewerMaximized ? 'Minimize Window' : 'Full Screen'}
+                >
+                  {isViewerMaximized ? (
+                    <>
+                      <RiFullscreenExitLine size={15} />
+                      <span>Minimize</span>
+                    </>
+                  ) : (
+                    <>
+                      <RiFullscreenLine size={15} />
+                      <span>Full Screen</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedItem(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                  onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                >
+                  <RiCloseLine size={22} />
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* Redirect to Module Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  const section = TYPE_META[selectedItem.type]?.section || 'docs';
-                  if (onNavigateSection) onNavigateSection(section, selectedItem._id);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: `1px solid ${cardBorder}`,
-                  background: 'transparent',
-                  color: accent,
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <RiShareForwardLine size={14} />
-                <span>Open in {TYPE_META[selectedItem.type]?.label}s</span>
-              </button>
+            {/* Item Content Preview */}
+            <div
+              data-lenis-prevent
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: isViewerMaximized ? '32px 48px' : '24px 28px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              {selectedItem.type === 'note' && (
+                <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto' }}>
+                  <MarkdownRenderer content={selectedItem.content || '*No content written yet.*'} isLight={isLight} />
+                </div>
+              )}
 
-              {/* Maximize / Minimize Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsViewerMaximized(!isViewerMaximized)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: textMuted,
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title={isViewerMaximized ? 'Minimize' : 'Maximize'}
-              >
-                {isViewerMaximized ? <RiFullscreenExitLine size={18} /> : <RiFullscreenLine size={18} />}
-              </button>
+              {selectedItem.type === 'snippet' && (
+                <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: isLight ? '#f3f4f6' : '#161622',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: `1px solid ${cardBorder}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        color: accent,
+                        background: 'rgba(99,102,241,0.1)',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                      }}>
+                        {selectedItem.language || 'javascript'}
+                      </span>
+                      {selectedItem.caption && (
+                        <span style={{ fontSize: '12.5px', color: textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {selectedItem.caption}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(selectedItem.content, 'Snippet')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        border: `1px solid ${copied ? '#10b981' : cardBorder}`,
+                        background: copied ? 'rgba(16,185,129,0.15)' : (isLight ? '#ffffff' : '#20202e'),
+                        color: copied ? '#10b981' : textColor,
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {copied ? (
+                        <>
+                          <RiCheckLine size={14} style={{ color: '#10b981' }} />
+                          <span style={{ color: '#10b981' }}>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <RiFileCopyLine size={14} />
+                          <span>Copy Snippet</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <MarkdownRenderer content={`\`\`\`${selectedItem.language || 'javascript'}\n${selectedItem.content || ''}\n\`\`\``} isLight={isLight} />
+                </div>
+              )}
 
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedItem(null);
-                  setIsViewerMaximized(false);
-                }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: textMuted,
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                <RiCloseLine size={20} />
-              </button>
-            </div>
-          </div>
+              {selectedItem.type === 'learning' && (
+                <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <p style={{ fontSize: '14px', color: textColor, margin: 0, lineHeight: 1.6 }}>{selectedItem.content}</p>
+                  {selectedItem.codeExample?.code && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(selectedItem.codeExample.code, 'Code Example')}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '5px',
+                            border: `1px solid ${cardBorder}`,
+                            background: 'transparent',
+                            color: textColor,
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <RiFileCopyLine size={13} />
+                          <span>Copy Code</span>
+                        </button>
+                      </div>
+                      <MarkdownRenderer content={`\`\`\`${selectedItem.codeExample.language || 'javascript'}\n${selectedItem.codeExample.code}\n\`\`\``} isLight={isLight} />
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {/* Item Content Preview */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {selectedItem.type === 'note' && (
-              <MarkdownRenderer content={selectedItem.content || '*No content written yet.*'} isLight={isLight} />
-            )}
+              {selectedItem.type === 'prompt' && (
+                <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ background: isLight ? '#f9fafb' : '#14141e', padding: '18px', borderRadius: '10px', border: `1px solid ${cardBorder}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: textMuted }}>SYSTEM / USER PROMPT ({selectedItem.model || 'AI'}):</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(selectedItem.content, 'Prompt')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 10px',
+                          borderRadius: '5px',
+                          border: `1px solid ${cardBorder}`,
+                          background: isLight ? '#ffffff' : '#1e1e2c',
+                          color: textColor,
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <RiFileCopyLine size={13} />
+                        <span>Copy Prompt</span>
+                      </button>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '14px', color: textColor, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedItem.content}</p>
+                  </div>
+                </div>
+              )}
 
-            {selectedItem.type === 'snippet' && (
-              <MarkdownRenderer content={`\`\`\`${selectedItem.language || 'javascript'}\n${selectedItem.content || ''}\n\`\`\``} isLight={isLight} />
-            )}
+              {selectedItem.type === 'doc' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+                  {isPdfFile(selectedItem) ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: isViewerMaximized ? 'calc(100vh - 160px)' : '550px' }}>
+                      <div style={{ flex: 1, minHeight: isViewerMaximized ? 'calc(100vh - 190px)' : '500px', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${cardBorder}` }}>
+                        <iframe
+                          src={`${resolveFileUrl(selectedItem, space._id)}#toolbar=1`}
+                          title={selectedItem.title}
+                          style={{ width: '100%', height: '100%', border: 'none' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <a
+                          href={resolveFileUrl(selectedItem, space._id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: accent, fontSize: '13px', textDecoration: 'underline', fontWeight: 600 }}
+                        >
+                          Open in full tab
+                        </a>
+                      </div>
+                    </div>
+                  ) : selectedItem.url ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <a href={selectedItem.url} target="_blank" rel="noopener noreferrer" style={{ color: accent, fontSize: '14px', textDecoration: 'underline', fontWeight: 600 }}>
+                        {selectedItem.url}
+                      </a>
+                      {selectedItem.caption && <p style={{ fontSize: '13px', color: textMuted, margin: 0 }}>{selectedItem.caption}</p>}
+                      {selectedItem.content && <MarkdownRenderer content={selectedItem.content} isLight={isLight} />}
+                    </div>
+                  ) : (
+                    <div>
+                      {selectedItem.caption && <p style={{ fontSize: '13px', color: textMuted, margin: '0 0 10px' }}>{selectedItem.caption}</p>}
+                      {selectedItem.content && <MarkdownRenderer content={selectedItem.content} isLight={isLight} />}
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {selectedItem.type === 'learning' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <p style={{ fontSize: '13.5px', color: textColor, margin: 0, lineHeight: 1.6 }}>{selectedItem.content}</p>
-                {selectedItem.codeExample?.code && (
-                  <MarkdownRenderer content={`\`\`\`${selectedItem.codeExample.language || 'javascript'}\n${selectedItem.codeExample.code}\n\`\`\``} isLight={isLight} />
-                )}
-              </div>
-            )}
-
-            {selectedItem.type === 'prompt' && (
-              <div style={{ background: isLight ? '#f9fafb' : '#14141e', padding: '14px', borderRadius: '8px', border: `1px solid ${cardBorder}` }}>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 600, color: textMuted }}>SYSTEM / USER PROMPT ({selectedItem.model || 'AI'}):</p>
-                <p style={{ margin: 0, fontSize: '13px', color: textColor, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{selectedItem.content}</p>
-              </div>
-            )}
-
-            {selectedItem.type === 'doc' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedItem.url && (
-                  <a href={selectedItem.url} target="_blank" rel="noopener noreferrer" style={{ color: accent, fontSize: '13px', textDecoration: 'underline' }}>
-                    {selectedItem.url}
+              {selectedItem.type === 'repo' && (
+                <div style={{ maxWidth: '900px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <a href={selectedItem.url} target="_blank" rel="noopener noreferrer" style={{ color: accent, fontSize: '16px', fontWeight: 600 }}>
+                    {selectedItem.url || selectedItem.title}
                   </a>
-                )}
-                {selectedItem.caption && <p style={{ fontSize: '12.5px', color: textMuted, margin: 0 }}>{selectedItem.caption}</p>}
-                {selectedItem.content && <MarkdownRenderer content={selectedItem.content} isLight={isLight} />}
-              </div>
-            )}
+                  {selectedItem.caption && <p style={{ fontSize: '13.5px', color: textMuted, margin: 0 }}>{selectedItem.caption}</p>}
+                </div>
+              )}
 
-            {selectedItem.type === 'repo' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <a href={selectedItem.url} target="_blank" rel="noopener noreferrer" style={{ color: accent, fontSize: '14px', fontWeight: 600 }}>
-                  {selectedItem.url || selectedItem.title}
-                </a>
-                <p style={{ fontSize: '12.5px', color: textMuted, margin: 0 }}>{selectedItem.caption}</p>
-              </div>
-            )}
-
-            {selectedItem.type === 'image' && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
-                <img src={selectedItem.cloudinaryUrl || selectedItem.url} alt={selectedItem.title} style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px' }} />
-              </div>
-            )}
+              {(selectedItem.type === 'image' || isImageFile(selectedItem)) && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}>
+                  <img src={resolveFileUrl(selectedItem, space._id)} alt={selectedItem.title} style={{ maxWidth: '100%', maxHeight: isViewerMaximized ? '80vh' : '550px', borderRadius: '10px', objectFit: 'contain' }} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -1,467 +1,944 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiDiscordLine, RiRedditLine, RiSlackLine, RiTwitterLine, RiYoutubeLine, RiMailLine, RiGithubLine, RiLink, RiDeleteBinLine, RiSearchLine, RiTeamLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiExternalLinkLine, RiGlobalLine } from 'react-icons/ri';
+import { Input, Select, Button, Popconfirm, Tag, message, Tooltip } from 'antd';
+import {
+  RiTeamLine, RiAddLine, RiEditLine, RiSaveLine, RiDeleteBinLine,
+  RiFolderLine, RiFolderTransferLine, RiMenuUnfoldLine, RiExternalLinkLine,
+  RiLink, RiFileCopyLine, RiCheckLine,
+  RiDiscordLine, RiRedditLine, RiSlackLine, RiTwitterLine, RiYoutubeLine,
+  RiGithubLine, RiTelegramLine, RiWhatsappLine, RiMailLine, RiGlobalLine,
+  RiGroupLine, RiTimeLine
+} from 'react-icons/ri';
 import api from '../../api/axios';
-import { QuickAddCommunityModal } from './QuickAddModals';
+import ModuleSidebar from './ModuleSidebar';
+import MoveItemModal from './MoveItemModal';
 import PinButton from '../common/PinButton';
-import { useDebounce } from '../../hooks/useDebounce';
+import communityIllustration from '../../assets/editor/community.svg';
 
-const PLATFORMS = [
-  { value: 'discord', label: 'Discord Server' },
-  { value: 'reddit', label: 'Reddit Sub' },
-  { value: 'slack', label: 'Slack Workspace' },
-  { value: 'twitter', label: 'Twitter / X Community' },
-  { value: 'newsletter', label: 'Newsletter / Blog' },
-  { value: 'youtube', label: 'YouTube Channel' },
-  { value: 'github', label: 'GitHub Discussions' },
-  { value: 'other', label: 'Other / Website' }
-];
+const { TextArea } = Input;
 
-export default function CommunitiesSection({ space, isLight, highlightId }) {
+const PLATFORM_CONFIG = {
+  discord: {
+    label: 'Discord Server',
+    icon: RiDiscordLine,
+    color: '#5865F2',
+    bg: 'rgba(88, 101, 242, 0.12)',
+  },
+  reddit: {
+    label: 'Reddit Community',
+    icon: RiRedditLine,
+    color: '#FF4500',
+    bg: 'rgba(255, 69, 0, 0.12)',
+  },
+  slack: {
+    label: 'Slack Workspace',
+    icon: RiSlackLine,
+    color: '#E01E5A',
+    bg: 'rgba(224, 30, 90, 0.12)',
+  },
+  twitter: {
+    label: 'Twitter / X Community',
+    icon: RiTwitterLine,
+    color: '#1DA1F2',
+    bg: 'rgba(29, 161, 242, 0.12)',
+  },
+  github: {
+    label: 'GitHub Discussions',
+    icon: RiGithubLine,
+    color: '#8b5cf6',
+    bg: 'rgba(139, 92, 246, 0.12)',
+  },
+  youtube: {
+    label: 'YouTube Channel',
+    icon: RiYoutubeLine,
+    color: '#EF4444',
+    bg: 'rgba(239, 68, 68, 0.12)',
+  },
+  telegram: {
+    label: 'Telegram Group',
+    icon: RiTelegramLine,
+    color: '#0088CC',
+    bg: 'rgba(0, 136, 204, 0.12)',
+  },
+  whatsapp: {
+    label: 'WhatsApp Group',
+    icon: RiWhatsappLine,
+    color: '#25D366',
+    bg: 'rgba(37, 211, 102, 0.12)',
+  },
+  newsletter: {
+    label: 'Newsletter / Blog',
+    icon: RiMailLine,
+    color: '#10B981',
+    bg: 'rgba(16, 185, 129, 0.12)',
+  },
+  other: {
+    label: 'Other / Website',
+    icon: RiGlobalLine,
+    color: '#38BDF8',
+    bg: 'rgba(56, 189, 248, 0.12)',
+  },
+};
+
+const PLATFORM_OPTIONS = Object.entries(PLATFORM_CONFIG).map(([key, config]) => ({
+  value: key,
+  label: config.label,
+}));
+
+export default function CommunitiesSection({
+  space,
+  isLight,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingCommunity, setEditingCommunity] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, 300);
+  const [selectedId, setSelectedId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+
+  // Copy feedback
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   // Form states
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [platform, setPlatform] = useState('discord');
-  const [caption, setCaption] = useState('');
-  const [tags, setTags] = useState([]);
-  const [memberCount, setMemberCount] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formUrl, setFormUrl] = useState('');
+  const [formPlatform, setFormPlatform] = useState('discord');
+  const [formCaption, setFormCaption] = useState('');
+  const [formMemberCount, setFormMemberCount] = useState('');
+  const [formTags, setFormTags] = useState('');
 
-  // Fetch communities
-  const { data: communities = [], isLoading } = useQuery({
-    queryKey: ['communities', space._id, debouncedQuery],
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
+  };
+
+  // Fetch folders for breadcrumbs
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
     queryFn: async () => {
-      const endpoint = debouncedQuery
-        ? `/api/spaces/${space._id}/communities/search?q=${encodeURIComponent(debouncedQuery)}`
-        : `/api/spaces/${space._id}/communities`;
-      const response = await api.get(endpoint);
-      return response.data.communities;
-    }
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    },
   });
 
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
+
+  // Fetch communities using unified items endpoint
+  const { data: rawCommunities = [], isLoading } = useQuery({
+    queryKey: ['items', space._id, 'community'],
+    queryFn: async () => {
+      const response = await api.get(`/api/spaces/${space._id}/items?type=community`);
+      return response.data.items || [];
+    },
+  });
+
+  const communities = rawCommunities || [];
+
+  // Deep-linking highlight handler
   useEffect(() => {
-    if (highlightId && communities && communities.length > 0) {
+    if (highlightId && communities.length > 0) {
       const target = communities.find(c => c._id === highlightId);
       if (target) {
-        openEditModal(target);
+        setSelectedId(target._id);
+        setIsEditing(false);
       }
     }
   }, [highlightId, communities]);
 
-  // Toggle Pin
-  const togglePin = useMutation({
-    mutationFn: async (id) => {
-      return api.patch(`/api/spaces/${space._id}/communities/${id}/pin`);
-    },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries(['communities', space._id]);
-      const prev = queryClient.getQueryData(['communities', space._id, debouncedQuery]);
-      if (prev) {
-        queryClient.setQueryData(['communities', space._id, debouncedQuery], old =>
-          old.map(item => item._id === id ? { ...item, isPinned: !item.isPinned } : item)
-        );
-      }
-      return { prev };
-    },
-    onError: (_, __, context) => {
-      if (context && context.prev) {
-        queryClient.setQueryData(['communities', space._id, debouncedQuery], context.prev);
-      }
-      message.error('Failed to update pin');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['communities', space._id]);
-    }
-  });
+  // Selected item object
+  const selectedItem = useMemo(() => {
+    return communities.find(c => c._id === selectedId) || null;
+  }, [selectedId, communities]);
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      return api.post(`/api/spaces/${space._id}/communities`, payload);
+  // Sync form state when active selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      setFormTitle(selectedItem.title || selectedItem.name || '');
+      setFormUrl(selectedItem.url || '');
+      setFormPlatform(selectedItem.platform || detectPlatform(selectedItem.url || ''));
+      setFormCaption(selectedItem.caption || '');
+      setFormMemberCount(selectedItem.memberCount || '');
+      setFormTags(Array.isArray(selectedItem.tags) ? selectedItem.tags.join(', ') : (selectedItem.tags || ''));
+    }
+  }, [selectedItem]);
+
+  // Auto-detect platform from URL
+  function detectPlatform(url = '') {
+    const lower = url.toLowerCase();
+    if (lower.includes('discord.gg') || lower.includes('discord.com')) return 'discord';
+    if (lower.includes('reddit.com')) return 'reddit';
+    if (lower.includes('slack.com')) return 'slack';
+    if (lower.includes('twitter.com') || lower.includes('x.com')) return 'twitter';
+    if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
+    if (lower.includes('github.com')) return 'github';
+    if (lower.includes('t.me') || lower.includes('telegram.me')) return 'telegram';
+    if (lower.includes('whatsapp.com') || lower.includes('chat.whatsapp.com')) return 'whatsapp';
+    if (lower.includes('substack.com') || lower.includes('medium.com')) return 'newsletter';
+    return 'other';
+  }
+
+  // Create community mutation
+  const createCommunityMutation = useMutation({
+    mutationFn: async ({ title, folderId, url, platform, caption, memberCount }) => {
+      const res = await api.post(`/api/spaces/${space._id}/items`, {
+        type: 'community',
+        title,
+        folderId: folderId || null,
+        url: url || 'https://discord.gg/',
+        platform: platform || 'discord',
+        caption: caption || '',
+        memberCount: memberCount || '',
+      });
+      return res.data.item;
     },
-    onSuccess: () => {
-      message.success('Community link added!');
-      queryClient.invalidateQueries(['communities', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-      closeModal();
+    onSuccess: (newItem) => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'community'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(newItem._id);
+      setIsEditing(true);
+      message.success(`Created "${newItem.title}"`);
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to add community');
-    }
+      message.error(err.response?.data?.error || "Couldn't create community.");
+    },
   });
 
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }) => {
-      return api.patch(`/api/spaces/${space._id}/communities/${id}`, payload);
+  // Update community mutation
+  const updateCommunityMutation = useMutation({
+    mutationFn: async ({ itemId, payload }) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}`, payload);
+      return res.data.item;
     },
     onSuccess: () => {
-      message.success('Community updated!');
-      queryClient.invalidateQueries(['communities', space._id]);
-      closeModal();
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'community'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      setIsEditing(false);
+      message.success('Community details saved');
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to update community');
-    }
+      message.error(err.response?.data?.error || "Couldn't save community.");
+    },
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      return api.delete(`/api/spaces/${space._id}/communities/${id}`);
+  // Delete community mutation
+  const deleteCommunityMutation = useMutation({
+    mutationFn: async (itemId) => {
+      await api.delete(`/api/spaces/${space._id}/items/${itemId}`);
     },
     onSuccess: () => {
-      message.success('Community connection deleted');
-      queryClient.invalidateQueries(['communities', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-    }
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'community'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(null);
+      setIsEditing(false);
+      message.success('Community link deleted');
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't delete community.");
+    },
   });
 
-  const openAddModal = () => {
-    setEditingCommunity(null);
-    setName('');
-    setUrl('');
-    setPlatform('discord');
-    setCaption('');
-    setTags([]);
-    setMemberCount('');
-    setModalOpen(true);
-  };
+  // Pin community mutation
+  const pinMutation = useMutation({
+    mutationFn: async (itemId) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}/pin`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'community'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
+    },
+  });
 
-  const openEditModal = (comm) => {
-    setEditingCommunity(comm);
-    setName(comm.name);
-    setUrl(comm.url);
-    setPlatform(comm.platform);
-    setCaption(comm.caption || '');
-    setTags(comm.tags || []);
-    setMemberCount(comm.memberCount || '');
-    setModalOpen(true);
-  };
+  // Direct community creation handler
+  const handleCreateNewCommunity = useCallback((targetFolderId) => {
+    const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
+      ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingCommunity(null);
-  };
+    const nextNumber = communities.length + 1;
+    const defaultTitle = `Community ${nextNumber}`;
 
-  const detectPlatform = (inputUrl) => {
-    if (!inputUrl) return;
-    let detected = 'other';
-    if (/discord\.(gg|com)/.test(inputUrl)) detected = 'discord';
-    else if (/reddit\.com/.test(inputUrl)) detected = 'reddit';
-    else if (/(twitter|x)\.com/.test(inputUrl)) detected = 'twitter';
-    else if (/youtube\.com/.test(inputUrl)) detected = 'youtube';
-    else if (/github\.com/.test(inputUrl)) detected = 'github';
-    else if (/slack\.com/.test(inputUrl)) detected = 'slack';
-    setPlatform(detected);
-  };
+    createCommunityMutation.mutate({
+      title: defaultTitle,
+      folderId: validFolderId,
+      url: 'https://discord.gg/',
+      platform: 'discord',
+      caption: '',
+      memberCount: '',
+    });
+  }, [communities.length, selectedFolderId, createCommunityMutation]);
 
-  const handleSubmit = () => {
-    if (!name || !url) {
-      message.error('Name and URL are required');
+  // Handle save community form
+  const handleSaveCommunity = () => {
+    if (!selectedId) return;
+    if (!formTitle.trim()) {
+      message.warning('Please enter a community title/name');
       return;
     }
-    const payload = { name, url, platform, caption, tags, memberCount };
-    if (editingCommunity) {
-      updateMutation.mutate({ id: editingCommunity._id, payload });
-    } else {
-      createMutation.mutate(payload);
+
+    let parsedUrl = formUrl.trim();
+    if (parsedUrl && !/^https?:\/\//i.test(parsedUrl)) {
+      parsedUrl = `https://${parsedUrl}`;
     }
+
+    const tagsArray = formTags
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    updateCommunityMutation.mutate({
+      itemId: selectedId,
+      payload: {
+        title: formTitle.trim(),
+        url: parsedUrl,
+        platform: formPlatform,
+        caption: formCaption.trim(),
+        memberCount: formMemberCount.trim(),
+        tags: tagsArray,
+      },
+    });
   };
 
-  const getPlatformConfig = (plat) => {
-    switch (plat) {
-      case 'discord': {
-        const color = isLight ? '#4338ca' : '#818cf8';
-        return {
-          icon: <RiDiscordLine size={24} style={{ color }} />,
-          badgeIcon: <RiDiscordLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.14)',
-          border: isLight ? 'rgba(99, 102, 241, 0.22)' : 'rgba(99, 102, 241, 0.3)',
-          color,
-        };
-      }
-      case 'youtube': {
-        const color = isLight ? '#dc2626' : '#f87171';
-        return {
-          icon: <RiYoutubeLine size={24} style={{ color }} />,
-          badgeIcon: <RiYoutubeLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.14)',
-          border: isLight ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.3)',
-          color,
-        };
-      }
-      case 'reddit': {
-        const color = isLight ? '#ea580c' : '#fb923c';
-        return {
-          icon: <RiRedditLine size={24} style={{ color }} />,
-          badgeIcon: <RiRedditLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.14)',
-          border: isLight ? 'rgba(249, 115, 22, 0.22)' : 'rgba(249, 115, 22, 0.3)',
-          color,
-        };
-      }
-      case 'slack': {
-        const color = isLight ? '#db2777' : '#f472b6';
-        return {
-          icon: <RiSlackLine size={24} style={{ color }} />,
-          badgeIcon: <RiSlackLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(236, 72, 153, 0.08)' : 'rgba(236, 72, 153, 0.14)',
-          border: isLight ? 'rgba(236, 72, 153, 0.22)' : 'rgba(236, 72, 153, 0.3)',
-          color,
-        };
-      }
-      case 'twitter': {
-        const color = isLight ? '#0284c7' : '#38bdf8';
-        return {
-          icon: <RiTwitterLine size={24} style={{ color }} />,
-          badgeIcon: <RiTwitterLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(14, 165, 233, 0.08)' : 'rgba(14, 165, 233, 0.14)',
-          border: isLight ? 'rgba(14, 165, 233, 0.22)' : 'rgba(14, 165, 233, 0.3)',
-          color,
-        };
-      }
-      case 'newsletter': {
-        const color = isLight ? '#059669' : '#34d399';
-        return {
-          icon: <RiMailLine size={24} style={{ color }} />,
-          badgeIcon: <RiMailLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.14)',
-          border: isLight ? 'rgba(16, 185, 129, 0.22)' : 'rgba(16, 185, 129, 0.3)',
-          color,
-        };
-      }
-      case 'github': {
-        const color = isLight ? '#9333ea' : '#c084fc';
-        return {
-          icon: <RiGithubLine size={24} style={{ color }} />,
-          badgeIcon: <RiGithubLine size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.14)',
-          border: isLight ? 'rgba(168, 85, 247, 0.22)' : 'rgba(168, 85, 247, 0.3)',
-          color,
-        };
-      }
-      default: {
-        const color = isLight ? '#0891b2' : '#22d3ee';
-        return {
-          icon: <RiLink size={24} style={{ color }} />,
-          badgeIcon: <RiLink size={12} style={{ color }} />,
-          bg: isLight ? 'rgba(6, 182, 212, 0.08)' : 'rgba(6, 182, 212, 0.14)',
-          border: isLight ? 'rgba(6, 182, 212, 0.22)' : 'rgba(6, 182, 212, 0.3)',
-          color,
-        };
-      }
-    }
+  // Copy helper
+  const handleCopyUrl = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+    message.success('Community URL copied to clipboard');
   };
+
+  // Platform metadata
+  const currentPlatformKey = selectedItem ? (selectedItem.platform || detectPlatform(selectedItem.url || '')) : 'other';
+  const platformMeta = PLATFORM_CONFIG[currentPlatformKey] || PLATFORM_CONFIG.other;
+  const PlatformIcon = platformMeta.icon;
+
+  // Theme design tokens
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const mainBg = isLight ? '#ffffff' : '#0d0d12';
+  const headerBg = isLight ? '#fafafa' : '#0f0f16';
+  const textColor = isLight ? '#111827' : '#f3f4f6';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#0284c7' : '#38bdf8';
+  const boxBg = isLight ? '#f8f9fa' : '#14141d';
 
   return (
-    <div style={{ padding: 'clamp(12px, 3vw, 20px)' }}>
-      {/* Header controls */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 'min(100%, 220px)', maxWidth: '320px' }}>
-          <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
-          <input
-            placeholder="Search communities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%', padding: '7px 10px 7px 32px', borderRadius: '8px',
-              border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-              background: isLight ? '#ffffff' : '#1a1a1a',
-              color: isLight ? '#111111' : '#ffffff',
-              outline: 'none', fontSize: '13px'
-            }}
-          />
-        </div>
-        <Button
-          type="primary"
-          icon={<RiAddLine />}
-          onClick={openAddModal}
-          style={{ background: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1', borderRadius: '8px' }}
-        >
-          Link Community
-        </Button>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        background: mainBg,
+        position: 'relative',
+      }}
+    >
+      {/* ── SHARED MODULE SIDEBAR ── */}
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Communities"
+        icon={RiTeamLine}
+        addButtonLabel="New Community"
+        itemType="community"
+        items={communities}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedId}
+        onSelectItem={(item) => {
+          setSelectedId(item._id);
+          setIsEditing(false);
+        }}
+        onAddItem={(folderId) => handleCreateNewCommunity(folderId)}
+        isLight={isLight}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+      />
 
-      {isLoading ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
-      ) : communities.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
-          No communities linked. Link Discord servers or subreddits!
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
-          {communities.map((comm) => {
-            const cfg = getPlatformConfig(comm.platform);
-            return (
-              <div
-                key={comm._id}
-                style={{
-                  background: isLight ? '#ffffff' : '#14141c',
-                  border: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-                  borderRadius: '12px',
-                  padding: '18px 20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '14px',
-                  position: 'relative',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
-                  e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                {/* Header Row: Badge & Pin */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                    padding: '3px 9px', borderRadius: '5px',
-                    background: cfg.bg,
-                    border: `1px solid ${cfg.border}`,
-                    color: cfg.color, display: 'flex', alignItems: 'center', gap: '5px'
-                  }}>
-                    {cfg.badgeIcon}
-                    <span>{(comm.platform || 'COMMUNITY').toUpperCase()}</span>
-                  </span>
-                  <PinButton isPinned={comm.isPinned} onToggle={() => togglePin.mutate(comm._id)} />
+      {/* ── MAIN CONTENT PANE (INLINE VIEWER & EDITOR) ── */}
+      <main
+        data-lenis-prevent
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          background: mainBg,
+          overflow: 'hidden',
+        }}
+      >
+        {selectedItem ? (
+          <>
+            {/* Header bar */}
+            <div
+              style={{
+                padding: '10px 18px',
+                borderBottom: `1px solid ${cardBorder}`,
+                background: headerBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* Left: Sidebar Restore + Breadcrumb */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Show sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
+                )}
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: textMuted,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <RiFolderLine size={14} style={{ color: accent, flexShrink: 0 }} />
+                  <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
 
-                {/* Main Content info */}
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: '48px', height: '48px', borderRadius: '10px',
-                    background: cfg.bg,
-                    border: `1px solid ${cfg.border}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    {cfg.icon}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <a href={comm.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                        {comm.name}
-                      </a>
-                    </h4>
-                    {comm.caption ? (
-                      <p style={{
-                        fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,
-                        overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
-                      }}>
-                        {comm.caption}
-                      </p>
-                    ) : (
-                      <div style={{ height: '4px' }} />
-                    )}
+                <Tooltip title="Move to folder">
+                  <button
+                    type="button"
+                    onClick={() => setMoveModalOpen(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                  >
+                    <RiFolderTransferLine size={13} />
+                    <span>Move</span>
+                  </button>
+                </Tooltip>
 
-                    {comm.tags && comm.tags.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
-                        {comm.tags.map(t => (
-                          <Tag key={t} style={{
-                            fontSize: '10px', borderRadius: '4px', margin: 0,
-                            background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
-                            color: isLight ? '#4b5563' : '#a1a1aa',
-                            border: `1px solid ${isLight ? '#e5e7eb' : '#242428'}`
-                          }}>
-                            {t}
-                          </Tag>
-                        ))}
+                <Tag
+                  style={{
+                    margin: 0,
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: platformMeta.color,
+                    background: platformMeta.bg,
+                    borderColor: 'transparent',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <PlatformIcon size={13} />
+                  <span>{platformMeta.label}</span>
+                </Tag>
+              </div>
+
+              {/* Right: Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {selectedItem.url && (
+                  <Button
+                    size="small"
+                    icon={<RiExternalLinkLine />}
+                    onClick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
+                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                  >
+                    Open Community
+                  </Button>
+                )}
+
+                {/* Edit / Save Toggle */}
+                {isEditing ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<RiSaveLine />}
+                    loading={updateCommunityMutation.isPending}
+                    onClick={handleSaveCommunity}
+                    style={{
+                      background: accent,
+                      borderColor: accent,
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                    }}
+                  >
+                    Save
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    icon={<RiEditLine />}
+                    onClick={() => setIsEditing(true)}
+                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                  >
+                    Edit
+                  </Button>
+                )}
+
+                {/* Pin Button */}
+                <PinButton
+                  isPinned={selectedItem.isPinned}
+                  onToggle={() => pinMutation.mutate(selectedItem._id)}
+                  isLight={isLight}
+                />
+
+                {/* Delete Button */}
+                <Popconfirm
+                  title="Delete Community Link"
+                  description="Are you sure you want to delete this community resource?"
+                  okText="Delete"
+                  okType="danger"
+                  cancelText="Cancel"
+                  onConfirm={() => deleteCommunityMutation.mutate(selectedItem._id)}
+                >
+                  <Button
+                    danger
+                    type="text"
+                    size="small"
+                    icon={<RiDeleteBinLine size={15} />}
+                    style={{ borderRadius: '6px' }}
+                  />
+                </Popconfirm>
+              </div>
+            </div>
+
+            {/* Scrollable Body: Editor or Viewer */}
+            <div
+              data-lenis-prevent
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px 28px',
+                scrollbarWidth: 'thin',
+              }}
+            >
+              {isEditing ? (
+                /* ── EDIT MODE ── */
+                <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      COMMUNITY NAME / TITLE
+                    </label>
+                    <Input
+                      placeholder="e.g. Next.js Developers Discord or Supabase Community"
+                      value={formTitle}
+                      onChange={e => setFormTitle(e.target.value)}
+                      style={{ borderRadius: '8px', fontSize: '14px', fontWeight: 600, padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      COMMUNITY LINK / INVITE URL
+                    </label>
+                    <Input
+                      placeholder="https://discord.gg/your-invite or https://reddit.com/r/reactjs"
+                      value={formUrl}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setFormUrl(val);
+                        const detected = detectPlatform(val);
+                        if (detected !== 'other') {
+                          setFormPlatform(detected);
+                        }
+                      }}
+                      prefix={<RiLink style={{ color: textMuted }} />}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        PLATFORM TYPE
+                      </label>
+                      <Select
+                        options={PLATFORM_OPTIONS}
+                        value={formPlatform}
+                        onChange={setFormPlatform}
+                        style={{ width: '100%', height: '38px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        EST. MEMBER COUNT / STATUS (OPTIONAL)
+                      </label>
+                      <Input
+                        placeholder="e.g. 50k members, Active daily, or VIP"
+                        value={formMemberCount}
+                        onChange={e => setFormMemberCount(e.target.value)}
+                        prefix={<RiGroupLine style={{ color: textMuted }} />}
+                        style={{ borderRadius: '8px', padding: '7px 12px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      ABOUT COMMUNITY & NOTES (OPTIONAL)
+                    </label>
+                    <TextArea
+                      placeholder="Summary of what this community discusses, rules, useful channels, or why you joined..."
+                      value={formCaption}
+                      onChange={e => setFormCaption(e.target.value)}
+                      rows={4}
+                      style={{ borderRadius: '8px', padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      TAGS (COMMA SEPARATED)
+                    </label>
+                    <Input
+                      placeholder="react, typescript, devops, careers"
+                      value={formTags}
+                      onChange={e => setFormTags(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  {/* Save button row */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    <Button
+                      type="primary"
+                      icon={<RiSaveLine />}
+                      loading={updateCommunityMutation.isPending}
+                      onClick={handleSaveCommunity}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        padding: '6px 18px',
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button onClick={() => setIsEditing(false)} style={{ borderRadius: '6px' }}>
+                      Done Editing
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* ── VIEW MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                  {/* Hero Card */}
+                  <div
+                    style={{
+                      borderRadius: '14px',
+                      border: `1px solid ${cardBorder}`,
+                      background: boxBg,
+                      padding: '24px 28px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div
+                          style={{
+                            width: '54px',
+                            height: '54px',
+                            borderRadius: '14px',
+                            background: platformMeta.bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: platformMeta.color,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <PlatformIcon size={30} />
+                        </div>
+                        <div>
+                          <h1
+                            style={{
+                              fontSize: '22px',
+                              fontWeight: 700,
+                              color: textColor,
+                              margin: 0,
+                              fontFamily: 'var(--font-display)',
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {selectedItem.title || selectedItem.name}
+                          </h1>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                            <Tag
+                              style={{
+                                margin: 0,
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: platformMeta.color,
+                                background: platformMeta.bg,
+                                borderColor: 'transparent',
+                              }}
+                            >
+                              {platformMeta.label}
+                            </Tag>
+
+                            {selectedItem.memberCount && (
+                              <Tag
+                                icon={<RiGroupLine style={{ verticalAlign: 'middle', marginRight: '3px' }} />}
+                                style={{ margin: 0, borderRadius: '6px', fontSize: '11px' }}
+                              >
+                                {selectedItem.memberCount}
+                              </Tag>
+                            )}
+
+                            <span style={{ fontSize: '11.5px', color: textMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <RiTimeLine size={12} />
+                              {new Date(selectedItem.updatedAt || selectedItem.createdAt || Date.now()).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedItem.url && (
+                        <Button
+                          type="primary"
+                          icon={<RiExternalLinkLine />}
+                          onClick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
+                          style={{
+                            background: platformMeta.color,
+                            borderColor: platformMeta.color,
+                            borderRadius: '8px',
+                            fontWeight: 600,
+                            padding: '6px 16px',
+                            height: 'auto',
+                          }}
+                        >
+                          Join Community
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Direct URL Box */}
+                    {selectedItem.url && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: isLight ? '#ffffff' : '#0a0a10',
+                          border: `1px solid ${cardBorder}`,
+                          borderRadius: '8px',
+                          padding: '8px 14px',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                          <RiLink size={15} style={{ color: textMuted, flexShrink: 0 }} />
+                          <span
+                            style={{
+                              fontSize: '13px',
+                              fontFamily: 'monospace',
+                              color: accent,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {selectedItem.url}
+                          </span>
+                        </div>
+
+                        <Tooltip title={copiedUrl ? 'Copied!' : 'Copy URL'}>
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={copiedUrl ? <RiCheckLine style={{ color: '#10b981' }} /> : <RiFileCopyLine />}
+                            onClick={() => handleCopyUrl(selectedItem.url)}
+                            style={{ borderRadius: '6px' }}
+                          >
+                            {copiedUrl ? 'Copied' : 'Copy'}
+                          </Button>
+                        </Tooltip>
                       </div>
                     )}
                   </div>
-                </div>
 
-                {/* Divider Line */}
-                <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
-
-                {/* Metadata Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {new Date(comm.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiTeamLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {comm.memberCount || 'Community'}
-                      </span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Members</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <RiGlobalLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {comm.platform || 'Link'}
-                      </span>
-                      <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Type</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Footer */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-                  <a
-                    href={comm.url} target="_blank" rel="noopener noreferrer"
-                    style={{
-                      background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
-                      color: isLight ? '#111111' : '#ffffff', textDecoration: 'none', padding: '5px 12px',
-                      borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
-                    }}
-                  >
-                    <RiExternalLinkLine size={14} />
-                    <span>Join / Open</span>
-                  </a>
-
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button
-                      onClick={() => openEditModal(comm)}
-                      style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : cfg.color, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                  {/* ── ABOUT & GUIDELINES ── */}
+                  {selectedItem.caption && (
+                    <div
+                      style={{
+                        borderRadius: '12px',
+                        border: `1px solid ${cardBorder}`,
+                        background: boxBg,
+                        padding: '20px 24px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                      }}
                     >
-                      Edit
-                    </button>
-                    <Popconfirm title="Remove community link?" onConfirm={() => deleteMutation.mutate(comm._id)} okText="Delete" cancelText="Cancel">
-                      <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        Delete
-                      </button>
-                    </Popconfirm>
-                  </div>
+                      <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: textColor }}>
+                        About & Notes
+                      </h4>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '13.5px',
+                          color: textMuted,
+                          lineHeight: 1.65,
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {selectedItem.caption}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── TAGS ── */}
+                  {Array.isArray(selectedItem.tags) && selectedItem.tags.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', color: textMuted, fontWeight: 500 }}>Tags:</span>
+                      {selectedItem.tags.map((tag, idx) => (
+                        <Tag key={idx} style={{ borderRadius: '6px', fontSize: '11.5px', padding: '2px 8px' }}>
+                          #{tag}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          }
-          )}
-        </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* ── EMPTY STATE ── */
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '32px',
+              textAlign: 'center',
+            }}
+          >
+            {isSidebarCollapsed && (
+              <Button
+                icon={<RiMenuUnfoldLine />}
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{ position: 'absolute', top: '16px', left: '16px', borderRadius: '6px' }}
+              >
+                Open Sidebar
+              </Button>
+            )}
+
+            <img
+              src={communityIllustration}
+              alt="Communities"
+              style={{
+                width: '180px',
+                height: '180px',
+                marginBottom: '18px',
+                opacity: isLight ? 0.9 : 0.85,
+              }}
+            />
+            <h3
+              style={{
+                fontSize: '17px',
+                fontWeight: 600,
+                color: textColor,
+                marginBottom: '8px',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              No community selected
+            </h3>
+            <p
+              style={{
+                fontSize: '13px',
+                color: textMuted,
+                maxWidth: '380px',
+                lineHeight: 1.5,
+                margin: '0 0 18px',
+              }}
+            >
+              Select a community from the folder tree on the left, or bookmark a new community link directly in {currentFolderPath}.
+            </p>
+            <Button
+              type="primary"
+              icon={<RiAddLine />}
+              onClick={() => handleCreateNewCommunity(selectedFolderId)}
+              style={{
+                background: accent,
+                borderColor: accent,
+                borderRadius: '6px',
+                fontWeight: 600,
+                padding: '6px 18px',
+              }}
+            >
+              Add Community
+            </Button>
+          </div>
+        )}
+      </main>
+
+      {/* ── Move Item Modal ── */}
+      {selectedItem && (
+        <MoveItemModal
+          isOpen={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          spaceId={space._id}
+          item={selectedItem}
+          isLight={isLight}
+        />
       )}
-
-      {/* Add / Edit Modal */}
-      <QuickAddCommunityModal
-        open={modalOpen}
-        onClose={closeModal}
-        space={space}
-        editingCommunity={editingCommunity}
-      />
-
     </div>
   );
 }

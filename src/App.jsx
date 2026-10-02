@@ -17,10 +17,10 @@ const SpaceDashboard = lazy(() => import('./pages/SpaceDashboard'));
 const CreateSpace = lazy(() => import('./pages/CreateSpace'));
 const Profile = lazy(() => import('./pages/Profile'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+import NotFoundPage from './pages/NotFoundPage';
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // High-efficiency TanStack QueryClient with reasonable staleTime and gcTime
 const queryClient = new QueryClient({

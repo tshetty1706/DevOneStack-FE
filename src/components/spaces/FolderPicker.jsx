@@ -17,6 +17,7 @@ export default function FolderPicker({
   style = {},
   allowRoot = true,
   disabled = false,
+  excludeIds = [],
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -31,7 +32,9 @@ export default function FolderPicker({
     staleTime: 30000,
   });
 
-  const folders = folderData || [];
+  const rawFolders = folderData || [];
+  const excludedSet = useMemo(() => new Set(excludeIds.map(String)), [excludeIds]);
+  const folders = useMemo(() => rawFolders.filter(f => !excludedSet.has(String(f._id))), [rawFolders, excludedSet]);
 
   // Build options list with visual path and depth hierarchy
   const options = useMemo(() => {

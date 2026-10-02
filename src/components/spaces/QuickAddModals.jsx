@@ -140,16 +140,18 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingLearning) {
-        return api.patch(`/api/spaces/${space._id}/learnings/${editingLearning._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingLearning._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/learnings`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'learning' });
     },
     onSuccess: (res) => {
       message.success(editingLearning ? 'Learning updated!' : 'Learning logged!');
+      queryClient.invalidateQueries(['items', space._id, 'learning']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['learnings', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.learning);
+      onSuccess?.(res.data?.item || res.data?.learning);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save'),
@@ -161,10 +163,10 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
       return;
     }
     mutation.mutate({
-      title,
-      type,
-      content,
-      folderId,
+      title: title.trim(),
+      learningType: type,
+      content: content.trim(),
+      folderId: folderId || null,
       tags,
       codeExample: hasCode ? { language: codeLanguage, code: codeContent } : { language: '', code: '' }
     });
@@ -290,16 +292,18 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingSnippet) {
-        return api.patch(`/api/spaces/${space._id}/snippets/${editingSnippet._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingSnippet._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/snippets`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'snippet' });
     },
     onSuccess: (res) => {
       message.success(editingSnippet ? 'Snippet updated!' : 'Snippet created!');
+      queryClient.invalidateQueries(['items', space._id, 'snippet']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['snippets', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.snippet);
+      onSuccess?.(res.data?.item || res.data?.snippet);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save snippet'),
@@ -307,7 +311,14 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
 
   const handleOk = () => {
     if (!name || !code) { message.error('Name and Code are required'); return; }
-    mutation.mutate({ name, caption, folderId, language, code, tags });
+    mutation.mutate({
+      title: name.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      language: language.trim(),
+      content: code,
+      tags
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -402,9 +413,19 @@ export function QuickAddDocModal({ open, onClose, space, defaultFolderId = null,
   }, [open, defaultFolderId]);
 
   const addUrlMutation = useMutation({
-    mutationFn: (payload) => api.post(`/api/spaces/${space._id}/docs/url`, payload),
+    mutationFn: (payload) => api.post(`/api/spaces/${space._id}/items`, {
+      type: 'doc',
+      docType: 'url',
+      title: payload.title,
+      url: payload.url,
+      caption: payload.caption,
+      folderId: payload.folderId || null,
+      tags: payload.tags
+    }),
     onSuccess: () => {
       message.success('Document link added!');
+      queryClient.invalidateQueries(['items', space._id, 'doc']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['docs', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
@@ -421,11 +442,13 @@ export function QuickAddDocModal({ open, onClose, space, defaultFolderId = null,
     formData.append('file', file);
     formData.append('title', title || file.name);
     formData.append('caption', caption);
-    if (folderId) formData.append('folderId', folderId);
+    if (folderId && folderId !== 'root' && folderId !== 'null') formData.append('folderId', folderId);
     formData.append('tags', JSON.stringify(tags));
     try {
-      await api.post(`/api/spaces/${space._id}/docs/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`/api/spaces/${space._id}/items/upload`, formData);
       message.success('File uploaded successfully!');
+      queryClient.invalidateQueries(['items', space._id, 'doc']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['docs', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
@@ -569,16 +592,18 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, de
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingRepo) {
-        return api.patch(`/api/spaces/${space._id}/repos/${editingRepo._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingRepo._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/repos`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'repo' });
     },
     onSuccess: (res) => {
       message.success(editingRepo ? 'Repository updated!' : 'Repository linked!');
+      queryClient.invalidateQueries(['items', space._id, 'repo']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['repos', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.repo);
+      onSuccess?.(res.data?.item || res.data?.repo);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to link repository'),
@@ -602,7 +627,15 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, de
 
   const handleOk = () => {
     if (!name || !url) { message.error('Name and URL are required'); return; }
-    mutation.mutate({ name, url, caption, folderId, platform, tags, isOwn });
+    mutation.mutate({
+      title: name.trim(),
+      url: url.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      platform,
+      tags,
+      isOwn
+    });
   };
 
   return (
@@ -674,7 +707,7 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
     if (open) {
       if (editingPrompt) {
         setTitle(editingPrompt.title || '');
-        setBody(editingPrompt.body || '');
+        setBody(editingPrompt.body || editingPrompt.content || '');
         setCaption(editingPrompt.caption || '');
         setFolderId(editingPrompt.folderId || defaultFolderId || null);
         const isStandard = AI_MODELS.some(m => m.value === editingPrompt.model);
@@ -701,16 +734,18 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingPrompt) {
-        return api.patch(`/api/spaces/${space._id}/prompts/${editingPrompt._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingPrompt._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/prompts`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'prompt' });
     },
     onSuccess: (res) => {
       message.success(editingPrompt ? 'Prompt updated!' : 'AI Prompt saved!');
+      queryClient.invalidateQueries(['items', space._id, 'prompt']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['prompts', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.prompt);
+      onSuccess?.(res.data?.item || res.data?.prompt);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save prompt'),
@@ -719,7 +754,14 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
   const handleOk = () => {
     if (!title || !body) { message.error('Title and Prompt Body are required'); return; }
     const finalModel = model === 'Custom' ? customModel : model;
-    mutation.mutate({ title, body, caption, folderId, model: finalModel, tags });
+    mutation.mutate({
+      title: title.trim(),
+      content: body.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      model: finalModel,
+      tags
+    });
   };
 
   return (
@@ -787,22 +829,24 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
 }
 
 // ─── 6. COMMUNITY MODAL ───────────────────────────────────────────────────────
-export function QuickAddCommunityModal({ open, onClose, space, editingCommunity = null, onSuccess }) {
+export function QuickAddCommunityModal({ open, onClose, space, editingCommunity = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
-  const [name, setName]             = useState('');
-  const [url, setUrl]               = useState('');
-  const [platform, setPlatform]     = useState('discord');
-  const [caption, setCaption]       = useState('');
-  const [tags, setTags]             = useState([]);
+  const [name, setName]               = useState('');
+  const [url, setUrl]                 = useState('');
+  const [platform, setPlatform]       = useState('discord');
+  const [caption, setCaption]         = useState('');
+  const [folderId, setFolderId]       = useState(defaultFolderId);
+  const [tags, setTags]               = useState([]);
   const [memberCount, setMemberCount] = useState('');
 
   useEffect(() => {
     if (open) {
       if (editingCommunity) {
-        setName(editingCommunity.name || '');
+        setName(editingCommunity.title || editingCommunity.name || '');
         setUrl(editingCommunity.url || '');
         setPlatform(editingCommunity.platform || 'discord');
         setCaption(editingCommunity.caption || '');
+        setFolderId(editingCommunity.folderId || defaultFolderId || null);
         setTags(editingCommunity.tags || []);
         setMemberCount(editingCommunity.memberCount || '');
       } else {
@@ -810,35 +854,41 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
         setUrl('');
         setPlatform('discord');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setTags([]);
         setMemberCount('');
       }
     }
-  }, [open, editingCommunity]);
+  }, [open, editingCommunity, defaultFolderId]);
 
   const detectPlatform = (inputUrl) => {
     if (!inputUrl) return;
-    if (inputUrl.includes('discord.gg') || inputUrl.includes('discord.com')) setPlatform('discord');
-    else if (inputUrl.includes('reddit.com')) setPlatform('reddit');
-    else if (inputUrl.includes('slack.com')) setPlatform('slack');
-    else if (inputUrl.includes('twitter.com') || inputUrl.includes('x.com')) setPlatform('twitter');
-    else if (inputUrl.includes('youtube.com')) setPlatform('youtube');
-    else if (inputUrl.includes('github.com')) setPlatform('github');
+    const lower = inputUrl.toLowerCase();
+    if (lower.includes('discord.gg') || lower.includes('discord.com')) setPlatform('discord');
+    else if (lower.includes('reddit.com')) setPlatform('reddit');
+    else if (lower.includes('slack.com')) setPlatform('slack');
+    else if (lower.includes('twitter.com') || lower.includes('x.com')) setPlatform('twitter');
+    else if (lower.includes('youtube.com') || lower.includes('youtu.be')) setPlatform('youtube');
+    else if (lower.includes('github.com')) setPlatform('github');
+    else if (lower.includes('t.me') || lower.includes('telegram.me')) setPlatform('telegram');
+    else if (lower.includes('whatsapp.com')) setPlatform('whatsapp');
   };
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingCommunity) {
-        return api.patch(`/api/spaces/${space._id}/communities/${editingCommunity._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingCommunity._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/communities`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'community' });
     },
     onSuccess: (res) => {
       message.success(editingCommunity ? 'Community updated!' : 'Community link added!');
+      queryClient.invalidateQueries(['items', space._id, 'community']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['communities', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.community);
+      onSuccess?.(res.data?.item || res.data?.community);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to add community'),
@@ -846,7 +896,15 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
 
   const handleOk = () => {
     if (!name || !url) { message.error('Name and URL are required'); return; }
-    mutation.mutate({ name, url, platform, caption, tags, memberCount });
+    mutation.mutate({
+      title: name,
+      url,
+      platform,
+      caption,
+      folderId: folderId || null,
+      tags,
+      memberCount
+    });
   };
 
   return (
@@ -858,11 +916,20 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
       okText={editingCommunity ? 'Update Community' : 'Add Community'}
       cancelText="Cancel"
       confirmLoading={mutation.isPending}
-      width={520}
+      width={540}
       style={{ top: 30 }}
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>COMMUNITY LINK URL</label>
           <Input placeholder="e.g. https://discord.gg/react" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => detectPlatform(url)} />
@@ -872,7 +939,7 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
           <Input placeholder="e.g. React Developers Discord" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div>
-          <label style={labelStyle}>CAPTION / DESCRIPTION</label>
+          <label style={labelStyle}>ABOUT / DESCRIPTION</label>
           <Input placeholder="What is this community useful for..." value={caption} onChange={e => setCaption(e.target.value)} maxLength={200} />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -881,8 +948,8 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
             <Select options={COMMUNITY_PLATFORMS} style={{ width: '100%' }} value={platform} onChange={setPlatform} />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>EST. MEMBER COUNT</label>
-            <Input placeholder="e.g. 45K or 2.1M" value={memberCount} onChange={e => setMemberCount(e.target.value)} />
+            <label style={labelStyle}>EST. MEMBER COUNT / STATUS</label>
+            <Input placeholder="e.g. 45K members or Active" value={memberCount} onChange={e => setMemberCount(e.target.value)} />
           </div>
         </div>
         <div>
