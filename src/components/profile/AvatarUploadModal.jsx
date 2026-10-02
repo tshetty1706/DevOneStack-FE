@@ -75,6 +75,11 @@ export default function AvatarUploadModal({ open, onClose }) {
 
       if (res.data.user) {
         setUser(res.data.user);
+        // Update localStorage for other components
+        localStorage.setItem('dos_profile_name', res.data.user.displayName || '');
+        localStorage.setItem('dos_profile_avatar', res.data.user.avatarUrl || '');
+        // Notify other parts of app
+        window.dispatchEvent(new Event('profile_update'));
       }
       message.success('Profile photo updated successfully');
       onClose();

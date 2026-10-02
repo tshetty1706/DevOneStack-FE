@@ -102,8 +102,45 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
     setEducation(education.filter((_, idx) => idx !== index));
   };
 
-  // Save profile to backend
+  // Save profile to backend with validation and global sync
+  const validateInputs = () => {
+    const phoneRegex = /^\+?[0-9\s\-()]{7,}$/;
+    if (phone && !phoneRegex.test(phone)) {
+      message.error('Invalid phone number format');
+      return false;
+    }
+    const urlRegex = /^(https?:\/\/)?([\w.-]+)+[\w-]+(\.[\w-]+)+(\/([\w/_.-]*)?)?$/i;
+    if (website && !urlRegex.test(website)) {
+      message.error('Invalid website URL');
+      return false;
+    }
+    const socialFields = ['github', 'linkedin', 'twitter', 'website'];
+    for (const field of socialFields) {
+      if (socials[field] && !urlRegex.test(socials[field])) {
+        message.error(`Invalid URL for ${field}`);
+        return false;
+      }
+    }
+    // Education years validation
+    for (const edu of education) {
+      if (edu.startYear && isNaN(Number(edu.startYear))) {
+        message.error('Start year must be a number');
+        return false;
+      }
+      if (edu.endYear && edu.endYear.toLowerCase() !== 'present' && isNaN(Number(edu.endYear))) {
+        message.error('End year must be a number or "Present"');
+        return false;
+      }
+      if (edu.startYear && edu.endYear && edu.endYear.toLowerCase() !== 'present' && Number(edu.endYear) < Number(edu.startYear)) {
+        message.error('End year cannot be earlier than start year');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSave = async () => {
+    if (!validateInputs()) return;
     setLoading(true);
     try {
       const payload = {
@@ -121,6 +158,11 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
       const res = await api.put('/api/auth/profile', payload);
       if (res.data.user) {
         setUser(res.data.user);
+        // Update localStorage for other components
+        localStorage.setItem('dos_profile_name', res.data.user.displayName || '');
+        localStorage.setItem('dos_profile_avatar', res.data.user.avatarUrl || '');
+        // Notify other parts of app
+        window.dispatchEvent(new Event('profile_update'));
       }
       message.success('Profile updated successfully');
       onClose();
