@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiFolderLine,
@@ -61,6 +61,7 @@ export default function SharedFolderTree({
   isLight = false,
   showSearch = true,
   showHeader = true,
+  allowFolderDelete = false, // Folder deletion ONLY allowed in Explorer
   maxHeight = '100%',
   style = {},
 }) {
@@ -117,6 +118,29 @@ export default function SharedFolderTree({
     });
     return map;
   }, [allItems]);
+
+  // Compute subtree count helper
+  const getSubtreeCounts = useCallback((folderId) => {
+    const folderIds = new Set([folderId.toString()]);
+    let added = true;
+    while (added) {
+      added = false;
+      folders.forEach(f => {
+        const pId = f.parentId ? (typeof f.parentId === 'object' ? f.parentId._id : f.parentId)?.toString() : null;
+        const fId = f._id.toString();
+        if (pId && folderIds.has(pId) && !folderIds.has(fId)) {
+          folderIds.add(fId);
+          added = true;
+        }
+      });
+    }
+    const subfoldersCount = Math.max(0, folderIds.size - 1);
+    const countItems = allItems.filter(item => {
+      const fId = item.folderId ? (typeof item.folderId === 'object' ? item.folderId._id : item.folderId)?.toString() : null;
+      return fId && folderIds.has(fId);
+    }).length;
+    return { subfoldersCount, countItems };
+  }, [folders, allItems]);
 
   // Compute folder hierarchy tree
   const folderTree = useMemo(() => {
@@ -182,9 +206,10 @@ export default function SharedFolderTree({
       await api.delete(`/api/spaces/${spaceId}/folders/${folderId}`);
     },
     onSuccess: () => {
-      message.success('Folder deleted');
+      message.success('Folder and contents deleted');
       queryClient.invalidateQueries({ queryKey: ['folders', spaceId] });
       queryClient.invalidateQueries({ queryKey: ['items', spaceId] });
+      queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
       if (selectedFolderId) {
         onSelectFolder?.(null, null);
       }
@@ -235,6 +260,7 @@ export default function SharedFolderTree({
   const renderTreeNode = (node) => {
     const isSelected = selectedFolderId === node._id;
     const isCollapsed = collapsedFolders[node._id];
+    const isRoot = Boolean(node.isRoot || (node.name?.toLowerCase() === 'workspace' && !node.parentId));
     const hasChildren = node.children && node.children.length > 0;
     const folderItems = itemsByFolder.get(node._id) || [];
     const totalCount = (node.itemCount !== undefined ? node.itemCount : folderItems.length);
@@ -247,46 +273,68 @@ export default function SharedFolderTree({
       if (!childMatches) return null;
     }
 
-    const folderMenu = {
-      items: [
-        {
-          key: 'add-subfolder',
-          label: 'Add Subfolder',
-          icon: <RiFolderAddLine size={14} />,
-          disabled: node.depth >= 4,
-          onClick: () => handleOpenCreateFolder(node._id),
+    // Build menu items based on root folder and allowFolderDelete permission
+    const menuItems = [
+      {
+        key: 'add-subfolder',
+        label: 'Add Subfolder',
+        icon: <RiFolderAddLine size={14} />,
+        disabled: node.depth >= 4,
+        onClick: () => handleOpenCreateFolder(node._id),
+      },
+    ];
+
+    if (!isRoot) {
+      menuItems.push({
+        key: 'rename',
+        label: 'Rename Folder',
+        icon: <RiEditLine size={14} />,
+        onClick: () => {
+          setRenamingFolder(node);
+          setRenameFolderName(node.name);
+          setRenameModalOpen(true);
         },
-        {
-          key: 'rename',
-          label: 'Rename Folder',
-          icon: <RiEditLine size={14} />,
-          onClick: () => {
-            setRenamingFolder(node);
-            setRenameFolderName(node.name);
-            setRenameModalOpen(true);
+      });
+
+      // ONLY add delete option if allowFolderDelete is true (Explorer module) and not root
+      if (allowFolderDelete) {
+        menuItems.push(
+          {
+            type: 'divider',
           },
-        },
-        {
-          type: 'divider',
-        },
-        {
-          key: 'delete',
-          label: 'Delete Folder',
-          icon: <RiDeleteBinLine size={14} />,
-          danger: true,
-          onClick: () => {
-            Modal.confirm({
-              title: `Delete folder "${node.name}"?`,
-              content: 'Items inside this folder will be safely moved to Workspace root.',
-              okText: 'Delete',
-              okType: 'danger',
-              cancelText: 'Cancel',
-              onOk: () => deleteFolderMutation.mutate(node._id),
-            });
-          },
-        },
-      ],
-    };
+          {
+            key: 'delete',
+            label: 'Delete Folder',
+            icon: <RiDeleteBinLine size={14} />,
+            danger: true,
+            onClick: () => {
+              const { subfoldersCount, countItems } = getSubtreeCounts(node._id);
+              Modal.confirm({
+                title: `Delete "${node.name}"?`,
+                content: (
+                  <div style={{ marginTop: '8px', fontSize: '13px', lineHeight: 1.6 }}>
+                    <p style={{ margin: '0 0 8px', color: '#ef4444', fontWeight: 600 }}>
+                      This will permanently delete:
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: isLight ? '#374151' : '#d1d5db' }}>
+                      <li>this folder</li>
+                      {subfoldersCount > 0 && <li>{subfoldersCount} subfolder{subfoldersCount > 1 ? 's' : ''}</li>}
+                      {countItems > 0 && <li>{countItems} item{countItems > 1 ? 's' : ''}</li>}
+                    </ul>
+                  </div>
+                ),
+                okText: 'Delete Folder',
+                okType: 'danger',
+                cancelText: 'Cancel',
+                onOk: () => deleteFolderMutation.mutate(node._id),
+              });
+            },
+          }
+        );
+      }
+    }
+
+    const folderMenu = { items: menuItems };
 
     return (
       <div key={node._id} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -578,7 +626,7 @@ export default function SharedFolderTree({
           scrollbarColor: isLight ? '#d1d5db transparent' : 'rgba(255,255,255,0.15) transparent',
         }}
       >
-        {/* All Folders Row (Root / Unfiltered) */}
+        {/* Space Root Row (Root / Unfiltered) */}
         <div
           onClick={() => onSelectFolder?.(null, null)}
           style={{
@@ -608,7 +656,7 @@ export default function SharedFolderTree({
               size={15}
               style={{ color: selectedFolderId === null ? '#38bdf8' : (isLight ? '#4f46e5' : '#818cf8') }}
             />
-            <span>All folders</span>
+            <span>Space Root</span>
           </div>
 
           <span
@@ -625,9 +673,66 @@ export default function SharedFolderTree({
         {/* Folder Hierarchy Tree */}
         {folderTree.map(rootNode => renderTreeNode(rootNode))}
 
-        {folders.length === 0 && !foldersLoading && (
+        {/* Root-level Items (items directly at Space Root) */}
+        {(itemsByFolder.get('root') || []).map(item => {
+          const meta = ITEM_TYPE_META[item.type] || ITEM_TYPE_META.note;
+          const ItemIcon = meta.icon;
+          const isItemActive = selectedItemId === item._id;
+          const itemPadding = 20;
+
+          // Filter by search if any
+          const query = folderSearch.toLowerCase().trim();
+          if (query && !item.title.toLowerCase().includes(query)) return null;
+
+          return (
+            <div
+              key={item._id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectItem?.(item);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 8px',
+                paddingLeft: `${itemPadding}px`,
+                borderRadius: '6px',
+                background: isItemActive ? (isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.18)') : 'transparent',
+                color: isItemActive ? (isLight ? '#4338ca' : '#a5b4fc') : textMuted,
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: isItemActive ? 600 : 400,
+                margin: '1px 0',
+                transition: 'all 0.12s ease',
+              }}
+              onMouseEnter={e => {
+                if (!isItemActive) e.currentTarget.style.background = hoverBg;
+              }}
+              onMouseLeave={e => {
+                if (!isItemActive) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                <ItemIcon size={13} style={{ color: meta.color, flexShrink: 0 }} />
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={item.title}
+                >
+                  {item.title}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+
+        {folders.length === 0 && (itemsByFolder.get('root') || []).length === 0 && !foldersLoading && (
           <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: '12px', color: textMuted }}>
-            No folders created yet.
+            No folders or items yet.
           </div>
         )}
       </div>
@@ -652,7 +757,7 @@ export default function SharedFolderTree({
                 Parent Folder
               </label>
               <code style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.06)' }}>
-                {folders.find(f => f._id === createParentId)?.path || folders.find(f => f._id === createParentId)?.name || 'Workspace Root'}
+                {folders.find(f => f._id === createParentId)?.path || folders.find(f => f._id === createParentId)?.name || 'Space Root'}
               </code>
             </div>
           )}

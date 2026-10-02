@@ -139,12 +139,17 @@ export default function MarkdownRenderer({ content = '', isLight = false }) {
     const italicRegex = /\*([^*]+)\*/g;
     const strikeRegex = /~~([^~]+)~~/g;
 
-    // Simple parser for standard inline styles
+    // Simple parser for standard inline styles with broken image fallback
     return (
       <span
         dangerouslySetInnerHTML={{
           __html: text
-            .replace(imgRegex, '<img src="$2" alt="$1" style="max-width:100%; border-radius:8px; margin:8px 0;" />')
+            .replace(imgRegex, (match, alt, url) => {
+              const cleanAlt = (alt || '').replace(/"/g, '&quot;');
+              const cleanUrl = (url || '').replace(/"/g, '&quot;');
+              const altText = cleanAlt ? ` (${cleanAlt})` : '';
+              return `<span class="md-img-wrapper" style="display:inline-block; max-width:100%;"><img src="${cleanUrl}" alt="${cleanAlt}" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0; display:block;" onerror="this.onerror=null; this.outerHTML='<span style=\\'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:6px 0;border-radius:6px;background:rgba(245,158,11,0.08);border:1px dashed rgba(245,158,11,0.3);font-size:12px;color:${isLight ? '#4b5563' : '#9ca3af'};\\'>🖼️ We couldn\\'t find this image${altText}.</span>';" /></span>`;
+            })
             .replace(linkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color); text-decoration:underline;">$1</a>')
             .replace(inlineCodeRegex, '<code style="background:rgba(120,120,150,0.15); padding:2px 5px; border-radius:4px; font-family:monospace; font-size:12px;">$1</code>')
             .replace(boldRegex, '<strong>$1</strong>')

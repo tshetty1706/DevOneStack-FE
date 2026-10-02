@@ -873,96 +873,97 @@ export default function SpaceDashboard() {
         </header>
 
         {/* Content */}
-        <main
-          data-lenis-prevent
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            height: '100%',
-            overflowY: activeSection === 'notes' ? 'hidden' : 'auto',
-            padding: activeSection === 'notes' ? '0' : 'clamp(16px, 3.5vw, 28px)',
-            scrollBehavior: 'smooth',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'var(--border) transparent',
-            boxSizing: 'border-box',
-          }}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeSection}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+        {(() => {
+          const isEditorSection = ['notes', 'docs', 'snippets', 'learnings', 'prompts', 'repos'].includes(activeSection);
+          return (
+            <main
+              data-lenis-prevent
               style={{
-                maxWidth: activeSection === 'notes' ? '100%' : '1200px',
-                margin: activeSection === 'notes' ? '0' : '0 auto',
-                width: '100%',
-                height: activeSection === 'notes' ? '100%' : 'auto',
-                flex: activeSection === 'notes' ? 1 : 'none',
-                display: activeSection === 'notes' ? 'flex' : 'block',
-                flexDirection: 'column',
-                minHeight: 0,
-              }}
-            >
-              {activeSection !== 'notes' && activeSection !== 'overview' && activeSection !== 'explorer' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
-                  <h2 style={{
-                    fontSize: 'clamp(18px, 3vw, 22px)',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    marginBottom: 4,
-                    letterSpacing: '-0.01em',
-                  }}>
-                    {activeSection === 'snippets' ? 'Snippets'
-                      : activeSection === 'settings' ? 'Settings'
-                        : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-                  </h2>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 0 }}>
-                    {activeSection === 'docs' ? 'Documentation, guides, and links'
-                      : activeSection === 'learnings' ? 'Key takeaways, bug fixes, and knowledge items'
-                        : activeSection === 'snippets' ? 'Reusable code blocks and syntax solutions'
-                          : activeSection === 'repos' ? 'GitHub and repository bookmarks'
-                            : activeSection === 'prompts' ? 'AI prompts and templates'
-                              : activeSection === 'communities' ? 'Discussion forums and community channels'
-                                : activeSection === 'tags' ? 'Categories and cross-resource indexing'
-                                  : activeSection === 'settings' ? 'Manage your Space settings'
-                                    : ''}
-                  </p>
-                </div>
-              )}
-
-              <div style={{
-                flex: activeSection === 'notes' ? 1 : 'none',
+                flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
-                height: activeSection === 'notes' ? '100%' : 'auto',
-                width: '100%',
-                background: (activeSection === 'notes' || activeSection === 'overview' || activeSection === 'explorer') ? 'transparent' : cardBg,
-                border: (activeSection === 'notes' || activeSection === 'overview' || activeSection === 'explorer') ? 'none' : `1px solid ${cardBorder}`,
-                borderRadius: activeSection === 'notes' ? 0 : '14px',
-                padding: activeSection === 'settings' ? '20px' : '0',
-                overflow: 'hidden',
-              }}>
-                {SectionComp && (
-                  <SectionComp
-                    space={space}
-                    isLight={isLight}
-                    openNoteId={openNoteId}
-                    highlightId={highlightId}
-                    highlightFolderId={highlightFolderId}
-                    selectedFolderId={selectedFolderId}
-                    onSelectFolder={handleSelectFolder}
-                    onNavigateSection={handleNavigateSection}
-                  />
-                )}
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </main>
+                height: '100%',
+                overflowY: isEditorSection ? 'hidden' : 'auto',
+                padding: isEditorSection ? '0' : 'clamp(16px, 3.5vw, 28px)',
+                scrollBehavior: 'smooth',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--border) transparent',
+                boxSizing: 'border-box',
+              }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeSection}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    maxWidth: isEditorSection ? '100%' : '1200px',
+                    margin: isEditorSection ? '0' : '0 auto',
+                    width: '100%',
+                    height: isEditorSection ? '100%' : 'auto',
+                    flex: isEditorSection ? 1 : 'none',
+                    display: isEditorSection ? 'flex' : 'block',
+                    flexDirection: 'column',
+                    minHeight: 0,
+                  }}
+                >
+                  {!isEditorSection && activeSection !== 'overview' && activeSection !== 'explorer' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '20px' }}>
+                      <h2 style={{
+                        fontSize: 'clamp(18px, 3vw, 22px)',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        marginBottom: 4,
+                        letterSpacing: '-0.01em',
+                      }}>
+                        {activeSection === 'settings' ? 'Settings'
+                          : activeSection === 'communities' ? 'Communities'
+                            : activeSection === 'tags' ? 'Tags'
+                              : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+                      </h2>
+                      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 0 }}>
+                        {activeSection === 'communities' ? 'Discussion forums and community channels'
+                          : activeSection === 'tags' ? 'Categories and cross-resource indexing'
+                            : activeSection === 'settings' ? 'Manage your Space settings'
+                              : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  <div style={{
+                    flex: isEditorSection ? 1 : 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 0,
+                    height: isEditorSection ? '100%' : 'auto',
+                    width: '100%',
+                    background: (isEditorSection || activeSection === 'overview' || activeSection === 'explorer') ? 'transparent' : cardBg,
+                    border: (isEditorSection || activeSection === 'overview' || activeSection === 'explorer') ? 'none' : `1px solid ${cardBorder}`,
+                    borderRadius: isEditorSection ? 0 : '14px',
+                    padding: activeSection === 'settings' ? '20px' : '0',
+                    overflow: 'hidden',
+                  }}>
+                    {SectionComp && (
+                      <SectionComp
+                        space={space}
+                        isLight={isLight}
+                        openNoteId={openNoteId}
+                        highlightId={highlightId}
+                        highlightFolderId={highlightFolderId}
+                        selectedFolderId={selectedFolderId}
+                        onSelectFolder={handleSelectFolder}
+                        onNavigateSection={handleNavigateSection}
+                      />
+                    )}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          );
+        })()}
       </div>
 
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />

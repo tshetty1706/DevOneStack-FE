@@ -5,7 +5,8 @@ import {
   RiAddLine, RiGlobalLine, RiFilePdfLine, RiImageLine, RiPushpinLine, 
   RiPushpin2Fill, RiDeleteBinLine, RiSearchLine, RiUploadCloudLine,
   RiDownloadLine, RiExternalLinkLine, RiFileCopyLine, RiEyeLine, 
-  RiHistoryLine, RiTeamLine, RiFolderLine, RiFolderTransferLine
+  RiHistoryLine, RiTeamLine, RiFolderLine, RiFolderTransferLine, RiFileTextLine,
+  RiMenuFoldLine, RiMenuUnfoldLine
 } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddDocModal } from './QuickAddModals';
@@ -29,6 +30,7 @@ export default function DocsSection({
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'pdf', 'image', 'url'
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [localFolderId, setLocalFolderId] = useState(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
@@ -42,6 +44,23 @@ export default function DocsSection({
 
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+
+  // Fetch folders for breadcrumb
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
+    queryFn: async () => {
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    }
+  });
+
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
 
   // Fetch docs
   const { data = [], isLoading } = useQuery({
@@ -177,40 +196,188 @@ export default function DocsSection({
     { key: 'image', label: 'Images', icon: RiImageLine, color: '#34d399' },
   ];
 
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const sidebarBg = isLight ? '#fafafa' : '#0a0a0f';
+  const editorBg = isLight ? '#ffffff' : '#0b0b0e';
+  const textColor = isLight ? '#111827' : '#ffffff';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
+
   return (
-    <div style={{ display: 'flex', minHeight: '550px', height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
-      {/* LEFT COLUMN: Folder Sidebar */}
-      <div style={{
-        width: '260px',
-        borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        background: isLight ? '#fafafa' : '#0a0a0f',
-        padding: '8px 4px',
-      }}>
-        <SharedFolderTree
-          spaceId={space._id}
-          selectedFolderId={selectedFolderId}
-          onSelectFolder={handleSelectFolder}
-          onSelectItem={(item) => {
-            if (item.type === 'doc') {
-              handleDocClick(item);
-            } else if (onNavigateSection) {
-              onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
-            }
-          }}
-          selectedItemId={highlightId}
-          filterItemType="doc"
-          isLight={isLight}
-          showHeader={true}
-          showSearch={true}
-        />
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'row', height: '100%', width: '100%', minHeight: 0, flex: 1, background: editorBg, overflow: 'hidden' }}>
+      {/* LEFT COLUMN: Docs Sidebar */}
+      {!isSidebarCollapsed && (
+        <aside style={{
+          width: '260px',
+          minWidth: '240px',
+          maxWidth: '300px',
+          borderRight: `1px solid ${cardBorder}`,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          flexShrink: 0,
+          background: sidebarBg,
+          overflow: 'hidden',
+        }}>
+          {/* Sidebar Header */}
+          <div style={{
+            height: '48px',
+            minHeight: '48px',
+            maxHeight: '48px',
+            padding: '0 14px',
+            borderBottom: `1px solid ${cardBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            boxSizing: 'border-box',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RiFileTextLine size={17} style={{ color: accent }} />
+              <span style={{ fontSize: '13.5px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
+                Docs
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<RiAddLine />}
+                onClick={() => setModalOpen(true)}
+                style={{
+                  background: accent,
+                  borderColor: accent,
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
+              >
+                Add Doc
+              </Button>
+
+              <Tooltip title="Collapse sidebar">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = textColor}
+                  onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                >
+                  <RiMenuFoldLine size={16} />
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Current Location Breadcrumb in Sidebar */}
+          <div style={{
+            padding: '6px 14px',
+            borderBottom: `1px solid ${cardBorder}`,
+            fontSize: '11px',
+            color: textMuted,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            <RiFolderLine size={13} style={{ color: accent, flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: textColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentFolderPath}
+            </span>
+          </div>
+
+          {/* Search bar */}
+          <div style={{ padding: '8px 12px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
+            <div style={{ position: 'relative' }}>
+              <RiSearchLine size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: textMuted }} />
+              <input
+                placeholder="Search docs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px 6px 28px',
+                  borderRadius: '6px',
+                  border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
+                  background: isLight ? '#ffffff' : '#1a1a1a',
+                  color: textColor,
+                  fontSize: '12px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', padding: '6px 12px', gap: '4px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0, overflowX: 'auto' }}>
+            {FILTER_PILLS.map(pill => {
+              const active = typeFilter === pill.key;
+              return (
+                <button
+                  key={pill.key}
+                  type="button"
+                  onClick={() => setTypeFilter(pill.key)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    border: 'none',
+                    background: active ? (isLight ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.2)') : 'transparent',
+                    color: active ? accent : textMuted,
+                    fontWeight: active ? 700 : 500,
+                    fontSize: '11.5px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {pill.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Shared Folder Tree */}
+          <div data-lenis-prevent style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 2px' }}>
+            <SharedFolderTree
+              spaceId={space._id}
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={handleSelectFolder}
+              onSelectItem={(item) => {
+                if (item.type === 'doc') {
+                  handleDocClick(item);
+                } else if (onNavigateSection) {
+                  onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
+                }
+              }}
+              selectedItemId={highlightId}
+              filterItemType="doc"
+              isLight={isLight}
+              showHeader={true}
+              showSearch={false}
+            />
+          </div>
+        </aside>
+      )}
 
       {/* RIGHT COLUMN: Docs content */}
-      <div data-lenis-prevent style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px' }}>
-        {/* Header controls */}
+      <main data-lenis-prevent style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+        {/* Top summary row */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -219,76 +386,42 @@ export default function DocsSection({
           marginBottom: '20px',
           flexWrap: 'wrap'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '220px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', width: '220px' }}>
-              <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
-              <input
-                placeholder="Search docs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '7px 10px 7px 32px',
-                  borderRadius: '8px',
-                  border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-                  background: isLight ? '#ffffff' : '#1a1a1a',
-                  color: isLight ? '#111111' : '#ffffff',
-                  outline: 'none',
-                  fontSize: '13px'
-                }}
-              />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {isSidebarCollapsed && (
+              <Tooltip title="Expand sidebar">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${cardBorder}`,
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = textColor}
+                  onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                >
+                  <RiMenuUnfoldLine size={16} />
+                  <span>Show Sidebar</span>
+                </button>
+              </Tooltip>
+            )}
 
-            {/* Filter pills */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: isLight ? '#f3f4f6' : '#14141c',
-              padding: '3px',
-              borderRadius: '8px',
-              border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)'}`,
-              gap: '2px'
-            }}>
-              {FILTER_PILLS.map(pill => {
-                const active = typeFilter === pill.key;
-                const Icon = pill.icon;
-                return (
-                  <button
-                    key={pill.key}
-                    onClick={() => setTypeFilter(pill.key)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: active
-                        ? (isLight ? '#ffffff' : 'rgba(99,102,241,0.15)')
-                        : 'transparent',
-                      color: active
-                        ? (isLight ? '#4f46e5' : '#818cf8')
-                        : (isLight ? '#666666' : '#999999'),
-                      fontWeight: active ? 600 : 500,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: active && isLight ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
-                    }}
-                  >
-                    {Icon && <Icon size={13} style={{ color: active ? (isLight ? '#4f46e5' : '#818cf8') : pill.color }} />}
-                    <span>{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
+            <span style={{ fontSize: '13px', fontWeight: 600, color: textColor }}>
+              {filteredDocs.length} Document{filteredDocs.length === 1 ? '' : 's'}
+            </span>
             {selectedFolderId && (
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '4px 10px',
+                padding: '3px 8px',
                 borderRadius: '6px',
                 background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
                 border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
@@ -296,7 +429,7 @@ export default function DocsSection({
                 color: isLight ? '#4f46e5' : '#818cf8',
               }}>
                 <RiFolderLine size={13} />
-                <span>Folder filter</span>
+                <span>{currentFolderPath}</span>
                 <button
                   onClick={() => handleSelectFolder(null)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 700, padding: 0 }}
@@ -313,12 +446,11 @@ export default function DocsSection({
             icon={<RiAddLine />}
             onClick={() => setModalOpen(true)}
             style={{
-              background: isLight ? '#4f46e5' : '#6366f1',
-              borderColor: isLight ? '#4f46e5' : '#6366f1',
-              borderRadius: '8px',
-              height: '34px',
-              fontSize: '13px',
-              fontWeight: 500
+              background: accent,
+              borderColor: accent,
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '12.5px'
             }}
           >
             Add Doc
@@ -687,7 +819,7 @@ export default function DocsSection({
             })}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Add Doc Modal */}
       <QuickAddDocModal

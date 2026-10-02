@@ -43,14 +43,14 @@ export default function FolderPicker({
         label: (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' }}>
             <RiFolderLine size={15} style={{ color: isLight ? '#4f46e5' : '#818cf8', flexShrink: 0 }} />
-            <span style={{ fontWeight: 600, fontSize: '13px' }}>Workspace (Root)</span>
+            <span style={{ fontWeight: 600, fontSize: '13px' }}>Space Root</span>
             <Tag color="blue" style={{ fontSize: '10px', marginLeft: 'auto', padding: '0 4px', lineHeight: '16px' }}>
-              Level 1
+              Root
             </Tag>
           </div>
         ),
-        searchLabel: 'Workspace Root (Top Level)',
-        depth: 1,
+        searchLabel: 'Space Root (Top Level)',
+        depth: 0,
       });
     }
 
@@ -85,9 +85,9 @@ export default function FolderPicker({
   // Selected folder path preview
   const selectedFolder = useMemo(() => {
     if (!value || value === 'root' || value === 'null') {
-      return folders.find(f => !f.parentId) || { name: 'Workspace', path: 'Workspace' };
+      return { name: 'Space Root', path: 'Space Root' };
     }
-    return folders.find(f => f._id === value) || null;
+    return folders.find(f => f._id === value) || { name: 'Space Root', path: 'Space Root' };
   }, [folders, value]);
 
   return (
@@ -98,7 +98,7 @@ export default function FolderPicker({
         loading={isLoading}
         value={value || (allowRoot ? 'root' : undefined)}
         onChange={(val) => {
-          const finalVal = val === 'root' ? (folders.find(f => !f.parentId)?._id || null) : val;
+          const finalVal = (val === 'root' || val === 'null') ? null : val;
           onChange(finalVal);
         }}
         placeholder={placeholder}
@@ -107,16 +107,12 @@ export default function FolderPicker({
         }
         options={options}
         style={{ width: '100%', minHeight: '38px' }}
-        dropdownStyle={{
-          maxHeight: '280px',
-          padding: '6px',
-        }}
       />
       {selectedFolder && (
         <span style={{ fontSize: '11px', color: 'var(--text-muted, #888)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span>Path:</span>
           <code style={{ fontSize: '11px', padding: '1px 5px', borderRadius: '4px', background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.06)' }}>
-            {selectedFolder.path || selectedFolder.name || 'Workspace'}
+            {selectedFolder.path || selectedFolder.name || 'Space Root'}
           </code>
         </span>
       )}

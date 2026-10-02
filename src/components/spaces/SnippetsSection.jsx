@@ -4,7 +4,8 @@ import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Toolt
 import {
   RiAddLine, RiPushpinLine, RiPushpin2Fill, RiSearchLine,
   RiFileCopyLine, RiCheckLine, RiCodeLine, RiCodeSSlashLine,
-  RiHistoryLine, RiFolderLine, RiFolderTransferLine
+  RiHistoryLine, RiFolderLine, RiFolderTransferLine, RiMenuFoldLine,
+  RiMenuUnfoldLine
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -45,6 +46,7 @@ export default function SnippetsSection({
   const [editingSnippet, setEditingSnippet] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedQuery = useDebounce(searchQuery, 300);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [localFolderId, setLocalFolderId] = useState(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
@@ -69,6 +71,23 @@ export default function SnippetsSection({
   const [code, setCode] = useState('');
   const [tags, setTags] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
+
+  // Fetch folders for breadcrumb
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
+    queryFn: async () => {
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    }
+  });
+
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
 
   // Fetch snippets
   const { data: rawSnippets = [], isLoading } = useQuery({
@@ -224,42 +243,192 @@ export default function SnippetsSection({
     }
   };
 
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const sidebarBg = isLight ? '#fafafa' : '#0a0a0f';
+  const textColor = isLight ? '#111827' : '#ffffff';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
+
   return (
-    <div style={{ display: 'flex', minHeight: '550px', height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'row',
+      flex: 1,
+      height: '100%',
+      width: '100%',
+      minHeight: 0,
+      overflow: 'hidden',
+      background: isLight ? '#ffffff' : '#0b0b0e'
+    }}>
       {/* LEFT COLUMN: Folder Sidebar */}
-      <div style={{
-        width: '260px',
-        borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        background: isLight ? '#fafafa' : '#0a0a0f',
-        padding: '8px 4px',
-      }}>
-        <SharedFolderTree
-          spaceId={space._id}
-          selectedFolderId={selectedFolderId}
-          onSelectFolder={handleSelectFolder}
-          onSelectItem={(item) => {
-            if (item.type === 'snippet') {
-              handleOpenViewModal(item);
-            } else if (onNavigateSection) {
-              onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
-            }
-          }}
-          selectedItemId={viewSnippet?._id || highlightId}
-          filterItemType="snippet"
-          isLight={isLight}
-          showHeader={true}
-          showSearch={true}
-        />
-      </div>
+      {!isSidebarCollapsed && (
+        <aside style={{
+          width: '280px',
+          minWidth: '240px',
+          maxWidth: '320px',
+          borderRight: `1px solid ${cardBorder}`,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          flexShrink: 0,
+          background: sidebarBg,
+          overflow: 'hidden'
+        }}>
+          {/* Module Sidebar Header */}
+          <div style={{
+            height: '48px',
+            padding: '0 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: `1px solid ${cardBorder}`,
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RiCodeSSlashLine size={18} style={{ color: accent }} />
+              <span style={{ fontSize: '13.5px', fontWeight: 700, color: textColor, fontFamily: 'var(--font-display)' }}>
+                Snippets
+              </span>
+              <span style={{
+                fontSize: '11px',
+                padding: '1px 6px',
+                borderRadius: '10px',
+                background: isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.15)',
+                color: accent,
+                fontWeight: 600,
+              }}>
+                {rawSnippets.length}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<RiAddLine />}
+                onClick={openAddModal}
+                style={{
+                  background: accent,
+                  borderColor: accent,
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
+              >
+                New
+              </Button>
+
+              <Tooltip title="Collapse sidebar">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = textColor}
+                  onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                >
+                  <RiMenuFoldLine size={16} />
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Current Location Breadcrumb in Sidebar */}
+          <div style={{
+            padding: '6px 14px',
+            borderBottom: `1px solid ${cardBorder}`,
+            fontSize: '11px',
+            color: textMuted,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            <RiFolderLine size={13} style={{ color: accent, flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: textColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentFolderPath}
+            </span>
+          </div>
+
+          {/* Tree Explorer */}
+          <div data-lenis-prevent style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 4px' }}>
+            <SharedFolderTree
+              spaceId={space._id}
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={handleSelectFolder}
+              onSelectItem={(item) => {
+                if (item.type === 'snippet') {
+                  handleOpenViewModal(item);
+                } else if (onNavigateSection) {
+                  onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
+                }
+              }}
+              selectedItemId={viewSnippet?._id || highlightId}
+              filterItemType="snippet"
+              isLight={isLight}
+              showHeader={true}
+              showSearch={true}
+            />
+          </div>
+        </aside>
+      )}
 
       {/* RIGHT COLUMN: Snippets content */}
-      <div data-lenis-prevent style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '20px' }}>
+      <main
+        data-lenis-prevent
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          overflowY: 'auto',
+          background: isLight ? '#f9fafb' : '#07070b',
+          padding: 'clamp(16px, 3vw, 24px)'
+        }}
+      >
         {/* Header controls */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '220px' }}>
+            {isSidebarCollapsed && (
+              <Tooltip title="Expand sidebar">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${cardBorder}`,
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = textColor}
+                  onMouseLeave={e => e.currentTarget.style.color = textMuted}
+                >
+                  <RiMenuUnfoldLine size={16} />
+                  <span>Show Sidebar</span>
+                </button>
+              </Tooltip>
+            )}
+
             <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
               <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
               <input
@@ -289,7 +458,7 @@ export default function SnippetsSection({
                 color: isLight ? '#4f46e5' : '#818cf8',
               }}>
                 <RiFolderLine size={13} />
-                <span>Folder filter</span>
+                <span>{currentFolderPath}</span>
                 <button
                   onClick={() => handleSelectFolder(null)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 700, padding: 0 }}
@@ -512,7 +681,7 @@ export default function SnippetsSection({
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Add / Edit Modal */}
       <QuickAddSnippetModal

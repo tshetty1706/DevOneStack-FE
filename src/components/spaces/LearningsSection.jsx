@@ -6,7 +6,7 @@ import {
   RiErrorWarningLine, RiCheckboxCircleLine, RiQuestionLine,
   RiSparklingLine, RiPushpinLine, RiPushpinFill, RiDeleteBinLine,
   RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine, RiFolderLine,
-  RiFolderTransferLine
+  RiFolderTransferLine, RiMenuFoldLine, RiMenuUnfoldLine
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -24,22 +24,6 @@ const TYPE_CONFIG = {
   idea: { label: 'Idea', icon: RiSparklingLine, color: '#a855f7', bg: 'rgba(168, 85, 247, 0.08)', border: 'rgba(168, 85, 247, 0.15)' },
 };
 
-const LANGUAGES = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'jsx', label: 'React JSX' },
-  { value: 'tsx', label: 'React TSX' },
-  { value: 'python', label: 'Python' },
-  { value: 'css', label: 'CSS' },
-  { value: 'html', label: 'HTML' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'bash', label: 'Bash/Shell' },
-  { value: 'json', label: 'JSON' },
-  { value: 'go', label: 'Go' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'other', label: 'Other' }
-];
-
 export default function LearningsSection({
   space,
   isLight,
@@ -54,7 +38,7 @@ export default function LearningsSection({
   const [filterType, setFilterType] = useState('all');
   const [localFolderId, setLocalFolderId] = useState(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
-  const [foldersSectionOpen, setFoldersSectionOpen] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
   const handleSelectFolder = (fId) => {
@@ -65,15 +49,24 @@ export default function LearningsSection({
   // Modal forms state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLearning, setEditingLearning] = useState(null);
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('learning');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState([]);
-  const [hasCode, setHasCode] = useState(false);
-  const [codeLanguage, setCodeLanguage] = useState('javascript');
-  const [codeContent, setCodeContent] = useState('');
-
   const [copied, setCopied] = useState(false);
+
+  // Fetch folders for breadcrumbs
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
+    queryFn: async () => {
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    }
+  });
+
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
 
   // Fetch learnings
   const { data: learnings = [], isLoading } = useQuery({
@@ -99,60 +92,7 @@ export default function LearningsSection({
     return learnings.find(l => l._id === selectedId) || null;
   }, [selectedId, learnings]);
 
-  // Client-side filtering & search & folder
-  const filteredItems = useMemo(() => {
-    return learnings.filter(item => {
-      const matchesType = filterType === 'all' || item.type === filterType;
-      
-      const itemFolderId = item.folderId ? (typeof item.folderId === 'object' ? item.folderId._id : item.folderId) : null;
-      const matchesFolder = !selectedFolderId || itemFolderId === selectedFolderId;
-
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return matchesType && matchesFolder;
-
-      const titleMatches = item.title.toLowerCase().includes(query);
-      const contentMatches = item.content.toLowerCase().includes(query);
-      const tagMatches = item.tags?.some(t => t.toLowerCase().includes(query));
-
-      return matchesType && matchesFolder && (titleMatches || contentMatches || tagMatches);
-    });
-  }, [learnings, filterType, searchQuery, selectedFolderId]);
-
-  // Split into pinned and unpinned lists
-  const pinnedLearnings = useMemo(() => filteredItems.filter(l => l.isPinned), [filteredItems]);
-  const normalLearnings = useMemo(() => filteredItems.filter(l => !l.isPinned), [filteredItems]);
-
-  // CRUD Mutations
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      return api.post(`/api/spaces/${space._id}/learnings`, payload);
-    },
-    onSuccess: (res) => {
-      message.success('Learning logged!');
-      queryClient.invalidateQueries(['learnings', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-      setSelectedId(res.data.learning._id);
-      closeModal();
-    },
-    onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to save');
-    }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }) => {
-      return api.patch(`/api/spaces/${space._id}/learnings/${id}`, payload);
-    },
-    onSuccess: () => {
-      message.success('Learning updated!');
-      queryClient.invalidateQueries(['learnings', space._id]);
-      closeModal();
-    },
-    onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to update');
-    }
-  });
-
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       return api.delete(`/api/spaces/${space._id}/learnings/${id}`);
@@ -182,55 +122,19 @@ export default function LearningsSection({
     }
   });
 
-  // Modal open helpers
   const openCreateModal = () => {
     setEditingLearning(null);
-    setTitle('');
-    setType('learning');
-    setContent('');
-    setTags([]);
-    setHasCode(false);
-    setCodeLanguage('javascript');
-    setCodeContent('');
     setModalOpen(true);
   };
 
   const openEditModal = (item) => {
     setEditingLearning(item);
-    setTitle(item.title);
-    setType(item.type);
-    setContent(item.content);
-    setTags(item.tags || []);
-    setHasCode(!!item.codeExample?.code);
-    setCodeLanguage(item.codeExample?.language || 'javascript');
-    setCodeContent(item.codeExample?.code || '');
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingLearning(null);
-  };
-
-  const handleSubmit = () => {
-    if (!title.trim() || !content.trim()) {
-      message.error('Title and explanation content are required');
-      return;
-    }
-
-    const payload = {
-      title,
-      type,
-      content,
-      tags,
-      codeExample: hasCode ? { language: codeLanguage, code: codeContent } : { language: '', code: '' }
-    };
-
-    if (editingLearning) {
-      updateMutation.mutate({ id: editingLearning._id, payload });
-    } else {
-      createMutation.mutate(payload);
-    }
   };
 
   const handleCopyCode = (code) => {
@@ -243,321 +147,147 @@ export default function LearningsSection({
   // Color mappings
   const themeCardBg = isLight ? '#ffffff' : '#14141c';
   const themeBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-  const themeInputBg = isLight ? '#ffffff' : '#0e0e12';
-  const themeInputBorder = isLight ? '#d9d9d9' : '#2a2a30';
+  const themeTextColor = isLight ? '#111827' : '#ffffff';
+  const themeTextMuted = '#64748b';
+  const themeAccent = isLight ? '#4f46e5' : '#6366f1';
 
   return (
-    <div className="learnings-split-layout" style={{
+    <div style={{
       display: 'flex',
+      flexDirection: 'row',
       flex: 1,
       overflow: 'hidden',
-      height: 'calc(100vh - 200px)',
-      minHeight: '550px'
+      height: '100%',
+      width: '100%',
+      minHeight: 0,
+      background: isLight ? '#ffffff' : '#0b0b0e'
     }}>
-      
-      {/* Dynamic styling overrides for select fields */}
-      <style>{`
-        .learning-tags-select .ant-select-selector {
-          background: ${themeInputBg} !important;
-          border-color: ${themeInputBorder} !important;
-          color: ${isLight ? '#111' : '#fff'} !important;
-        }
-        .learning-type-select .ant-select-selector {
-          background: ${themeInputBg} !important;
-          border-color: ${themeInputBorder} !important;
-          color: ${isLight ? '#111' : '#fff'} !important;
-        }
-      `}</style>
 
       {/* LEFT COLUMN: Sidebar Explorer */}
-      <div className="learnings-split-sidebar" style={{
-        width: '320px',
-        borderRight: `1px solid ${themeBorder}`,
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        background: isLight ? '#fafafa' : '#0a0a0f'
-      }}>
-        
-        {/* Title Block */}
-        <div style={{ padding: '16px 20px 8px' }}>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#111' : '#fff' }}>
-            {space.name} Journey
-          </h3>
-          <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#888' }}>
-            Structured knowledge and developer logs
-          </p>
-        </div>
-
-        {/* Search bar */}
-        <div style={{ padding: '10px 16px', position: 'relative' }}>
-          <RiSearchLine style={{ position: 'absolute', left: '26px', top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
-          <input
-            placeholder="Search learnings..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px 8px 34px',
-              borderRadius: '8px',
-              border: `1px solid ${themeInputBorder}`,
-              background: themeInputBg,
-              color: isLight ? '#111' : '#fff',
-              fontSize: '13px',
-              outline: 'none',
-              fontFamily: 'var(--font-body)'
-            }}
-          />
-        </div>
-
-        {/* Filter controls */}
-        <div style={{
+      {!isSidebarCollapsed && (
+        <aside style={{
+          width: '280px',
+          minWidth: '240px',
+          maxWidth: '320px',
+          borderRight: `1px solid ${themeBorder}`,
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px',
-          padding: '4px 16px 12px'
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          flexShrink: 0,
+          background: isLight ? '#fafafa' : '#0a0a0f',
+          overflow: 'hidden'
         }}>
-          <button
-            onClick={() => setFilterType('all')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '20px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: `1px solid ${filterType === 'all' ? (isLight ? '#111' : '#fff') : themeInputBorder}`,
-              background: filterType === 'all' ? (isLight ? '#111' : '#fff') : 'transparent',
-              color: filterType === 'all' ? (isLight ? '#fff' : '#111') : '#888',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            All
-          </button>
-          {Object.entries(TYPE_CONFIG).map(([key, config]) => (
-            <button
-              key={key}
-              onClick={() => setFilterType(key)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '20px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: `1px solid ${filterType === key ? config.color : themeInputBorder}`,
-                background: filterType === key ? config.bg : 'transparent',
-                color: filterType === key ? config.color : '#888',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <config.icon size={12} />
-              {config.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Create Button */}
-        <div style={{ padding: '0 16px 10px' }}>
-          <Button
-            type="dashed"
-            icon={<RiAddLine />}
-            onClick={openCreateModal}
-            style={{
-              width: '100%',
-              borderColor: isLight ? '#4f46e5' : '#6366f1',
-              color: isLight ? '#4f46e5' : '#6366f1',
-              fontWeight: 600,
-              fontSize: '12px'
-            }}
-          >
-            Log New Learning
-          </Button>
-        </div>
-
-        {/* Collapsible Shared Folders Section */}
-        <div style={{
-          borderTop: `1px solid ${themeBorder}`,
-          borderBottom: `1px solid ${themeBorder}`,
-          background: isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.015)',
-        }}>
-          <div
-            onClick={() => setFoldersSectionOpen(prev => !prev)}
-            style={{
-              padding: '8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
-          >
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              Workspaces & Folders
-            </span>
-            <span style={{ fontSize: '12px', color: '#888' }}>
-              {foldersSectionOpen ? '▾' : '▸'}
-            </span>
-          </div>
-          {foldersSectionOpen && (
-            <div style={{ padding: '0 8px 8px' }}>
-              <SharedFolderTree
-                spaceId={space._id}
-                selectedFolderId={selectedFolderId}
-                onSelectFolder={handleSelectFolder}
-                onSelectItem={(item) => {
-                  if (item.type === 'learning') {
-                    setSelectedId(item._id);
-                  } else if (onNavigateSection) {
-                    onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
-                  }
-                }}
-                selectedItemId={selectedId}
-                filterItemType="learning"
-                isLight={isLight}
-                showHeader={false}
-                showSearch={false}
-                maxHeight="170px"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Active Folder Filter Banner */}
-        {selectedFolderId && (
+          {/* Header & CTA */}
           <div style={{
-            margin: '8px 16px 0',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
-            border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
+            height: '48px',
+            minHeight: '48px',
+            maxHeight: '48px',
+            padding: '0 14px',
+            borderBottom: `1px solid ${themeBorder}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            fontSize: '11px',
-            color: isLight ? '#4f46e5' : '#818cf8',
+            flexShrink: 0,
+            boxSizing: 'border-box',
           }}>
-            <span>Filtered by folder</span>
-            <button
-              onClick={() => handleSelectFolder(null)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 700 }}
-              title="Show all folders"
-            >
-              ✕ Clear
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RiLightbulbLine size={17} style={{ color: themeAccent }} />
+              <span style={{ fontSize: '13.5px', fontWeight: 700, color: themeTextColor, fontFamily: 'var(--font-display)' }}>
+                Learnings
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<RiAddLine />}
+                onClick={openCreateModal}
+                style={{
+                  background: themeAccent,
+                  borderColor: themeAccent,
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                }}
+              >
+                Log Learning
+              </Button>
+
+              <Tooltip title="Collapse sidebar">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: themeTextMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = themeTextColor}
+                  onMouseLeave={e => e.currentTarget.style.color = themeTextMuted}
+                >
+                  <RiMenuFoldLine size={16} />
+                </button>
+              </Tooltip>
+            </div>
           </div>
-        )}
 
-        {/* Learnings list */}
-        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 20px' }}>
-          {isLoading ? (
-            <Skeleton active paragraph={{ rows: 6 }} />
-          ) : filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#666', fontSize: '12px', padding: '40px 0' }}>
-              No learnings matching filters.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              
-              {/* PINNED SECTION */}
-              {pinnedLearnings.length > 0 && (
-                <div>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                    Pinned
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {pinnedLearnings.map(item => {
-                      const isActive = item._id === selectedId;
-                      const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.learning;
-                      return (
-                        <div
-                          key={item._id}
-                          onClick={() => setSelectedId(item._id)}
-                          style={{
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            background: isActive ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)') : themeCardBg,
-                            border: `1px solid ${isActive ? (isLight ? '#4f46e5' : '#6366f1') : themeBorder}`,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            transition: 'border-color 0.15s, background 0.15s'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                              <config.icon size={13} style={{ color: config.color, flexShrink: 0 }} />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {item.title}
-                              </span>
-                            </div>
-                            <RiPushpinFill size={12} style={{ color: '#eab308', flexShrink: 0 }} />
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.content}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+          {/* Current Location Breadcrumb in Sidebar */}
+          <div style={{
+            padding: '6px 14px',
+            borderBottom: `1px solid ${themeBorder}`,
+            fontSize: '11px',
+            color: themeTextMuted,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            <RiFolderLine size={13} style={{ color: themeAccent, flexShrink: 0 }} />
+            <span style={{ fontWeight: 600, color: themeTextColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentFolderPath}
+            </span>
+          </div>
 
-              {/* ALL SECTION */}
-              <div>
-                {pinnedLearnings.length > 0 && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginTop: '14px', marginBottom: '6px' }}>
-                    All Learnings
-                  </span>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {normalLearnings.map(item => {
-                    const isActive = item._id === selectedId;
-                    const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.learning;
-                    return (
-                      <div
-                        key={item._id}
-                        onClick={() => setSelectedId(item._id)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          background: isActive ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)') : themeCardBg,
-                          border: `1px solid ${isActive ? (isLight ? '#4f46e5' : '#6366f1') : themeBorder}`,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px',
-                          transition: 'border-color 0.15s, background 0.15s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                          <config.icon size={13} style={{ color: config.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.title}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.content}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+          {/* Shared Folder Tree (Single Source of Truth) */}
+          <div data-lenis-prevent style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '6px 4px' }}>
+            <SharedFolderTree
+              spaceId={space._id}
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={handleSelectFolder}
+              onSelectItem={(item) => {
+                if (item.type === 'learning') {
+                  setSelectedId(item._id);
+                } else if (onNavigateSection) {
+                  onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
+                }
+              }}
+              selectedItemId={selectedId}
+              filterItemType="learning"
+              isLight={isLight}
+              showHeader={true}
+              showSearch={true}
+            />
+          </div>
 
-            </div>
-          )}
-        </div>
-
-      </div>
+        </aside>
+      )}
 
       {/* RIGHT COLUMN: Viewport Details */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isLight ? '#ffffff' : '#0b0b0e' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', background: isLight ? '#ffffff' : '#0b0b0e' }}>
         {selectedItem ? (
           <>
-            {/* Sticky close bar */}
+            {/* Sticky detail header bar */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -565,10 +295,35 @@ export default function LearningsSection({
               padding: '10px 20px',
               borderBottom: `1px solid ${themeBorder}`,
               background: isLight ? '#fafafa' : '#101017',
-              flexShrink: 0
+              flexShrink: 0,
+              gap: '10px',
             }}>
-              {/* Top Edit, Pin, Delete Controls */}
+              {/* Expand button if collapsed + Action Controls */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Expand sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: themeTextMuted,
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginRight: '4px',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = themeTextColor}
+                      onMouseLeave={e => e.currentTarget.style.color = themeTextMuted}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
+                )}
+
                 <Tooltip title={selectedItem.isPinned ? 'Unpin from Top' : 'Pin to Top'}>
                   <Button
                     shape="circle"
@@ -641,49 +396,48 @@ export default function LearningsSection({
               </button>
             </div>
 
-          <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
-            
-            {/* Structured detail block */}
-            <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
-              {/* Type Badge Header */}
-              <div>
-                {(() => {
-                  const config = TYPE_CONFIG[selectedItem.type] || TYPE_CONFIG.learning;
-                  return (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      color: config.color,
-                      background: config.bg,
-                      border: `1px solid ${config.border}`
-                    }}>
-                      <config.icon size={13} />
-                      {config.label}
-                    </span>
-                  );
-                })()}
-              </div>
+            <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
+              {/* Structured detail block */}
+              <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* Type Badge Header */}
+                <div>
+                  {(() => {
+                    const config = TYPE_CONFIG[selectedItem.type] || TYPE_CONFIG.learning;
+                    return (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        color: config.color,
+                        background: config.bg,
+                        border: `1px solid ${config.border}`
+                      }}>
+                        <config.icon size={13} />
+                        {config.label}
+                      </span>
+                    );
+                  })()}
+                </div>
 
-              {/* Title */}
-              <h1 style={{
-                margin: 0,
-                fontSize: '24px',
-                fontWeight: 800,
-                color: isLight ? '#111' : '#fff',
-                lineHeight: 1.25,
-                letterSpacing: '-0.02em'
-              }}>
-                {selectedItem.title}
-              </h1>
+                {/* Title */}
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: 800,
+                  color: isLight ? '#111' : '#fff',
+                  lineHeight: 1.25,
+                  letterSpacing: '-0.02em'
+                }}>
+                  {selectedItem.title}
+                </h1>
 
-              {selectedItem.folderPath && (
+                {/* Folder Path */}
                 <div
                   onClick={() => {
                     if (onNavigateSection) {
@@ -692,7 +446,7 @@ export default function LearningsSection({
                   }}
                   style={{
                     fontSize: '12px',
-                    color: 'var(--accent-color)',
+                    color: themeAccent,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -703,158 +457,184 @@ export default function LearningsSection({
                   title="View in Explorer"
                 >
                   <RiFolderLine size={13} />
-                  <span>{selectedItem.folderPath}</span>
+                  <span>{selectedItem.folderPath || 'Space Root'}</span>
                 </div>
-              )}
 
-              {/* Tags */}
-              {selectedItem.tags?.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {selectedItem.tags.map(tag => (
-                    <span key={tag} style={{
-                      fontSize: '11px',
-                      color: isLight ? '#4f46e5' : '#818cf8',
-                      background: isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.06)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontWeight: 500,
-                      border: `1px solid ${isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.1)'}`
-                    }}>
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+                {/* Tags */}
+                {selectedItem.tags?.length > 0 && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {selectedItem.tags.map(tag => (
+                      <span key={tag} style={{
+                        fontSize: '11px',
+                        color: isLight ? '#4f46e5' : '#818cf8',
+                        background: isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.06)',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontWeight: 500,
+                        border: `1px solid ${isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.1)'}`
+                      }}>
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-              <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
+                <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
 
-              {/* Explanation Content */}
-              <div>
-                <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
-                  What I Learned
-                </h4>
-                <p style={{
-                  margin: 0,
-                  fontSize: '14px',
-                  lineHeight: 1.6,
-                  color: isLight ? '#374151' : '#d1d5db',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {selectedItem.content}
-                </p>
-              </div>
-
-              {/* Code Example (Optional) */}
-              {selectedItem.codeExample?.code && (
+                {/* Explanation Content */}
                 <div>
                   <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
-                    Code Example
+                    What I Learned
                   </h4>
-                  
-                  {/* Highlighter container card */}
-                  <div style={{
-                    borderRadius: '8px',
-                    border: `1px solid ${themeBorder}`,
-                    background: isLight ? '#f9fafb' : '#14141c',
-                    position: 'relative',
-                    overflow: 'hidden'
+                  <p style={{
+                    margin: 0,
+                    fontSize: '14px',
+                    lineHeight: 1.6,
+                    color: isLight ? '#374151' : '#d1d5db',
+                    whiteSpace: 'pre-wrap'
                   }}>
-                    {/* Header Row */}
+                    {selectedItem.content}
+                  </p>
+                </div>
+
+                {/* Code Example (Optional) */}
+                {selectedItem.codeExample?.code && (
+                  <div>
+                    <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+                      Code Example
+                    </h4>
+                    
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '6px 14px',
-                      borderBottom: `1px solid ${themeBorder}`,
-                      background: isLight ? '#f3f4f6' : '#1b1b24'
+                      borderRadius: '8px',
+                      border: `1px solid ${themeBorder}`,
+                      background: isLight ? '#f9fafb' : '#14141c',
+                      position: 'relative',
+                      overflow: 'hidden'
                     }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>
-                        {selectedItem.codeExample.language || 'Code'}
-                      </span>
-                      <button
-                        onClick={() => handleCopyCode(selectedItem.codeExample.code)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#888',
-                          fontSize: '11px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          transition: 'background 0.15s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        {copied ? <RiCheckLine size={13} style={{ color: '#10b981' }} /> : <RiFileCopyLine size={13} />}
-                        {copied ? 'Copied' : 'Copy'}
-                      </button>
+                      {/* Header Row */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '6px 14px',
+                        borderBottom: `1px solid ${themeBorder}`,
+                        background: isLight ? '#f3f4f6' : '#1b1b24'
+                      }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>
+                          {selectedItem.codeExample.language || 'Code'}
+                        </span>
+                        <button
+                          onClick={() => handleCopyCode(selectedItem.codeExample.code)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#888',
+                            fontSize: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          {copied ? <RiCheckLine size={13} style={{ color: '#10b981' }} /> : <RiFileCopyLine size={13} />}
+                          {copied ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+
+                      {/* Code highlight viewport */}
+                      <div style={{ fontSize: '13px', margin: 0, overflowX: 'auto', scrollbarWidth: 'thin' }}>
+                        <SyntaxHighlighter
+                          language={selectedItem.codeExample.language || 'javascript'}
+                          style={isLight ? coy : vscDarkPlus}
+                          customStyle={{
+                            margin: 0,
+                            padding: '12px 14px',
+                            background: 'transparent',
+                            fontFamily: 'Consolas, Monaco, monospace'
+                          }}
+                        >
+                          {selectedItem.codeExample.code}
+                        </SyntaxHighlighter>
+                      </div>
                     </div>
 
-                    {/* Code highlight viewport */}
-                    <div style={{ fontSize: '13px', margin: 0, overflowX: 'auto', scrollbarWidth: 'thin' }}>
-                      <SyntaxHighlighter
-                        language={selectedItem.codeExample.language || 'javascript'}
-                        style={isLight ? coy : vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: '12px 14px',
-                          background: 'transparent',
-                          fontFamily: 'Consolas, Monaco, monospace'
-                        }}
-                      >
-                        {selectedItem.codeExample.code}
-                      </SyntaxHighlighter>
-                    </div>
                   </div>
+                )}
 
-                </div>
-              )}
+                <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
 
-              <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
-
-              {/* Created / Updated Timestamps & Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginTop: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '11px', color: '#666' }}>
-                    Created: {new Date(selectedItem.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                  </span>
-                  {selectedItem.updatedAt !== selectedItem.createdAt && (
+                {/* Timestamps */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span style={{ fontSize: '11px', color: '#666' }}>
-                      Updated: {new Date(selectedItem.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                      Created: {new Date(selectedItem.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                     </span>
-                  )}
+                    {selectedItem.updatedAt !== selectedItem.createdAt && (
+                      <span style={{ fontSize: '11px', color: '#666' }}>
+                        Updated: {new Date(selectedItem.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
               </div>
 
             </div>
-
-          </div>
           </>
         ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', position: 'relative' }}>
+            {isSidebarCollapsed && (
+              <div style={{ position: 'absolute', top: '12px', left: '12px' }}>
+                <Tooltip title="Expand sidebar">
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid ${themeBorder}`,
+                      color: themeTextMuted,
+                      cursor: 'pointer',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = themeTextColor}
+                    onMouseLeave={e => e.currentTarget.style.color = themeTextMuted}
+                  >
+                    <RiMenuUnfoldLine size={16} />
+                    <span>Show Sidebar</span>
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+
             <RiLightbulbLine size={48} style={{ opacity: 0.15 }} />
-            <p style={{ marginTop: 12, fontSize: '14px' }}>Select a learning card to view detail logs</p>
-            <p style={{ fontSize: '12px', marginTop: 2, opacity: 0.7 }}>or create a structured log entry</p>
+            <p style={{ marginTop: 12, fontSize: '14px', color: themeTextColor, fontWeight: 600 }}>No learning selected</p>
+            <p style={{ fontSize: '12px', marginTop: 2, color: themeTextMuted }}>Current folder: {currentFolderPath}</p>
             <Button
               type="primary"
               icon={<RiAddLine />}
               onClick={openCreateModal}
               style={{
                 marginTop: 16,
-                background: isLight ? '#4f46e5' : '#6366f1',
-                borderColor: isLight ? '#4f46e5' : '#6366f1',
+                background: themeAccent,
+                borderColor: themeAccent,
                 fontWeight: 600
               }}
             >
-              New structured log
+              Log Learning
             </Button>
           </div>
         )}
-      </div>
+      </main>
 
       {/* CREATE / EDIT DIALOG MODAL */}
       <QuickAddLearningModal

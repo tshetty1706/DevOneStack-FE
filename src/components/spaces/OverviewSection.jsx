@@ -72,12 +72,12 @@ function getActivityIcon(action) {
 }
 
 export default function OverviewSection({ space, isLight, onNavigateSection }) {
-  // Fetch Space-specific activity
+  // Fetch Space-specific activity (limit 5 for Overview)
   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
-    queryKey: ['history', 'space', space?._id],
+    queryKey: ['history', 'space', space?._id, 5],
     queryFn: async () => {
       if (!space?._id) return [];
-      const res = await api.get(`/api/history?spaceId=${space._id}&limit=20`);
+      const res = await api.get(`/api/history?spaceId=${space._id}&limit=5`);
       return res.data || [];
     },
     enabled: !!space?._id,

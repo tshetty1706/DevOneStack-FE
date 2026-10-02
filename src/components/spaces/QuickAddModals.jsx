@@ -85,17 +85,18 @@ const labelStyle = { fontSize: '11px', color: '#888', display: 'block', marginBo
 
 const modalBodyStyles = {
   content: {
-    maxHeight: '85vh',
+    maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
   },
   body: {
-    maxHeight: 'calc(85vh - 110px)',
+    maxHeight: 'calc(90vh - 120px)',
     overflowY: 'auto',
-    padding: '20px 24px',
+    overscrollBehavior: 'contain',
+    padding: '16px 20px',
     scrollbarWidth: 'thin',
-    scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+    scrollbarColor: 'var(--accent-color, #6366f1) transparent',
   },
   mask: { backdropFilter: 'blur(4px)' },
 };
@@ -919,9 +920,9 @@ export function QuickAddNoteModal({ open, onClose, space, defaultFolderId = null
       setTitle('');
       setContent('');
       setTags([]);
-      setFolderId(defaultFolderId || folders[0]?._id || null);
+      setFolderId(defaultFolderId || null);
     }
-  }, [open, defaultFolderId, folders]);
+  }, [open, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {

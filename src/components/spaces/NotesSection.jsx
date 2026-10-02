@@ -2,11 +2,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RiStickyNoteLine, RiSearchLine, RiAddLine, RiFolderLine,
-  RiFolderOpenLine, RiArrowRightSLine, RiArrowDownSLine,
   RiBold, RiItalic, RiStrikethrough, RiH1, RiH2, RiH3,
   RiCodeSSlashLine, RiCodeBoxLine, RiDoubleQuotesL,
   RiListOrdered, RiListUnordered, RiLink, RiImageLine,
-  RiTableLine, RiSeparator, RiSave3Line, RiCheckLine,
+  RiTableLine, RiSeparator, RiCheckLine,
   RiLoader4Line, RiDeleteBinLine, RiPushpinLine, RiPushpinFill,
   RiFullscreenLine, RiFullscreenExitLine, RiArrowLeftLine,
   RiUploadCloudLine
@@ -353,16 +352,12 @@ export default function NotesSection({
         }}>
           {/* Header & New Note CTA */}
           <div style={{
-            height: '48px',
-            minHeight: '48px',
-            maxHeight: '48px',
-            padding: '0 14px',
+            padding: '12px 14px',
             borderBottom: `1px solid ${cardBorder}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0,
-            boxSizing: 'border-box',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <RiStickyNoteLine size={17} style={{ color: accent }} />
@@ -649,18 +644,14 @@ export default function NotesSection({
 
               {/* Editor Top Bar: Folder Path & Save Status */}
               <div style={{
-                height: '48px',
-                minHeight: '48px',
-                maxHeight: '48px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '0 16px',
+                padding: '9px 16px',
                 borderBottom: `1px solid ${cardBorder}`,
                 background: headerBg,
                 gap: '12px',
                 flexShrink: 0,
-                boxSizing: 'border-box',
               }}>
                 {/* Clickable Folder Path / Mobile Back */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>

@@ -645,9 +645,9 @@ export default function ExplorerSection({
                     whiteSpace: 'nowrap',
                     textDecoration: 'underline',
                   }}
-                  title={item.folderPath}
+                  title={item.folderPath || 'Space Root'}
                 >
-                  {item.folderPath || 'Workspace'}
+                  {item.folderPath || 'Space Root'}
                 </div>
 
                 {/* Date */}
@@ -988,12 +988,12 @@ export default function ExplorerSection({
             <label style={{ fontSize: '12px', color: textMuted, display: 'block', marginBottom: '4px' }}>Parent Folder (Optional)</label>
             <Select
               style={{ width: '100%' }}
-              placeholder="Root Level"
+              placeholder="Space Root"
               value={newFolderParentId}
-              onChange={val => setNewFolderParentId(val)}
+              onChange={val => setNewFolderParentId(val || null)}
               allowClear
               options={[
-                { value: null, label: '📁 Root Level' },
+                { value: null, label: '📁 Space Root' },
                 ...folders.map(f => ({ value: f._id, label: `📁 ${f.path || f.name}` }))
               ]}
             />
@@ -1007,23 +1007,60 @@ export default function ExplorerSection({
         open={renameFolderModalOpen}
         onCancel={() => setRenameFolderModalOpen(false)}
         footer={[
-          <Popconfirm
+          <button
             key="delete"
-            title="Delete folder and all its contents?"
-            onConfirm={() => {
-              if (folderToRename) deleteFolderMutation.mutate(folderToRename._id);
-              setRenameFolderModalOpen(false);
+            type="button"
+            onClick={() => {
+              const { subfoldersCount, countItems } = (() => {
+                if (!folderToRename) return { subfoldersCount: 0, countItems: 0 };
+                const folderIds = new Set([folderToRename._id.toString()]);
+                let added = true;
+                while (added) {
+                  added = false;
+                  folders.forEach(f => {
+                    const pId = f.parentId ? (typeof f.parentId === 'object' ? f.parentId._id : f.parentId)?.toString() : null;
+                    const fId = f._id.toString();
+                    if (pId && folderIds.has(pId) && !folderIds.has(fId)) {
+                      folderIds.add(fId);
+                      added = true;
+                    }
+                  });
+                }
+                const subCount = Math.max(0, folderIds.size - 1);
+                const iCount = allItems.filter(item => {
+                  const fId = item.folderId ? (typeof item.folderId === 'object' ? item.folderId._id : item.folderId)?.toString() : null;
+                  return fId && folderIds.has(fId);
+                }).length;
+                return { subfoldersCount: subCount, countItems: iCount };
+              })();
+
+              Modal.confirm({
+                title: `Delete "${folderToRename.name}"?`,
+                content: (
+                  <div style={{ marginTop: '8px', fontSize: '13px', lineHeight: 1.6 }}>
+                    <p style={{ margin: '0 0 8px', color: '#ef4444', fontWeight: 600 }}>
+                      This will permanently delete:
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: isLight ? '#374151' : '#d1d5db' }}>
+                      <li>this folder</li>
+                      {subfoldersCount > 0 && <li>{subfoldersCount} subfolder{subfoldersCount > 1 ? 's' : ''}</li>}
+                      {countItems > 0 && <li>{countItems} item{countItems > 1 ? 's' : ''}</li>}
+                    </ul>
+                  </div>
+                ),
+                okText: 'Delete Folder',
+                okType: 'danger',
+                cancelText: 'Cancel',
+                onOk: () => {
+                  deleteFolderMutation.mutate(folderToRename._id);
+                  setRenameFolderModalOpen(false);
+                },
+              });
             }}
-            okText="Yes, Delete"
-            okButtonProps={{ danger: true }}
+            style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', float: 'left', fontWeight: 600 }}
           >
-            <button
-              type="button"
-              style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', float: 'left' }}
-            >
-              Delete Folder
-            </button>
-          </Popconfirm>,
+            Delete Folder
+          </button>,
           <button
             key="cancel"
             type="button"
@@ -1077,9 +1114,9 @@ export default function ExplorerSection({
             style={{ width: '100%' }}
             placeholder="Select destination folder"
             value={targetFolderId}
-            onChange={val => setTargetFolderId(val)}
+            onChange={val => setTargetFolderId(val || null)}
             options={[
-              { value: null, label: '📁 Root Level' },
+              { value: null, label: '📁 Space Root' },
               ...folders.map(f => ({ value: f._id, label: `📁 ${f.path || f.name}` }))
             ]}
           />

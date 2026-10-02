@@ -4,7 +4,8 @@ import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Toolt
 import {
   RiAddLine, RiPushpinLine, RiPushpin2Fill, RiDeleteBinLine,
   RiSearchLine, RiFileCopyLine, RiCheckLine, RiRobotLine,
-  RiRobot2Line, RiHistoryLine, RiFolderLine, RiFolderTransferLine
+  RiRobot2Line, RiHistoryLine, RiFolderLine, RiFolderTransferLine,
+  RiChatVoiceLine, RiMenuFoldLine, RiMenuUnfoldLine
 } from 'react-icons/ri';
 import api from '../../api/axios';
 import { QuickAddPromptModal } from './QuickAddModals';
@@ -43,6 +44,7 @@ export default function PromptsSection({
   onNavigateSection,
 }) {
   const queryClient = useQueryClient();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +70,22 @@ export default function PromptsSection({
   const [customModel, setCustomModel] = useState('');
   const [tags, setTags] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
+
+  // Fetch folders for breadcrumbs
+  const { data: folderTreeData } = useQuery({
+    queryKey: ['folders', space._id],
+    queryFn: async () => {
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    },
+    staleTime: 30000,
+  });
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = (folderTreeData || []).find(f => String(f._id) === String(selectedFolderId));
+    return folder ? folder.path : 'Space Root';
+  }, [selectedFolderId, folderTreeData]);
 
   // Fetch prompts
   const { data: rawPrompts = [], isLoading } = useQuery({
@@ -191,41 +209,176 @@ export default function PromptsSection({
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '550px', height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'row',
+      flex: 1,
+      height: '100%',
+      width: '100%',
+      minHeight: 0,
+      overflow: 'hidden',
+      background: isLight ? '#ffffff' : '#0b0b0e'
+    }}>
       {/* LEFT COLUMN: Folder Sidebar */}
-      <div style={{
-        width: '260px',
-        borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        background: isLight ? '#fafafa' : '#0a0a0f',
-        padding: '8px 4px',
-      }}>
-        <SharedFolderTree
-          spaceId={space._id}
-          selectedFolderId={selectedFolderId}
-          onSelectFolder={handleSelectFolder}
-          onSelectItem={(item) => {
-            if (item.type === 'prompt') {
-              setViewPrompt(item);
-            } else if (onNavigateSection) {
-              onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
-            }
-          }}
-          selectedItemId={viewPrompt?._id || highlightId}
-          filterItemType="prompt"
-          isLight={isLight}
-          showHeader={true}
-          showSearch={true}
-        />
-      </div>
+      {!isSidebarCollapsed && (
+        <aside style={{
+          width: '280px',
+          minWidth: '240px',
+          maxWidth: '320px',
+          borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          flexShrink: 0,
+          background: isLight ? '#fafafa' : '#0a0a0f',
+          overflow: 'hidden'
+        }}>
+          {/* Module Sidebar Header */}
+          <div style={{
+            height: '48px',
+            padding: '0 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RiChatVoiceLine size={18} style={{ color: isLight ? '#4f46e5' : '#818cf8' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111827' : '#ffffff' }}>
+                Prompts
+              </span>
+              <span style={{
+                fontSize: '11px',
+                padding: '1px 6px',
+                borderRadius: '10px',
+                background: isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.15)',
+                color: isLight ? '#4f46e5' : '#818cf8',
+                fontWeight: 600,
+              }}>
+                {rawPrompts.length}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={openAddModal}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: isLight ? '#4f46e5' : '#6366f1',
+                  color: '#fff',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <RiAddLine size={14} />
+                <span>New</span>
+              </button>
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                title="Collapse Sidebar"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  color: isLight ? '#6b7280' : '#9ca3af',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                }}
+              >
+                <RiMenuFoldLine size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Tree Explorer */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 4px' }}>
+            <SharedFolderTree
+              spaceId={space._id}
+              selectedFolderId={selectedFolderId}
+              onSelectFolder={handleSelectFolder}
+              onSelectItem={(item) => {
+                if (item.type === 'prompt') {
+                  setViewPrompt(item);
+                } else if (onNavigateSection) {
+                  onNavigateSection(item.type === 'note' ? 'notes' : item.type + 's', item._id, item.folderId);
+                }
+              }}
+              selectedItemId={viewPrompt?._id || highlightId}
+              filterItemType="prompt"
+              isLight={isLight}
+              showHeader={false}
+              showSearch={true}
+            />
+          </div>
+        </aside>
+      )}
 
       {/* RIGHT COLUMN: Prompts content */}
-      <div data-lenis-prevent style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 'clamp(12px, 3vw, 20px)' }}>
+      <main
+        data-lenis-prevent
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          overflowY: 'auto',
+          background: isLight ? '#f9fafb' : '#07070b',
+          padding: 'clamp(16px, 3vw, 24px)'
+        }}
+      >
         {/* Header controls */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 'min(100%, 220px)' }}>
+            {isSidebarCollapsed && (
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Expand Sidebar"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.1)'}`,
+                  background: isLight ? '#f9fafb' : '#14141c',
+                  color: isLight ? '#374151' : '#d1d5db',
+                  cursor: 'pointer',
+                  marginRight: '2px'
+                }}
+              >
+                <RiMenuUnfoldLine size={16} />
+              </button>
+            )}
+
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
+              border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
+              fontSize: '12px',
+              fontWeight: 600,
+              color: isLight ? '#4f46e5' : '#818cf8',
+            }}>
+              <RiFolderLine size={14} />
+              <span>{currentFolderPath}</span>
+            </div>
+
             <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
               <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
               <input
@@ -241,30 +394,6 @@ export default function PromptsSection({
                 }}
               />
             </div>
-
-            {selectedFolderId && (
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.14)',
-                border: `1px solid ${isLight ? 'rgba(79,70,229,0.2)' : 'rgba(99,102,241,0.25)'}`,
-                fontSize: '11px',
-                color: isLight ? '#4f46e5' : '#818cf8',
-              }}>
-                <RiFolderLine size={13} />
-                <span>Folder filter</span>
-                <button
-                  onClick={() => handleSelectFolder(null)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 700, padding: 0 }}
-                  title="Clear folder filter"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
           </div>
 
           <Button
@@ -468,7 +597,7 @@ export default function PromptsSection({
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Add / Edit Modal */}
       <QuickAddPromptModal
