@@ -10,7 +10,7 @@ import { RiMenuLine, RiCloseLine, RiSunLine, RiMoonLine } from 'react-icons/ri';
 const MENU_ITEMS = [
   { label: 'How It Works', id: 'how-it-works' },
   { label: 'Features', id: 'features' },
-  { label: 'Contact', id: 'contact' }
+  { label: 'Community', id: 'community' }
 ];
 
 export default function Navbar() {
@@ -46,6 +46,11 @@ export default function Navbar() {
 
     if (target === 'login' || target === 'signup') {
       navigate(`/${target}`);
+      return;
+    }
+
+    if (target === 'community') {
+      navigate('/community');
       return;
     }
 

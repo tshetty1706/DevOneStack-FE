@@ -156,7 +156,6 @@ function EditSpaceModal({ space, open, onClose }) {
             >
               <option value="private">Private (Only you & collaborators)</option>
               <option value="public">Public (Anyone can discover & view)</option>
-              <option value="unlisted">Unlisted (Anyone with direct link)</option>
             </select>
           </div>
 

@@ -16,6 +16,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const SpaceDashboard = lazy(() => import('./pages/SpaceDashboard'));
 const CreateSpace = lazy(() => import('./pages/CreateSpace'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Community = lazy(() => import('./pages/Community'));
+const RequestLinkLanding = lazy(() => import('./pages/RequestLinkLanding'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 import NotFoundPage from './pages/NotFoundPage';
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
@@ -140,6 +142,11 @@ function AppContent() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+            {/* Community Routes */}
+            <Route path="/community" element={<Community />} />
+            <Route path="/u/:username/community" element={<Community />} />
+            <Route path="/r/:token" element={<RequestLinkLanding />} />
 
             {/* Username-based Protected Routes */}
             <Route path="/u/:username/dashboard" element={

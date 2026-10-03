@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Modal, Button, message, Upload } from 'antd';
+import { Modal, Button, message } from 'antd';
 import {
   RiCameraLine,
   RiUpload2Line,
@@ -25,7 +25,6 @@ export default function AvatarUploadModal({ open, onClose }) {
   const accentColor = isLight ? '#4f46e5' : '#6366f1';
   const textPrimary = 'var(--text-color)';
   const textMuted = 'var(--text-secondary)';
-  const cardBg = isLight ? '#ffffff' : '#111116';
   const border = 'var(--card-border)';
   const inputBg = isLight ? '#f9fafb' : 'rgba(255,255,255,0.03)';
 
@@ -61,6 +60,13 @@ export default function AvatarUploadModal({ open, onClose }) {
     setPreviewUrl(objectUrl);
   };
 
+  const syncUserAcrossApp = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('dos_profile_name', updatedUser.displayName || updatedUser.username || '');
+    localStorage.setItem('dos_profile_avatar', updatedUser.avatarUrl || '');
+    window.dispatchEvent(new Event('profile_update'));
+  };
+
   // Upload to backend -> Cloudinary
   const handleSaveUpload = async () => {
     if (!selectedFile) return;
@@ -74,12 +80,7 @@ export default function AvatarUploadModal({ open, onClose }) {
       });
 
       if (res.data.user) {
-        setUser(res.data.user);
-        // Update localStorage for other components
-        localStorage.setItem('dos_profile_name', res.data.user.displayName || '');
-        localStorage.setItem('dos_profile_avatar', res.data.user.avatarUrl || '');
-        // Notify other parts of app
-        window.dispatchEvent(new Event('profile_update'));
+        syncUserAcrossApp(res.data.user);
       }
       message.success('Profile photo updated successfully');
       onClose();
@@ -98,7 +99,7 @@ export default function AvatarUploadModal({ open, onClose }) {
     try {
       const res = await api.put('/api/auth/profile', { avatarUrl: user.googleAvatarUrl });
       if (res.data.user) {
-        setUser(res.data.user);
+        syncUserAcrossApp(res.data.user);
       }
       message.success('Profile photo reset to provider image');
       onClose();
@@ -115,7 +116,7 @@ export default function AvatarUploadModal({ open, onClose }) {
     try {
       const res = await api.put('/api/auth/profile', { avatarUrl: '' });
       if (res.data.user) {
-        setUser(res.data.user);
+        syncUserAcrossApp(res.data.user);
       }
       message.success('Profile photo removed');
       onClose();

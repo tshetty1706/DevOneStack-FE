@@ -107,13 +107,6 @@ export default function ToolSpaceCard({
       bg: isLight ? 'rgba(5, 150, 105, 0.08)' : 'rgba(52, 211, 153, 0.14)',
       border: isLight ? 'rgba(5, 150, 105, 0.2)' : 'rgba(52, 211, 153, 0.25)',
     },
-    unlisted: {
-      label: 'Unlisted',
-      icon: RiLinkM,
-      color: isLight ? '#d97706' : '#fbbf24',
-      bg: isLight ? 'rgba(217, 119, 6, 0.08)' : 'rgba(251, 191, 36, 0.14)',
-      border: isLight ? 'rgba(217, 119, 6, 0.2)' : 'rgba(251, 191, 36, 0.25)',
-    },
   }[visibility] || {
     label: 'Private',
     icon: RiLockLine,
