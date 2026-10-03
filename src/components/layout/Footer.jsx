@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
+import { Modal } from 'antd';
 import GetStarted from './GetStarted';
 import OnlyLogo from './OnlyLogo'
 
 export default function Footer() {
   const handleAiSummary = (e) => {
     e.preventDefault();
-    alert('DevOneStack is a unified developer workspace manager. It integrates your documentation, code snippets, notes, task boards, repositories, prompts, and developer communities into organized, tool-specific workspaces. This page demonstrates our minimal, premium landing page, complete with a floating-icon visual centerpiece, tool compatibility strip, dynamic stats counter, and structural product walkthrough.');
+    Modal.info({
+      title: 'DevOneStack Overview',
+      content: (
+        <p style={{ lineHeight: 1.6, marginTop: 8, fontSize: '13px' }}>
+          DevOneStack is a unified developer workspace platform. It organizes your documentation, code snippets, notes, learning logs, repositories, AI prompts, and developer communities into clean, tool-focused workspaces.
+        </p>
+      ),
+      okText: 'Got it',
+      centered: true,
+      maskClosable: true,
+    });
   };
 
   return (

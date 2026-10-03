@@ -63,11 +63,20 @@ export default function Login() {
 
     if (errParam === 'account_not_found') {
       setModalProvider(providerParam || 'oauth');
-      setModalCustomMsg("We couldn't find a DevOneStack account associated with this login method.");
+      setModalCustomMsg(
+        providerParam === 'google'
+          ? "No account exists with this Google account. Please create an account first."
+          : "We couldn't find a DevOneStack account associated with this login method."
+      );
       setShowNotFoundModal(true);
     } else if (errParam === 'account_exists') {
-      const pName = providerParam === 'local' ? 'email/password' : providerParam === 'google' ? 'Google' : providerParam;
-      setApiError(`An account with this email already exists via ${pName}. Please sign in using that method.`);
+      if (providerParam === 'local') {
+        setApiError('This email is already registered with email and password. Please log in using your email and password.');
+      } else if (providerParam === 'google') {
+        setApiError('This email is already registered with Google. Please log in using Continue with Google.');
+      } else {
+        setApiError(`An account with this email already exists via ${providerParam}. Please sign in using that method.`);
+      }
       setErrorType('account_exists');
     } else if (errParam === 'oauth_failed') {
       setApiError('Sign-in failed. Try again or use email instead.');

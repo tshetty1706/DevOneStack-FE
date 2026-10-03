@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, message, Tooltip } from 'antd';
-import { RiAddLine, RiPushpinLine, RiPushpin2Fill, RiSearchLine, RiFileCopyLine, RiCheckLine, RiCodeLine, RiCodeSSlashLine, RiHistoryLine } from 'react-icons/ri';
+import { Input, Select, Button, Popconfirm, message, Tooltip, Tag } from 'antd';
+import {
+  RiAddLine, RiCodeSSlashLine, RiFileCopyLine, RiCheckLine,
+  RiEditLine, RiSaveLine, RiEyeLine, RiDeleteBinLine,
+  RiFolderLine, RiFolderTransferLine, RiMenuUnfoldLine,
+  RiCloseLine
+} from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import api from '../../api/axios';
-import SnippetViewModal from './modals/SnippetViewModal';
-import { QuickAddSnippetModal } from './QuickAddModals';
+import ModuleSidebar from './ModuleSidebar';
+import MoveItemModal from './MoveItemModal';
 import PinButton from '../common/PinButton';
-import { useDebounce } from '../../hooks/useDebounce';
+import api from '../../api/axios';
+import snippetsIllustration from '../../assets/editor/snippets.svg';
+
+const { TextArea } = Input;
 
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -16,439 +23,770 @@ const LANGUAGES = [
   { value: 'jsx', label: 'React JSX' },
   { value: 'tsx', label: 'React TSX' },
   { value: 'python', label: 'Python' },
-  { value: 'css', label: 'CSS' },
   { value: 'html', label: 'HTML' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'bash', label: 'Bash/Shell' },
+  { value: 'css', label: 'CSS' },
+  { value: 'bash', label: 'Bash / Shell' },
   { value: 'json', label: 'JSON' },
+  { value: 'sql', label: 'SQL' },
   { value: 'go', label: 'Go' },
   { value: 'rust', label: 'Rust' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'php', label: 'PHP' },
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'dockerfile', label: 'Dockerfile' },
   { value: 'other', label: 'Other' }
 ];
 
-export default function SnippetsSection({ space, isLight, highlightId }) {
+export default function SnippetsSection({
+  space,
+  isLight,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingSnippet, setEditingSnippet] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, 300);
+  const [selectedId, setSelectedId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const [viewSnippet, setViewSnippet] = useState(null);
+  // Form edit states
+  const [formTitle, setFormTitle] = useState('');
+  const [formLanguage, setFormLanguage] = useState('javascript');
+  const [formCode, setFormCode] = useState('');
+  const [formCaption, setFormCaption] = useState('');
+  const [formTags, setFormTags] = useState('');
 
-  const handleOpenViewModal = (snip) => {
-    setViewSnippet(snip);
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
   };
 
-  // Form states
-  const [name, setName] = useState('');
-  const [caption, setCaption] = useState('');
-  const [language, setLanguage] = useState('javascript');
-  const [code, setCode] = useState('');
-  const [tags, setTags] = useState([]);
-  const [copiedId, setCopiedId] = useState(null);
-
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
-  // Fetch snippets
-  const { data: snippets = [], isLoading } = useQuery({
-    queryKey: ['snippets', space._id, debouncedQuery],
+  // Fetch folders for breadcrumbs
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
     queryFn: async () => {
-      const endpoint = debouncedQuery
-        ? `/api/spaces/${space._id}/snippets/search?q=${encodeURIComponent(debouncedQuery)}`
-        : `/api/spaces/${space._id}/snippets`;
-      const response = await api.get(endpoint);
-      return response.data.snippets;
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
     }
   });
 
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
+
+  // Fetch snippets using unified items endpoint
+  const { data: itemsData, isLoading } = useQuery({
+    queryKey: ['items', space._id, 'snippet'],
+    queryFn: async () => {
+      const response = await api.get(`/api/spaces/${space._id}/items?type=snippet`);
+      return response.data.items || [];
+    }
+  });
+
+  const snippets = itemsData || [];
+
+  // Deep-linking highlight handler
   useEffect(() => {
-    if (highlightId && snippets && snippets.length > 0) {
-      const target = snippets.find(s => s._id === highlightId);
-      if (target) {
-        handleOpenViewModal(target);
+    if (highlightId && snippets.length > 0) {
+      const found = snippets.find(s => s._id === highlightId);
+      if (found) {
+        setSelectedId(found._id);
+        setIsEditing(false);
       }
     }
   }, [highlightId, snippets]);
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      return api.post(`/api/spaces/${space._id}/snippets`, payload);
+  // Selected item object
+  const selectedItem = useMemo(() => {
+    return snippets.find(s => s._id === selectedId) || null;
+  }, [selectedId, snippets]);
+
+  // Sync form state when active selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      setFormTitle(selectedItem.title || '');
+      setFormLanguage(selectedItem.language || 'javascript');
+      setFormCode(selectedItem.content || '');
+      setFormCaption(selectedItem.caption || '');
+      setFormTags(Array.isArray(selectedItem.tags) ? selectedItem.tags.join(', ') : (selectedItem.tags || ''));
+    }
+  }, [selectedItem]);
+
+  // Create snippet mutation (direct creation in folder/root, no popup modal)
+  const createSnippetMutation = useMutation({
+    mutationFn: async ({ title, folderId, language, code, caption }) => {
+      const res = await api.post(`/api/spaces/${space._id}/items`, {
+        type: 'snippet',
+        title,
+        folderId: folderId || null,
+        language: language || 'javascript',
+        content: code || '// Start writing your code here...',
+        caption: caption || '',
+      });
+      return res.data.item;
     },
-    onSuccess: () => {
-      message.success('Snippet created!');
-      queryClient.invalidateQueries(['snippets', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-      closeModal();
+    onSuccess: (newItem) => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'snippet'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(newItem._id);
+      setIsEditing(true);
+      message.success(`Created "${newItem.title}"`);
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to save snippet');
+      message.error(err.response?.data?.error || "Couldn't create snippet.");
     }
   });
 
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }) => {
-      // First update snippet metadata
-      await api.patch(`/api/spaces/${space._id}/snippets/${id}`, payload);
-      // If code was updated, update snippet content
-      if (payload.code !== undefined) {
-        await api.patch(`/api/spaces/${space._id}/snippets/${id}/content`, { code: payload.code });
-      }
+  // Update snippet mutation
+  const updateSnippetMutation = useMutation({
+    mutationFn: async ({ itemId, payload }) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}`, payload);
+      return res.data.item;
     },
-    onSuccess: () => {
-      message.success('Snippet updated!');
-      queryClient.invalidateQueries(['snippets', space._id]);
-      closeModal();
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'snippet'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      setIsEditing(false);
+      message.success('Snippet saved successfully');
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to update snippet');
+      message.error(err.response?.data?.error || "Couldn't save snippet.");
     }
   });
 
-  // Toggle Pin
-  const togglePin = useMutation({
-    mutationFn: async (id) => {
-      return api.patch(`/api/spaces/${space._id}/snippets/${id}/pin`);
-    },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries(['snippets', space._id]);
-      const prev = queryClient.getQueryData(['snippets', space._id, debouncedQuery]);
-      if (prev) {
-        queryClient.setQueryData(['snippets', space._id, debouncedQuery], old =>
-          old.map(item => item._id === id ? { ...item, isPinned: !item.isPinned } : item)
-        );
-      }
-      return { prev };
-    },
-    onError: (_, __, context) => {
-      if (context && context.prev) {
-        queryClient.setQueryData(['snippets', space._id, debouncedQuery], context.prev);
-      }
-      message.error('Failed to update pin');
+  // Delete snippet mutation
+  const deleteSnippetMutation = useMutation({
+    mutationFn: async (itemId) => {
+      await api.delete(`/api/spaces/${space._id}/items/${itemId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['snippets', space._id]);
-    }
-  });
-
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      return api.delete(`/api/spaces/${space._id}/snippets/${id}`);
-    },
-    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'snippet'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(null);
+      setIsEditing(false);
       message.success('Snippet deleted');
-      queryClient.invalidateQueries(['snippets', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't delete snippet.");
     }
   });
 
-  const openAddModal = () => {
-    setEditingSnippet(null);
-    setName('');
-    setCaption('');
-    setLanguage('javascript');
-    setCode('');
-    setTags([]);
-    setModalOpen(true);
-  };
-
-  const openEditModal = async (snippet) => {
-    setEditingSnippet(snippet);
-    setName(snippet.name);
-    setCaption(snippet.caption || '');
-    setLanguage(snippet.language);
-    setTags(snippet.tags || []);
-    try {
-      // Fetch full code content
-      const { data } = await api.get(`/api/spaces/${space._id}/snippets/${snippet._id}/content`);
-      setCode(data.code || '');
-    } catch {
-      setCode('');
+  // Pin snippet mutation
+  const pinMutation = useMutation({
+    mutationFn: async (itemId) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}/pin`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'snippet'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
     }
-    setModalOpen(true);
-  };
+  });
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingSnippet(null);
-  };
+  // Handle direct creation of new snippet
+  const handleCreateNewSnippet = useCallback((targetFolderId) => {
+    const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
+      ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
 
-  const handleSubmit = () => {
-    if (!name || !code) {
-      message.error('Name and Code are required');
+    const nextNumber = snippets.length + 1;
+    const defaultTitle = `Snippet ${nextNumber}`;
+
+    createSnippetMutation.mutate({
+      title: defaultTitle,
+      folderId: validFolderId,
+      language: 'javascript',
+      code: '// Start writing your code here...\n\nfunction example() {\n  console.log("Hello from DevOneStack!");\n}',
+      caption: '',
+    });
+  }, [snippets.length, selectedFolderId, createSnippetMutation]);
+
+  // Handle save form
+  const handleSaveSnippet = () => {
+    if (!selectedId) return;
+    if (!formTitle.trim()) {
+      message.warning('Please enter a snippet title');
       return;
     }
-    const payload = { name, caption, language, code, tags };
-    if (editingSnippet) {
-      updateMutation.mutate({ id: editingSnippet._id, payload });
-    } else {
-      createMutation.mutate(payload);
-    }
+
+    const tagsArray = formTags
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    updateSnippetMutation.mutate({
+      itemId: selectedId,
+      payload: {
+        title: formTitle.trim(),
+        language: formLanguage,
+        content: formCode,
+        caption: formCaption.trim(),
+        tags: tagsArray,
+      }
+    });
   };
 
-  const handleCopy = async (snippetId) => {
-    if (!snippetId) return;
-    try {
-      const { data } = await api.get(`/api/spaces/${space._id}/snippets/${snippetId}/content`);
-      await navigator.clipboard.writeText(data.code);
-      setCopiedId(snippetId);
-      setTimeout(() => setCopiedId(null), 1500);
-      message.success('Code copied to clipboard!');
-
-      // Optimistically update ONLY the specific snippet's usedCount in React Query cache
-      queryClient.setQueriesData({ queryKey: ['snippets', space._id] }, (old) => {
-        if (!Array.isArray(old)) return old;
-        return old.map(item => {
-          const isTarget = item && item._id && String(item._id) === String(snippetId);
-          return isTarget ? { ...item, usedCount: (item.usedCount || 0) + 1 } : item;
-        });
-      });
-
-      // Send use tracking request to server
-      await api.post(`/api/spaces/${space._id}/snippets/${snippetId}/use`);
-    } catch {
-      message.error('Failed to copy code');
-    }
+  // Copy code handler
+  const handleCopyCode = (textToCopy) => {
+    const codeStr = textToCopy !== undefined ? textToCopy : (formCode || selectedItem?.content || '');
+    if (!codeStr) return;
+    navigator.clipboard.writeText(codeStr);
+    setCopied(true);
+    message.success('Code copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = e.target.selectionStart;
-      const end = e.target.selectionEnd;
-      const newVal = code.substring(0, start) + '  ' + code.substring(end);
-      setCode(newVal);
-      // Reset cursor position
-      setTimeout(() => {
-        e.target.selectionStart = e.target.selectionEnd = start + 2;
-      }, 0);
-    }
-  };
+  // Theme design tokens
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const mainBg = isLight ? '#ffffff' : '#0d0d12';
+  const headerBg = isLight ? '#fafafa' : '#0f0f16';
+  const textColor = isLight ? '#111827' : '#f3f4f6';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
+  const codeBg = isLight ? '#f8f9fa' : '#14141d';
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* Header controls */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
-          <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
-          <input
-            placeholder="Search snippets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%', padding: '7px 10px 7px 32px', borderRadius: '8px',
-              border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-              background: isLight ? '#ffffff' : '#1a1a1a',
-              color: isLight ? '#111111' : '#ffffff',
-              outline: 'none', fontSize: '13px'
-            }}
-          />
-        </div>
-        <Button
-          type="primary"
-          icon={<RiAddLine />}
-          onClick={openAddModal}
-          style={{ background: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1', borderRadius: '8px' }}
-        >
-          Add Snippet
-        </Button>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        background: mainBg,
+        position: 'relative',
+      }}
+    >
+      {/* ── SHARED MODULE SIDEBAR ── */}
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Snippets"
+        icon={RiCodeSSlashLine}
+        addButtonLabel="New Snippet"
+        itemType="snippet"
+        items={snippets}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedId}
+        onSelectItem={(item) => {
+          setSelectedId(item._id);
+          setIsEditing(false);
+        }}
+        onAddItem={(folderId) => handleCreateNewSnippet(folderId)}
+        isLight={isLight}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+      />
 
-      {isLoading ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
-      ) : snippets.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
-          No snippets found. Save your first boilerplate code block!
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
-          {snippets.map((snip) => (
+      {/* ── INLINE SNIPPET VIEWER & EDITOR MAIN PANE ── */}
+      <main
+        data-lenis-prevent
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          background: mainBg,
+          overflow: 'hidden',
+        }}
+      >
+        {selectedItem ? (
+          <>
+            {/* ── Active Snippet Header Bar ── */}
             <div
-              key={snip._id}
               style={{
-                background: isLight ? '#ffffff' : '#14141c',
-                border: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-                borderRadius: '12px',
-                padding: '18px 20px',
+                padding: '10px 18px',
+                borderBottom: `1px solid ${cardBorder}`,
+                background: headerBg,
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-                position: 'relative',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
-                e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
-                e.currentTarget.style.transform = 'translateY(0)';
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+                gap: '12px',
+                flexWrap: 'wrap',
               }}
             >
-              {/* Header Row: Badge & Pin */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{
-                  fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                  padding: '2px 8px', borderRadius: '4px',
-                  background: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.12)',
-                  border: `1px solid ${isLight ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.25)'}`,
-                  color: '#818cf8', display: 'flex', alignItems: 'center', gap: '4px'
-                }}>
-                  <RiCodeSSlashLine size={12} />
-                  <span>{(snip.language || 'CODE').toUpperCase()}</span>
-                </span>
-                <PinButton isPinned={snip.isPinned} onToggle={() => togglePin.mutate(snip._id)} />
-              </div>
-
-              {/* Main Content info */}
-              <div style={{ cursor: 'pointer' }} onClick={() => handleOpenViewModal(snip)}>
-                <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px' }}>
-                  {snip.name}
-                </h4>
-                {snip.caption ? (
-                  <p style={{
-                    fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 10px', lineHeight: 1.4,
-                    overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
-                  }}>
-                    {snip.caption}
-                  </p>
-                ) : (
-                  <div style={{ height: '4px' }} />
+              {/* Left: Sidebar Restore + Breadcrumb / Folder Location */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Show sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
                 )}
 
-                {/* Syntax highlighted preview block */}
-                <div style={{
-                  borderRadius: '8px', overflow: 'hidden', fontSize: '11px',
-                  border: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`, marginBottom: '10px'
-                }}>
-                  <SyntaxHighlighter language={snip.language} style={isLight ? coy : vscDarkPlus} customStyle={{ margin: 0, padding: '10px' }}>
-                    {snip.preview || ''}
-                  </SyntaxHighlighter>
-                </div>
-
-                {snip.tags && snip.tags.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
-                    {snip.tags.map(t => (
-                      <Tag key={t} style={{
-                        fontSize: '10px', borderRadius: '4px', margin: 0,
-                        background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
-                        color: isLight ? '#4b5563' : '#a1a1aa',
-                        border: `1px solid ${isLight ? '#e5e7eb' : '#242428'}`
-                      }}>
-                        {t}
-                      </Tag>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Divider Line */}
-              <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
-
-              {/* Metadata Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {new Date(snip.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiCodeLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff' }}>{snip.lineCount || 0} Lines</span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Length</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiFileCopyLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff' }}>{snip.usedCount || 0} Times</span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Used</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleCopy(snip._id); }}
+                <div
                   style={{
-                    background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
-                    color: isLight ? '#111111' : '#ffffff', cursor: 'pointer', padding: '5px 12px',
-                    borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: textMuted,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {copiedId === snip._id ? <RiCheckLine size={14} style={{ color: '#22c55e' }} /> : <RiFileCopyLine size={14} />}
-                  <span>{copiedId === snip._id ? 'Copied' : 'Copy'}</span>
-                </button>
+                  <RiFolderLine size={14} style={{ color: accent, flexShrink: 0 }} />
+                  <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
+                </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <Tooltip title="Move to folder">
                   <button
-                    onClick={() => handleOpenViewModal(snip)}
-                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#818cf8', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                    type="button"
+                    onClick={() => setMoveModalOpen(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
                   >
-                    View
+                    <RiFolderTransferLine size={13} />
+                    <span>Move</span>
                   </button>
-                  <button
-                    onClick={() => openEditModal(snip)}
-                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#818cf8', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                </Tooltip>
+              </div>
+
+              {/* Right: Actions (Copy, Edit / Save, Pin, Delete) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {/* 1-Click Copy Code Button */}
+                <Button
+                  size="small"
+                  icon={copied ? <RiCheckLine style={{ color: '#10b981' }} /> : <RiFileCopyLine />}
+                  onClick={() => handleCopyCode(isEditing ? formCode : selectedItem.content)}
+                  style={{
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    borderColor: copied ? '#10b981' : (isLight ? '#e5e7eb' : 'rgba(255,255,255,0.12)'),
+                    color: copied ? '#10b981' : textColor,
+                    background: copied ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy Code'}
+                </Button>
+
+                {/* Edit / Save Toggle */}
+                {isEditing ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<RiSaveLine />}
+                    loading={updateSnippetMutation.isPending}
+                    onClick={handleSaveSnippet}
+                    style={{
+                      background: accent,
+                      borderColor: accent,
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                    }}
+                  >
+                    Save
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    icon={<RiEditLine />}
+                    onClick={() => setIsEditing(true)}
+                    style={{
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                    }}
                   >
                     Edit
-                  </button>
-                  <Popconfirm title="Delete this snippet?" onConfirm={() => deleteMutation.mutate(snip._id)} okText="Delete" cancelText="Cancel">
-                    <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                      Delete
-                    </button>
-                  </Popconfirm>
-                </div>
+                  </Button>
+                )}
+
+                {/* Pin Button */}
+                <PinButton
+                  isPinned={selectedItem.isPinned}
+                  onToggle={() => pinMutation.mutate(selectedItem._id)}
+                  isLight={isLight}
+                />
+
+                {/* Delete Button */}
+                <Popconfirm
+                  title="Delete Snippet"
+                  description="Are you sure you want to delete this snippet?"
+                  okText="Delete"
+                  okType="danger"
+                  cancelText="Cancel"
+                  onConfirm={() => deleteSnippetMutation.mutate(selectedItem._id)}
+                >
+                  <Button
+                    danger
+                    type="text"
+                    size="small"
+                    icon={<RiDeleteBinLine size={15} />}
+                    style={{ borderRadius: '6px' }}
+                  />
+                </Popconfirm>
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* ── Scrollable Body: Editor or Viewer ── */}
+            <div
+              data-lenis-prevent
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px 28px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: isLight ? '#d1d5db transparent' : 'rgba(255,255,255,0.15) transparent',
+              }}
+            >
+              {isEditing ? (
+                /* ── EDIT MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Title & Language Row */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '220px' }}>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        SNIPPET TITLE
+                      </label>
+                      <Input
+                        placeholder="e.g. Debounce hook implementation"
+                        value={formTitle}
+                        onChange={e => setFormTitle(e.target.value)}
+                        style={{
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          padding: '7px 12px',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ width: '180px' }}>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                        LANGUAGE
+                      </label>
+                      <Select
+                        value={formLanguage}
+                        onChange={setFormLanguage}
+                        options={LANGUAGES}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Caption / Description */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      CAPTION / SUMMARY (OPTIONAL)
+                    </label>
+                    <Input
+                      placeholder="Brief note or context on when to use this snippet..."
+                      value={formCaption}
+                      onChange={e => setFormCaption(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  {/* Code Editor Area */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '11.5px', fontWeight: 600, color: textMuted }}>
+                        CODE SNIPPET
+                      </label>
+                      <span style={{ fontSize: '11px', color: textMuted }}>
+                        Language: {LANGUAGES.find(l => l.value === formLanguage)?.label || formLanguage}
+                      </span>
+                    </div>
+                    <TextArea
+                      value={formCode}
+                      onChange={e => setFormCode(e.target.value)}
+                      placeholder="// Type or paste your code snippet here..."
+                      rows={14}
+                      style={{
+                        fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace",
+                        fontSize: '13px',
+                        lineHeight: 1.5,
+                        borderRadius: '8px',
+                        background: codeBg,
+                        color: textColor,
+                        border: `1px solid ${cardBorder}`,
+                        padding: '12px 14px',
+                      }}
+                    />
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      TAGS (COMMA SEPARATED)
+                    </label>
+                    <Input
+                      placeholder="react, hooks, debounce, utility"
+                      value={formTags}
+                      onChange={e => setFormTags(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  {/* Save & Cancel Row */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    <Button
+                      type="primary"
+                      icon={<RiSaveLine />}
+                      loading={updateSnippetMutation.isPending}
+                      onClick={handleSaveSnippet}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        padding: '6px 18px',
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditing(false)}
+                      style={{ borderRadius: '6px' }}
+                    >
+                      Done Editing
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* ── VIEW MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Title & Meta Bar */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                      <h1
+                        style={{
+                          fontSize: '20px',
+                          fontWeight: 700,
+                          color: textColor,
+                          margin: 0,
+                          fontFamily: 'var(--font-display)',
+                        }}
+                      >
+                        {selectedItem.title}
+                      </h1>
+                      <Tag color="indigo" style={{ margin: 0, borderRadius: '4px', textTransform: 'uppercase', fontSize: '10.5px', fontWeight: 600 }}>
+                        {LANGUAGES.find(l => l.value === selectedItem.language)?.label || selectedItem.language || 'Code'}
+                      </Tag>
+                    </div>
+
+                    {selectedItem.caption && (
+                      <p style={{ margin: '6px 0 0', fontSize: '13.5px', color: textMuted, lineHeight: 1.5 }}>
+                        {selectedItem.caption}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Code Container with Syntax Highlighting & Header Controls */}
+                  <div
+                    style={{
+                      borderRadius: '10px',
+                      border: `1px solid ${cardBorder}`,
+                      background: codeBg,
+                      overflow: 'hidden',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+                    }}
+                  >
+                    {/* Code Topbar */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 14px',
+                        borderBottom: `1px solid ${cardBorder}`,
+                        background: isLight ? '#f1f3f5' : '#171722',
+                      }}
+                    >
+                      <span style={{ fontSize: '11.5px', fontWeight: 600, color: textMuted }}>
+                        {LANGUAGES.find(l => l.value === selectedItem.language)?.label || selectedItem.language || 'Snippet'}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(selectedItem.content)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: copied ? '#10b981' : textMuted,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '11.5px',
+                          fontWeight: 500,
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                        }}
+                        onMouseEnter={e => {
+                          if (!copied) e.currentTarget.style.color = textColor;
+                        }}
+                        onMouseLeave={e => {
+                          if (!copied) e.currentTarget.style.color = textMuted;
+                        }}
+                      >
+                        {copied ? <RiCheckLine size={13} /> : <RiFileCopyLine size={13} />}
+                        <span>{copied ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
+
+                    {/* Formatted Code */}
+                    <div style={{ padding: '0', overflowX: 'auto' }}>
+                      <SyntaxHighlighter
+                        language={selectedItem.language || 'javascript'}
+                        style={isLight ? coy : vscDarkPlus}
+                        customStyle={{
+                          margin: 0,
+                          padding: '16px',
+                          background: 'transparent',
+                          fontSize: '13px',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {selectedItem.content || '// No code written'}
+                      </SyntaxHighlighter>
+                    </div>
+                  </div>
+
+                  {/* Tags display */}
+                  {Array.isArray(selectedItem.tags) && selectedItem.tags.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <span style={{ fontSize: '11.5px', color: textMuted }}>Tags:</span>
+                      {selectedItem.tags.map((tag, idx) => (
+                        <Tag key={idx} style={{ borderRadius: '4px', fontSize: '11px' }}>
+                          #{tag}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* ── EMPTY STATE (Illustration & Call to Action) ── */
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '32px',
+              textAlign: 'center',
+            }}
+          >
+            {isSidebarCollapsed && (
+              <Button
+                icon={<RiMenuUnfoldLine />}
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{ position: 'absolute', top: '16px', left: '16px', borderRadius: '6px' }}
+              >
+                Open Sidebar
+              </Button>
+            )}
+
+            <img
+              src={snippetsIllustration}
+              alt="Snippets"
+              style={{
+                width: '180px',
+                height: '180px',
+                marginBottom: '18px',
+                opacity: isLight ? 0.9 : 0.85,
+              }}
+            />
+            <h3
+              style={{
+                fontSize: '17px',
+                fontWeight: 600,
+                color: textColor,
+                marginBottom: '8px',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              No snippet selected
+            </h3>
+            <p
+              style={{
+                fontSize: '13px',
+                color: textMuted,
+                maxWidth: '360px',
+                lineHeight: 1.5,
+                margin: '0 0 18px',
+              }}
+            >
+              Select a snippet from the folder tree on the left, or create a new snippet directly in {currentFolderPath}.
+            </p>
+            <Button
+              type="primary"
+              icon={<RiAddLine />}
+              onClick={() => handleCreateNewSnippet(selectedFolderId)}
+              style={{
+                background: accent,
+                borderColor: accent,
+                borderRadius: '6px',
+                fontWeight: 600,
+                padding: '6px 18px',
+              }}
+            >
+              Create Snippet
+            </Button>
+          </div>
+        )}
+      </main>
+
+      {/* ── Move Item Modal ── */}
+      {selectedItem && (
+        <MoveItemModal
+          isOpen={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          spaceId={space._id}
+          item={selectedItem}
+          isLight={isLight}
+        />
       )}
-
-      {/* Add / Edit Modal */}
-      <QuickAddSnippetModal
-        open={modalOpen}
-        onClose={closeModal}
-        space={space}
-        editingSnippet={editingSnippet}
-        onSuccess={(snip) => {
-          if (snip?._id) setSelectedSnippetId(snip._id);
-        }}
-      />
-
-      {/* Code Viewer Modal */}
-      <SnippetViewModal
-        open={!!viewSnippet}
-        snippet={viewSnippet}
-        spaceId={space._id}
-        onClose={() => {
-          setViewSnippet(null);
-          const params = new URLSearchParams(window.location.search);
-          if (params.has('id')) {
-            params.delete('id');
-            const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-            window.history.replaceState(null, '', newRelativePathQuery);
-          }
-        }}
-        onEdit={(s) => openEditModal(s)}
-      />
     </div>
   );
 }
