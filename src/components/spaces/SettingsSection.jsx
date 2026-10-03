@@ -8,21 +8,6 @@ import { useAuth } from '../../context/AuthContext';
 import SpaceIcon from './SpaceIcon';
 import { ALL_MODULES } from '../../constants/templates';
 
-function getIconKeyByName(name = '') {
-  const n = (name || '').toLowerCase();
-  if (n.includes('react')) return 'simple-icons:react';
-  if (n.includes('vue')) return 'simple-icons:vuejs';
-  if (n.includes('angular')) return 'simple-icons:angular';
-  if (n.includes('node')) return 'simple-icons:nodedotjs';
-  if (n.includes('python')) return 'simple-icons:python';
-  if (n.includes('java')) return 'simple-icons:java';
-  if (n.includes('docker')) return 'simple-icons:docker';
-  if (n.includes('aws')) return 'logos:aws';
-  if (n.includes('go') || n.includes('golang')) return 'simple-icons:go';
-  if (n.includes('rust')) return 'simple-icons:rust';
-  return 'lucide:stack';
-}
-
 export default function SettingsSection({ space, isLight }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -41,12 +26,6 @@ export default function SettingsSection({ space, isLight }) {
     const current = space.iconKey || space.icon || 'lucide:folder';
     return current === 'folder' ? 'lucide:folder' : current;
   });
-  const [isCustomIcon, setIsCustomIcon] = useState(() => {
-    const defaultIcon = getIconKeyByName(space.name);
-    let currentIcon = space.iconKey || space.icon || 'lucide:folder';
-    if (currentIcon === 'folder') currentIcon = 'lucide:folder';
-    return currentIcon !== defaultIcon;
-  });
   const [isSaving, setIsSaving] = useState(false);
 
   // Delete states
@@ -54,12 +33,6 @@ export default function SettingsSection({ space, isLight }) {
   const [confirmName, setConfirmName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Auto-detect icon when name changes if not custom
-  useEffect(() => {
-    if (!isCustomIcon) {
-      setIconKey(getIconKeyByName(name));
-    }
-  }, [name, isCustomIcon]);
 
   // Keep local enabledModules in sync with space updates
   useEffect(() => {
