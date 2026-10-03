@@ -130,7 +130,7 @@ export default function Profile() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: bg, transition: 'background 0.3s ease', position: 'relative', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: bg, transition: 'background 0.3s ease', position: 'relative', overflowY: 'auto', scrollBehavior: 'smooth' }}>
 
       {/* Subtle Background Glow Orbs */}
       <div className="hero-background-flow" style={{ opacity: isLight ? 0.015 : 0.04 }}>

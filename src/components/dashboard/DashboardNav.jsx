@@ -3,21 +3,50 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { RiSearchLine, RiQuestionLine, RiNotification3Line, RiMenuLine } from 'react-icons/ri';
 import ProfileDropdown from '../dashboard/ProfileDropdown';
+import InboxModal from '../inbox/InboxModal';
+import { inboxApi } from '../../api/inboxApi';
 import { Tooltip, message } from 'antd';
 
 export default function DashboardNav({ onSearchOpen, onNewSpaceClick, onToggleSidebar }) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState(0);
   const isLight = theme === 'light';
   const dropdownRef = useRef(null);
 
-  const userName = localStorage.getItem('dos_profile_name') || user?.displayName || user?.username || 'Your Name';
+  useEffect(() => {
+    if (user) {
+      inboxApi.getUnreadCount()
+        .then((data) => setUnreadTotal(data.totalUnread || 0))
+        .catch(() => {});
+    }
+  }, [user]);
+
+  const [localAvatar, setLocalAvatar] = useState(() => localStorage.getItem('dos_profile_avatar') || '');
+  const [localName, setLocalName] = useState(() => localStorage.getItem('dos_profile_name') || '');
+
+  // Listen for global profile updates
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setLocalAvatar(localStorage.getItem('dos_profile_avatar') || '');
+      setLocalName(localStorage.getItem('dos_profile_name') || '');
+    };
+    window.addEventListener('profile_update', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('profile_update', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, []);
+
+  const avatarVal = user?.avatarUrl !== undefined ? user.avatarUrl : (localAvatar || '');
+  const userName = user?.displayName || user?.username || localName || 'Your Name';
   const nameParts = userName.trim().split(/\s+/);
   const initials = nameParts.length > 1
     ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
     : (nameParts[0][0] || 'YD').toUpperCase();
-  const avatarVal = localStorage.getItem('dos_profile_avatar') || user?.avatarUrl || '';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -160,11 +189,11 @@ export default function DashboardNav({ onSearchOpen, onNewSpaceClick, onToggleSi
           </button>
         </Tooltip>
 
-        <Tooltip title="Notifications" placement="bottom">
+        <Tooltip title="Inbox" placement="bottom">
           <button
             type="button"
-            onClick={handleNotificationClick}
-            aria-label="View notifications"
+            onClick={() => setInboxOpen(true)}
+            aria-label="View inbox and notifications"
             style={{
               position: 'relative',
               background: 'transparent',
@@ -182,15 +211,26 @@ export default function DashboardNav({ onSearchOpen, onNewSpaceClick, onToggleSi
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
             <RiNotification3Line size={20} />
-            <span style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--accent-color)'
-            }} />
+            {unreadTotal > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '2px',
+                right: '2px',
+                minWidth: '16px',
+                height: '16px',
+                padding: '0 4px',
+                borderRadius: '8px',
+                background: 'var(--accent-color)',
+                color: '#ffffff',
+                fontSize: '10px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {unreadTotal > 99 ? '99+' : unreadTotal}
+              </span>
+            )}
           </button>
         </Tooltip>
 
@@ -241,6 +281,13 @@ export default function DashboardNav({ onSearchOpen, onNewSpaceClick, onToggleSi
           )}
         </div>
       </div>
+
+      {/* Inbox Modal */}
+      <InboxModal
+        visible={inboxOpen}
+        onClose={() => setInboxOpen(false)}
+        onUnreadCountChange={setUnreadTotal}
+      />
     </header>
   );
 }

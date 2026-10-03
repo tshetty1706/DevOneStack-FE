@@ -31,6 +31,7 @@ import CommunitiesSection from '../components/spaces/CommunitiesSection';
 import TagsSection from '../components/spaces/TagsSection';
 import SettingsSection from '../components/spaces/SettingsSection';
 import SpaceIcon from '../components/spaces/SpaceIcon';
+import SpaceCollaboratorsModal from '../components/spaces/SpaceCollaboratorsModal';
 import {
   QuickAddNoteModal,
   QuickAddLearningModal,
@@ -50,7 +51,7 @@ const SIDEBAR_ITEMS = [
   { id: 'docs', icon: RiFileTextLine, label: 'Docs' },
   { id: 'repos', icon: RiGitRepositoryLine, label: 'Repos' },
   { id: 'prompts', icon: RiRobot2Line, label: 'Prompts' },
-  { id: 'communities', icon: RiTeamLine, label: 'Communities' },
+  { id: 'communities', icon: RiTeamLine, label: 'External Links' },
   { id: 'tags', icon: RiPriceTag3Line, label: 'Tags' },
 ];
 
@@ -193,6 +194,7 @@ export default function SpaceDashboard() {
 
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [addingModuleId, setAddingModuleId] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Compute enabled modules (Overview & Explorer are ALWAYS fixed as first two)
   const enabledModules = useMemo(() => {
@@ -844,10 +846,7 @@ export default function SpaceDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                message.success('Space URL copied to clipboard!');
-              }}
+              onClick={() => setShowShareModal(true)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -874,7 +873,7 @@ export default function SpaceDashboard() {
               }}
             >
               <RiShareLine size={14} />
-              <span className="space-share-btn-text">Share</span>
+              <span className="space-share-btn-text">Share & Access</span>
             </button>
           </div>
         </header>
@@ -1181,6 +1180,16 @@ export default function SpaceDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Space Collaboration & Access Modal */}
+      {space && (
+        <SpaceCollaboratorsModal
+          space={space}
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          onSpaceUpdated={() => queryClient.invalidateQueries(['space', spaceId])}
+        />
+      )}
     </div>
   );
 }

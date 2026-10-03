@@ -926,7 +926,7 @@ export default function CreateSpace() {
                 </p>
               </div>
 
-              {/* 3 Visibility Options */}
+              {/* 2 Visibility Options: Private & Public */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
                   {
@@ -934,7 +934,7 @@ export default function CreateSpace() {
                     label: 'Private',
                     icon: RiLockLine,
                     color: isLight ? '#059669' : '#34d399',
-                    description: 'Only you and explicitly authorized collaborators can access this space.',
+                    description: 'Only you and accepted collaborators can access this space.',
                     recommended: true,
                   },
                   {
@@ -942,14 +942,7 @@ export default function CreateSpace() {
                     label: 'Public',
                     icon: RiGlobalLine,
                     color: isLight ? '#4f46e5' : '#818cf8',
-                    description: 'Anyone can discover, view, and star this Space.',
-                  },
-                  {
-                    id: 'unlisted',
-                    label: 'Unlisted',
-                    icon: RiLinkM,
-                    color: isLight ? '#d97706' : '#fbbf24',
-                    description: 'Anyone with the direct link can view, but hidden from public search.',
+                    description: 'Anyone can discover, view, and star this Space in the Community.',
                   },
                 ].map(opt => {
                   const isSelected = visibility === opt.id;

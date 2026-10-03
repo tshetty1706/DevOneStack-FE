@@ -6,6 +6,7 @@ import {
   RiGlobalLine,
   RiBookOpenLine,
   RiAddLine,
+  RiEditLine,
   RiDeleteBinLine,
   RiCloseLine
 } from 'react-icons/ri';
@@ -40,8 +41,9 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
   });
 
   const [education, setEducation] = useState([]);
+  const [editingEduIndex, setEditingEduIndex] = useState(null);
 
-  // New education entry state
+  // New / editing education entry state
   const [newEdu, setNewEdu] = useState({
     institution: '',
     degree: '',
@@ -70,6 +72,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
       setEducation(Array.isArray(user.education) ? [...user.education] : []);
       setActiveTab(defaultTab || 'about');
       setShowAddEduForm(false);
+      setEditingEduIndex(null);
       setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
     }
   }, [open, user, defaultTab]);
@@ -78,6 +81,10 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
   const handleAddSkill = () => {
     const trimmed = skillInput.trim();
     if (trimmed && !skills.includes(trimmed)) {
+      if (trimmed.length > 50) {
+        message.warning('Skill name cannot exceed 50 characters');
+        return;
+      }
       setSkills([...skills, trimmed]);
       setSkillInput('');
     }
@@ -88,18 +95,73 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
   };
 
   // Education item handlers
-  const handleAddEducationEntry = () => {
+  const handleOpenAddEdu = () => {
+    if (showAddEduForm) {
+      setShowAddEduForm(false);
+      setEditingEduIndex(null);
+      setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
+    } else {
+      setEditingEduIndex(null);
+      setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
+      setShowAddEduForm(true);
+    }
+  };
+
+  const handleEditEducationEntry = (index) => {
+    const item = education[index];
+    if (!item) return;
+    setNewEdu({
+      institution: item.institution || '',
+      degree: item.degree || '',
+      fieldOfStudy: item.fieldOfStudy || '',
+      startYear: item.startYear || '',
+      endYear: item.endYear || '',
+    });
+    setEditingEduIndex(index);
+    setShowAddEduForm(true);
+  };
+
+  const handleSaveEducationEntry = () => {
     if (!newEdu.institution.trim() && !newEdu.degree.trim()) {
       message.warning('Please enter an institution or degree');
       return;
     }
-    setEducation([...education, { ...newEdu }]);
+
+    if (newEdu.startYear && isNaN(Number(newEdu.startYear))) {
+      message.error('Start year must be a valid number (e.g. 2022)');
+      return;
+    }
+    if (newEdu.endYear && newEdu.endYear.toLowerCase() !== 'present' && isNaN(Number(newEdu.endYear))) {
+      message.error('End year must be a number or "Present"');
+      return;
+    }
+    if (newEdu.startYear && newEdu.endYear && newEdu.endYear.toLowerCase() !== 'present' && Number(newEdu.endYear) < Number(newEdu.startYear)) {
+      message.error('End year cannot be earlier than start year');
+      return;
+    }
+
+    if (editingEduIndex !== null && editingEduIndex >= 0 && editingEduIndex < education.length) {
+      const updated = [...education];
+      updated[editingEduIndex] = { ...newEdu };
+      setEducation(updated);
+      message.success('Education entry updated');
+    } else {
+      setEducation([...education, { ...newEdu }]);
+      message.success('Education entry added');
+    }
+
     setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
+    setEditingEduIndex(null);
     setShowAddEduForm(false);
   };
 
   const handleRemoveEducationEntry = (index) => {
     setEducation(education.filter((_, idx) => idx !== index));
+    if (editingEduIndex === index) {
+      setEditingEduIndex(null);
+      setShowAddEduForm(false);
+      setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
+    }
   };
 
   // Save profile to backend with validation and global sync
@@ -120,6 +182,22 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
         message.error(`Invalid URL for ${field}`);
         return false;
       }
+    }
+    // Display name validation
+    const nameRegex = /^[a-zA-Z0-9 .'-]{2,}$/;
+    if (!displayName.trim() || !nameRegex.test(displayName)) {
+      message.error('Display name is required and must be a valid name');
+      return false;
+    }
+    // Bio length validation
+    if (bio && bio.length > 500) {
+      message.error('Bio must be under 500 characters');
+      return false;
+    }
+    // Role length validation
+    if (role && role.length > 100) {
+      message.error('Role must be under 100 characters');
+      return false;
     }
     // Education years validation
     for (const edu of education) {
@@ -159,7 +237,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
       if (res.data.user) {
         setUser(res.data.user);
         // Update localStorage for other components
-        localStorage.setItem('dos_profile_name', res.data.user.displayName || '');
+        localStorage.setItem('dos_profile_name', res.data.user.displayName || res.data.user.username || '');
         localStorage.setItem('dos_profile_avatar', res.data.user.avatarUrl || '');
         // Notify other parts of app
         window.dispatchEvent(new Event('profile_update'));
@@ -205,6 +283,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               placeholder="Your full name"
+              maxLength={100}
               style={textInputStyle}
             />
           </div>
@@ -217,6 +296,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={role}
               onChange={e => setRole(e.target.value)}
               placeholder="e.g. Full Stack Developer, DevOps Enthusiast"
+              maxLength={100}
               style={textInputStyle}
             />
           </div>
@@ -230,6 +310,8 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={bio}
               onChange={e => setBio(e.target.value)}
               placeholder="Passionate about building scalable web applications and developer tools..."
+              maxLength={500}
+              showCount
               style={textInputStyle}
             />
           </div>
@@ -244,6 +326,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
                 onChange={e => setSkillInput(e.target.value)}
                 onPressEnter={handleAddSkill}
                 placeholder="Add a technology (e.g. React, Node.js, MongoDB)"
+                maxLength={50}
                 style={textInputStyle}
               />
               <Button onClick={handleAddSkill} icon={<RiAddLine />} style={{ borderColor: border }}>
@@ -296,6 +379,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+1 (555) 000-0000"
+              maxLength={25}
               style={textInputStyle}
             />
           </div>
@@ -308,6 +392,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={location}
               onChange={e => setLocation(e.target.value)}
               placeholder="e.g. San Francisco, CA or Mumbai, India"
+              maxLength={100}
               style={textInputStyle}
             />
           </div>
@@ -320,6 +405,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={website}
               onChange={e => setWebsite(e.target.value)}
               placeholder="https://yourwebsite.com"
+              maxLength={150}
               style={textInputStyle}
             />
           </div>
@@ -343,6 +429,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={socials.github}
               onChange={e => setSocials({ ...socials, github: e.target.value })}
               placeholder="https://github.com/username"
+              maxLength={150}
               style={textInputStyle}
             />
           </div>
@@ -355,6 +442,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={socials.linkedin}
               onChange={e => setSocials({ ...socials, linkedin: e.target.value })}
               placeholder="https://linkedin.com/in/username"
+              maxLength={150}
               style={textInputStyle}
             />
           </div>
@@ -367,6 +455,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={socials.twitter}
               onChange={e => setSocials({ ...socials, twitter: e.target.value })}
               placeholder="https://x.com/username"
+              maxLength={150}
               style={textInputStyle}
             />
           </div>
@@ -379,6 +468,7 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               value={socials.website}
               onChange={e => setSocials({ ...socials, website: e.target.value })}
               placeholder="https://portfolio.dev"
+              maxLength={150}
               style={textInputStyle}
             />
           </div>
@@ -402,10 +492,10 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               type="dashed"
               size="small"
               icon={<RiAddLine />}
-              onClick={() => setShowAddEduForm(!showAddEduForm)}
+              onClick={handleOpenAddEdu}
               style={{ borderColor: border }}
             >
-              {showAddEduForm ? 'Cancel' : 'Add School'}
+              {showAddEduForm && editingEduIndex === null ? 'Cancel' : '+ Add School'}
             </Button>
           </div>
 
@@ -419,22 +509,28 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
               flexDirection: 'column',
               gap: '10px'
             }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: accentColor }}>
+                {editingEduIndex !== null ? 'Edit Education Entry' : 'Add Education Entry'}
+              </div>
               <Input
                 placeholder="Institution (e.g. Stanford University / College of Engineering)"
                 value={newEdu.institution}
                 onChange={e => setNewEdu({ ...newEdu, institution: e.target.value })}
+                maxLength={120}
                 style={textInputStyle}
               />
               <Input
                 placeholder="Degree (e.g. B.Tech / B.S. / Master's)"
                 value={newEdu.degree}
                 onChange={e => setNewEdu({ ...newEdu, degree: e.target.value })}
+                maxLength={100}
                 style={textInputStyle}
               />
               <Input
                 placeholder="Field of Study (e.g. Computer Science & Engineering)"
                 value={newEdu.fieldOfStudy}
                 onChange={e => setNewEdu({ ...newEdu, fieldOfStudy: e.target.value })}
+                maxLength={100}
                 style={textInputStyle}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -442,22 +538,37 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
                   placeholder="Start Year (e.g. 2022)"
                   value={newEdu.startYear}
                   onChange={e => setNewEdu({ ...newEdu, startYear: e.target.value })}
+                  maxLength={10}
                   style={textInputStyle}
                 />
                 <Input
                   placeholder="End Year (e.g. 2026 or Present)"
                   value={newEdu.endYear}
                   onChange={e => setNewEdu({ ...newEdu, endYear: e.target.value })}
+                  maxLength={15}
                   style={textInputStyle}
                 />
               </div>
-              <Button
-                type="primary"
-                onClick={handleAddEducationEntry}
-                style={{ background: accentColor, borderColor: accentColor, alignSelf: 'flex-end', marginTop: '4px' }}
-              >
-                Add to List
-              </Button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setShowAddEduForm(false);
+                    setEditingEduIndex(null);
+                    setNewEdu({ institution: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '' });
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={handleSaveEducationEntry}
+                  style={{ background: accentColor, borderColor: accentColor }}
+                >
+                  {editingEduIndex !== null ? 'Update Entry' : 'Add to List'}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -477,10 +588,10 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
                     padding: '10px 14px',
                     borderRadius: '8px',
                     background: inputBg,
-                    border: `1px solid ${border}`
+                    border: `1px solid ${editingEduIndex === idx ? accentColor : border}`
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {edu.degree ? `${edu.degree} - ` : ''}{edu.institution}
                     </div>
@@ -489,12 +600,22 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
                       {edu.startYear && edu.endYear ? `${edu.startYear} - ${edu.endYear}` : edu.startYear || edu.endYear || ''}
                     </div>
                   </div>
-                  <Button
-                    type="text"
-                    danger
-                    icon={<RiDeleteBinLine size={15} />}
-                    onClick={() => handleRemoveEducationEntry(idx)}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                    <Button
+                      type="text"
+                      icon={<RiEditLine size={15} />}
+                      style={{ color: textMuted }}
+                      onClick={() => handleEditEducationEntry(idx)}
+                      title="Edit education entry"
+                    />
+                    <Button
+                      type="text"
+                      danger
+                      icon={<RiDeleteBinLine size={15} />}
+                      onClick={() => handleRemoveEducationEntry(idx)}
+                      title="Delete education entry"
+                    />
+                  </div>
                 </div>
               ))}
             </div>

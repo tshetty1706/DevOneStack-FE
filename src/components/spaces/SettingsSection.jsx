@@ -26,14 +26,6 @@ export default function SettingsSection({ space, isLight }) {
     const current = space.iconKey || space.icon || 'lucide:folder';
     return current === 'folder' ? 'lucide:folder' : current;
   });
-  const [isCustomIcon, setIsCustomIcon] = useState(() => {
-    const defaultIcon = getIconKeyByName(space.name);
-    let currentIcon = space.iconKey || space.icon || 'lucide:folder';
-    if (currentIcon === 'folder') currentIcon = 'lucide:folder';
-    return currentIcon !== defaultIcon;
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Delete states
@@ -41,12 +33,6 @@ export default function SettingsSection({ space, isLight }) {
   const [confirmName, setConfirmName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Auto-detect icon when name changes if not custom
-  useEffect(() => {
-    if (!isCustomIcon) {
-      setIconKey(getIconKeyByName(name));
-    }
-  }, [name, isCustomIcon]);
 
   // Keep local enabledModules in sync with space updates
   useEffect(() => {

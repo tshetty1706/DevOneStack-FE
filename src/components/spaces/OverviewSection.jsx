@@ -92,7 +92,6 @@ export default function OverviewSection({ space, isLight, onNavigateSection }) {
   const visibilityConfig = {
     private: { label: 'Private', icon: RiLockLine, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
     public: { label: 'Public', icon: RiGlobalLine, color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-    unlisted: { label: 'Unlisted', icon: RiLinkM, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
   };
 
   const currentVisibility = visibilityConfig[space?.visibility] || visibilityConfig.private;

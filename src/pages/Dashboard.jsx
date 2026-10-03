@@ -132,6 +132,39 @@ function DashboardSidebar({ activeView, setActiveView }) {
           <span>Dashboard</span>
         </button>
 
+        {/* Community Link */}
+        <button
+          onClick={() => navigate('/community')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            fontWeight: 500,
+            fontSize: '13px',
+            fontFamily: 'var(--font-body)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            width: '100%',
+            transition: 'background 0.2s, color 0.2s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)';
+            e.currentTarget.style.color = 'var(--text-color)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
+        >
+          <RiCompassLine size={18} />
+          <span>Community</span>
+        </button>
+
         {/* WORKSPACES Header */}
         <div style={{
           fontSize: '10px',
