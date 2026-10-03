@@ -1,408 +1,723 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Input, Select, Button, Popconfirm, Skeleton, Tag, Switch, message, Tooltip } from 'antd';
-import { RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine, RiSearchLine, RiPushpinLine, RiPushpin2Fill, RiHistoryLine, RiGitRepositoryLine, RiTeamLine, RiExternalLinkLine } from 'react-icons/ri';
+import { Input, Select, Button, Popconfirm, Tag, message, Tooltip } from 'antd';
+import {
+  RiAddLine, RiGithubLine, RiGitlabLine, RiLink, RiDeleteBinLine,
+  RiFolderLine, RiFolderTransferLine, RiMenuUnfoldLine,
+  RiEditLine, RiSaveLine, RiExternalLinkLine, RiGitRepositoryLine
+} from 'react-icons/ri';
 import { SiBitbucket } from 'react-icons/si';
 import api from '../../api/axios';
-import { QuickAddRepoModal } from './QuickAddModals';
+import ModuleSidebar from './ModuleSidebar';
+import MoveItemModal from './MoveItemModal';
 import PinButton from '../common/PinButton';
-import { useDebounce } from '../../hooks/useDebounce';
+import reposIllustration from '../../assets/editor/repos.svg';
+
+const { TextArea } = Input;
 
 const PLATFORMS = [
-  { value: 'github', label: 'GitHub' },
-  { value: 'gitlab', label: 'GitLab' },
-  { value: 'bitbucket', label: 'BitBucket' },
-  { value: 'other', label: 'Other' }
+  { value: 'github', label: 'GitHub', icon: RiGithubLine },
+  { value: 'gitlab', label: 'GitLab', icon: RiGitlabLine },
+  { value: 'bitbucket', label: 'BitBucket', icon: SiBitbucket },
+  { value: 'other', label: 'Other', icon: RiLink }
 ];
 
-export default function ReposSection({ space, isLight, highlightId }) {
+export default function ReposSection({
+  space,
+  isLight,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingRepo, setEditingRepo] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, 300);
+  const [selectedId, setSelectedId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
 
   // Form states
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [caption, setCaption] = useState('');
-  const [platform, setPlatform] = useState('github');
-  const [tags, setTags] = useState([]);
-  const [isOwn, setIsOwn] = useState(false);
+  const [formTitle, setFormTitle] = useState('');
+  const [formUrl, setFormUrl] = useState('');
+  const [formCaption, setFormCaption] = useState('');
+  const [formTags, setFormTags] = useState('');
 
-  // Fetch repos
-  const { data: repos = [], isLoading } = useQuery({
-    queryKey: ['repos', space._id, debouncedQuery],
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
+  };
+
+  // Fetch folders for breadcrumbs
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
     queryFn: async () => {
-      const endpoint = debouncedQuery
-        ? `/api/spaces/${space._id}/repos/search?q=${encodeURIComponent(debouncedQuery)}`
-        : `/api/spaces/${space._id}/repos`;
-      const response = await api.get(endpoint);
-      return response.data.repos;
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
     }
   });
 
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
+
+  // Fetch repos using unified items endpoint
+  const { data: rawRepos = [], isLoading } = useQuery({
+    queryKey: ['items', space._id, 'repo'],
+    queryFn: async () => {
+      const response = await api.get(`/api/spaces/${space._id}/items?type=repo`);
+      return response.data.items || [];
+    }
+  });
+
+  const repos = rawRepos || [];
+
+  // Deep-linking highlight handler
   useEffect(() => {
-    if (highlightId && repos && repos.length > 0) {
+    if (highlightId && repos.length > 0) {
       const target = repos.find(r => r._id === highlightId);
       if (target) {
-        openEditModal(target);
+        setSelectedId(target._id);
+        setIsEditing(false);
       }
     }
   }, [highlightId, repos]);
 
-  // Toggle Pin
-  const togglePin = useMutation({
-    mutationFn: async (id) => {
-      return api.patch(`/api/spaces/${space._id}/repos/${id}/pin`);
-    },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries(['repos', space._id]);
-      const prev = queryClient.getQueryData(['repos', space._id, debouncedQuery]);
-      if (prev) {
-        queryClient.setQueryData(['repos', space._id, debouncedQuery], old =>
-          old.map(item => item._id === id ? { ...item, isPinned: !item.isPinned } : item)
-        );
-      }
-      return { prev };
-    },
-    onError: (_, __, context) => {
-      if (context && context.prev) {
-        queryClient.setQueryData(['repos', space._id, debouncedQuery], context.prev);
-      }
-      message.error('Failed to update pin');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['repos', space._id]);
-    }
-  });
+  // Selected item object
+  const selectedItem = useMemo(() => {
+    return repos.find(r => r._id === selectedId) || null;
+  }, [selectedId, repos]);
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      return api.post(`/api/spaces/${space._id}/repos`, payload);
+  // Sync form state when active selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      setFormTitle(selectedItem.title || selectedItem.name || '');
+      setFormUrl(selectedItem.url || '');
+      setFormCaption(selectedItem.caption || '');
+      setFormTags(Array.isArray(selectedItem.tags) ? selectedItem.tags.join(', ') : (selectedItem.tags || ''));
+    }
+  }, [selectedItem]);
+
+  // Create repo mutation
+  const createRepoMutation = useMutation({
+    mutationFn: async ({ title, folderId, url, caption }) => {
+      const res = await api.post(`/api/spaces/${space._id}/items`, {
+        type: 'repo',
+        title,
+        folderId: folderId || null,
+        url: url || 'https://github.com/example/repo',
+        caption: caption || '',
+      });
+      return res.data.item;
     },
-    onSuccess: () => {
-      message.success('Repository linked!');
-      queryClient.invalidateQueries(['repos', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-      closeModal();
+    onSuccess: (newItem) => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'repo'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(newItem._id);
+      setIsEditing(true);
+      message.success(`Created "${newItem.title}"`);
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to link repository');
+      message.error(err.response?.data?.error || "Couldn't create repository.");
     }
   });
 
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }) => {
-      return api.patch(`/api/spaces/${space._id}/repos/${id}`, payload);
+  // Update repo mutation
+  const updateRepoMutation = useMutation({
+    mutationFn: async ({ itemId, payload }) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}`, payload);
+      return res.data.item;
     },
     onSuccess: () => {
-      message.success('Repository updated!');
-      queryClient.invalidateQueries(['repos', space._id]);
-      closeModal();
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'repo'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      setIsEditing(false);
+      message.success('Repository saved successfully');
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to update repository');
+      message.error(err.response?.data?.error || "Couldn't save repository.");
     }
   });
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      return api.delete(`/api/spaces/${space._id}/repos/${id}`);
+  // Delete repo mutation
+  const deleteRepoMutation = useMutation({
+    mutationFn: async (itemId) => {
+      await api.delete(`/api/spaces/${space._id}/items/${itemId}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'repo'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setSelectedId(null);
+      setIsEditing(false);
       message.success('Repository link deleted');
-      queryClient.invalidateQueries(['repos', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || "Couldn't delete repository.");
     }
   });
 
-  const openAddModal = () => {
-    setEditingRepo(null);
-    setName('');
-    setUrl('');
-    setCaption('');
-    setPlatform('github');
-    setTags([]);
-    setIsOwn(false);
-    setModalOpen(true);
-  };
-
-  const openEditModal = (repo) => {
-    setEditingRepo(repo);
-    setName(repo.name);
-    setUrl(repo.url);
-    setCaption(repo.caption || '');
-    setPlatform(repo.platform);
-    setTags(repo.tags || []);
-    setIsOwn(repo.isOwn || false);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingRepo(null);
-  };
-
-  const detectPlatformAndName = (inputUrl) => {
-    if (!inputUrl) return;
-    let detectedPlatform = 'other';
-    if (inputUrl.includes('github.com')) detectedPlatform = 'github';
-    else if (inputUrl.includes('gitlab.com')) detectedPlatform = 'gitlab';
-    else if (inputUrl.includes('bitbucket.org')) detectedPlatform = 'bitbucket';
-
-    setPlatform(detectedPlatform);
-
-    // Auto-extract name if name is not set yet
-    if (!name) {
-      try {
-        const parsedUrl = new URL(inputUrl);
-        const paths = parsedUrl.pathname.split('/').filter(Boolean);
-        if (paths.length >= 2) {
-          setName(paths[1]); // repo name
-        } else if (paths.length === 1) {
-          setName(paths[0]); // username or single path name
-        }
-      } catch (e) {
-        // Ignored
-      }
+  // Pin repo mutation
+  const pinMutation = useMutation({
+    mutationFn: async (itemId) => {
+      const res = await api.patch(`/api/spaces/${space._id}/items/${itemId}/pin`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'repo'] });
+      queryClient.invalidateQueries({ queryKey: ['items', space._id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
     }
-  };
+  });
 
-  const handleSubmit = () => {
-    if (!name || !url) {
-      message.error('Name and URL are required');
+  // Direct repo creation handler
+  const handleCreateNewRepo = useCallback((targetFolderId) => {
+    const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
+      ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
+
+    const nextNumber = repos.length + 1;
+    const defaultTitle = `Repo ${nextNumber}`;
+
+    createRepoMutation.mutate({
+      title: defaultTitle,
+      folderId: validFolderId,
+      url: 'https://github.com/',
+      caption: '',
+    });
+  }, [repos.length, selectedFolderId, createRepoMutation]);
+
+  // Handle save repo form
+  const handleSaveRepo = () => {
+    if (!selectedId) return;
+    if (!formTitle.trim()) {
+      message.warning('Please enter a repository title/name');
       return;
     }
-    const payload = { name, url, caption, platform, tags, isOwn };
-    if (editingRepo) {
-      updateMutation.mutate({ id: editingRepo._id, payload });
-    } else {
-      createMutation.mutate(payload);
+
+    let parsedUrl = formUrl.trim();
+    if (parsedUrl && !/^https?:\/\//i.test(parsedUrl)) {
+      parsedUrl = `https://${parsedUrl}`;
     }
+
+    const tagsArray = formTags
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    updateRepoMutation.mutate({
+      itemId: selectedId,
+      payload: {
+        title: formTitle.trim(),
+        url: parsedUrl,
+        caption: formCaption.trim(),
+        tags: tagsArray,
+      }
+    });
   };
 
-  const getPlatformIcon = (plat, size = 16) => {
-    switch (plat) {
-      case 'github': return <RiGithubLine size={size} />;
-      case 'gitlab': return <RiGitlabLine size={size} style={{ color: '#fc6d26' }} />;
-      case 'bitbucket': return <SiBitbucket size={size - 2} style={{ color: '#0052cc' }} />;
-      default: return <RiLink size={size} />;
-    }
+  // Detect platform from URL
+  const detectPlatform = (url = '') => {
+    const lower = url.toLowerCase();
+    if (lower.includes('github.com')) return 'GitHub';
+    if (lower.includes('gitlab.com')) return 'GitLab';
+    if (lower.includes('bitbucket.org')) return 'BitBucket';
+    return 'Git Repository';
   };
+
+  // Theme design tokens
+  const cardBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
+  const mainBg = isLight ? '#ffffff' : '#0d0d12';
+  const headerBg = isLight ? '#fafafa' : '#0f0f16';
+  const textColor = isLight ? '#111827' : '#f3f4f6';
+  const textMuted = '#64748b';
+  const accent = isLight ? '#4f46e5' : '#6366f1';
+  const boxBg = isLight ? '#f8f9fa' : '#14141d';
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* Header controls */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
-          <RiSearchLine style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', zIndex: 10 }} />
-          <input
-            placeholder="Search repos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%', padding: '7px 10px 7px 32px', borderRadius: '8px',
-              border: `1px solid ${isLight ? '#e5e5e5' : '#2a2a2a'}`,
-              background: isLight ? '#ffffff' : '#1a1a1a',
-              color: isLight ? '#111111' : '#ffffff',
-              outline: 'none', fontSize: '13px'
-            }}
-          />
-        </div>
-        <Button
-          type="primary"
-          icon={<RiAddLine />}
-          onClick={openAddModal}
-          style={{ background: isLight ? '#4f46e5' : '#6366f1', borderColor: isLight ? '#4f46e5' : '#6366f1', borderRadius: '8px' }}
-        >
-          Link Repo
-        </Button>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        overflow: 'hidden',
+        background: mainBg,
+        position: 'relative',
+      }}
+    >
+      {/* ── SHARED MODULE SIDEBAR ── */}
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Repositories"
+        icon={RiGitRepositoryLine}
+        addButtonLabel="New Repo"
+        itemType="repo"
+        items={repos}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedId}
+        onSelectItem={(item) => {
+          setSelectedId(item._id);
+          setIsEditing(false);
+        }}
+        onAddItem={(folderId) => handleCreateNewRepo(folderId)}
+        isLight={isLight}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+      />
 
-      {isLoading ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
-      ) : repos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#888' }}>
-          No repositories linked. Add your GitHub or GitLab projects!
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
-          {repos.map((repo) => (
+      {/* ── MAIN CONTENT PANE (INLINE VIEWER & EDITOR) ── */}
+      <main
+        data-lenis-prevent
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minWidth: 0,
+          background: mainBg,
+          overflow: 'hidden',
+        }}
+      >
+        {selectedItem ? (
+          <>
+            {/* Header bar */}
             <div
-              key={repo._id}
               style={{
-                background:   isLight ? '#ffffff' : '#14141c',
-                border:       `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)'}`,
-                borderRadius: '12px',
-                padding:      '18px 20px',
-                display:      'flex',
-                flexDirection:'column',
-                gap:          '14px',
-                position:     'relative',
-                transition:   'all 0.2s ease',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = isLight ? '#d1d5db' : 'rgba(255,255,255,0.12)';
-                e.currentTarget.style.background = isLight ? '#f9fafb' : '#1a1a24';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.background = isLight ? '#ffffff' : '#14141c';
-                e.currentTarget.style.transform = 'translateY(0)';
+                padding: '10px 18px',
+                borderBottom: `1px solid ${cardBorder}`,
+                background: headerBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+                gap: '12px',
+                flexWrap: 'wrap',
               }}
             >
-              {/* Header Row: Badge & Pin */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                    padding: '2px 8px', borderRadius: '4px',
-                    background: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.12)',
-                    border: `1px solid ${isLight ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.25)'}`,
-                    color: '#fb923c', display: 'flex', alignItems: 'center', gap: '4px'
-                  }}>
-                    {getPlatformIcon(repo.platform, 12)}
-                    <span>{(repo.platform || 'REPO').toUpperCase()}</span>
-                  </span>
-                  {repo.isOwn && (
-                    <span style={{
-                      fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
-                      padding: '2px 6px', borderRadius: '4px',
-                      background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.25)', color: '#22c55e'
-                    }}>
-                      OWN REPO
-                    </span>
-                  )}
+              {/* Left: Sidebar Restore + Breadcrumb */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Show sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
+                )}
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '12px',
+                    color: textMuted,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <RiFolderLine size={14} style={{ color: accent, flexShrink: 0 }} />
+                  <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
-                <PinButton isPinned={repo.isPinned} onToggle={() => togglePin.mutate(repo._id)} />
+
+                <Tooltip title="Move to folder">
+                  <button
+                    type="button"
+                    onClick={() => setMoveModalOpen(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                  >
+                    <RiFolderTransferLine size={13} />
+                    <span>Move</span>
+                  </button>
+                </Tooltip>
+
+                <Tag color="orange" style={{ margin: 0, borderRadius: '4px', fontSize: '10.5px', fontWeight: 600 }}>
+                  {detectPlatform(selectedItem.url)}
+                </Tag>
               </div>
 
-              {/* Main Content info */}
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '10px',
-                  background: isLight ? 'rgba(249, 115, 22, 0.08)' : 'rgba(249, 115, 22, 0.12)',
-                  border: `1px solid ${isLight ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.25)'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fb923c', flexShrink: 0
-                }}>
-                  {getPlatformIcon(repo.platform, 24)}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: isLight ? '#111111' : '#ffffff', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href={repo.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      {repo.name}
-                    </a>
-                  </h4>
-                  {repo.caption ? (
-                    <p style={{
-                      fontSize: '12px', color: isLight ? '#666666' : '#88888b', margin: '0 0 8px', lineHeight: 1.4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
-                    }}>
-                      {repo.caption}
-                    </p>
-                  ) : (
-                    <div style={{ height: '4px' }} />
-                  )}
+              {/* Right: Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {selectedItem.url && (
+                  <Button
+                    size="small"
+                    icon={<RiExternalLinkLine />}
+                    onClick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
+                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                  >
+                    Open Repo
+                  </Button>
+                )}
 
-                  {repo.tags && repo.tags.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
-                      {repo.tags.map(t => (
-                        <Tag key={t} style={{
-                          fontSize: '10px', borderRadius: '4px', margin: 0,
-                          background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.03)',
-                          color: isLight ? '#4b5563' : '#a1a1aa',
-                          border: `1px solid ${isLight ? '#e5e7eb' : '#242428'}`
-                        }}>
-                          {t}
+                {/* Edit / Save Toggle */}
+                {isEditing ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<RiSaveLine />}
+                    loading={updateRepoMutation.isPending}
+                    onClick={handleSaveRepo}
+                    style={{
+                      background: accent,
+                      borderColor: accent,
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                    }}
+                  >
+                    Save
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    icon={<RiEditLine />}
+                    onClick={() => setIsEditing(true)}
+                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                  >
+                    Edit
+                  </Button>
+                )}
+
+                {/* Pin Button */}
+                <PinButton
+                  isPinned={selectedItem.isPinned}
+                  onToggle={() => pinMutation.mutate(selectedItem._id)}
+                  isLight={isLight}
+                />
+
+                {/* Delete Button */}
+                <Popconfirm
+                  title="Delete Repository Link"
+                  description="Are you sure you want to delete this repository link?"
+                  okText="Delete"
+                  okType="danger"
+                  cancelText="Cancel"
+                  onConfirm={() => deleteRepoMutation.mutate(selectedItem._id)}
+                >
+                  <Button
+                    danger
+                    type="text"
+                    size="small"
+                    icon={<RiDeleteBinLine size={15} />}
+                    style={{ borderRadius: '6px' }}
+                  />
+                </Popconfirm>
+              </div>
+            </div>
+
+            {/* Scrollable Body: Editor or Viewer */}
+            <div
+              data-lenis-prevent
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '24px 28px',
+                scrollbarWidth: 'thin',
+              }}
+            >
+              {isEditing ? (
+                /* ── EDIT MODE ── */
+                <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      REPOSITORY TITLE / NAME
+                    </label>
+                    <Input
+                      placeholder="e.g. facebook/react or devonestack-backend"
+                      value={formTitle}
+                      onChange={e => setFormTitle(e.target.value)}
+                      style={{ borderRadius: '8px', fontSize: '14px', fontWeight: 600, padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      REPOSITORY URL
+                    </label>
+                    <Input
+                      placeholder="https://github.com/organization/repository"
+                      value={formUrl}
+                      onChange={e => setFormUrl(e.target.value)}
+                      prefix={<RiLink style={{ color: textMuted }} />}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      DESCRIPTION / NOTES (OPTIONAL)
+                    </label>
+                    <TextArea
+                      placeholder="Brief note on what this repo is or why it was bookmarked..."
+                      value={formCaption}
+                      onChange={e => setFormCaption(e.target.value)}
+                      rows={3}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: textMuted, marginBottom: '6px' }}>
+                      TAGS (COMMA SEPARATED)
+                    </label>
+                    <Input
+                      placeholder="frontend, backend, utility, react"
+                      value={formTags}
+                      onChange={e => setFormTags(e.target.value)}
+                      style={{ borderRadius: '8px', padding: '7px 12px' }}
+                    />
+                  </div>
+
+                  {/* Save button row */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    <Button
+                      type="primary"
+                      icon={<RiSaveLine />}
+                      loading={updateRepoMutation.isPending}
+                      onClick={handleSaveRepo}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        padding: '6px 18px',
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button onClick={() => setIsEditing(false)} style={{ borderRadius: '6px' }}>
+                      Done Editing
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* ── VIEW MODE ── */
+                <div style={{ maxWidth: '880px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Title & Platform */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                      <h1
+                        style={{
+                          fontSize: '20px',
+                          fontWeight: 700,
+                          color: textColor,
+                          margin: 0,
+                          fontFamily: 'var(--font-display)',
+                        }}
+                      >
+                        {selectedItem.title || selectedItem.name}
+                      </h1>
+                      <Tag color="orange" style={{ margin: 0, borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                        {detectPlatform(selectedItem.url)}
+                      </Tag>
+                    </div>
+
+                    {selectedItem.caption && (
+                      <p style={{ margin: '6px 0 0', fontSize: '13.5px', color: textMuted, lineHeight: 1.5 }}>
+                        {selectedItem.caption}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Repository Card */}
+                  <div
+                    style={{
+                      borderRadius: '12px',
+                      border: `1px solid ${cardBorder}`,
+                      background: boxBg,
+                      padding: '32px 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      gap: '14px',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '12px',
+                        background: isLight ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fb923c',
+                      }}
+                    >
+                      <RiGitRepositoryLine size={28} />
+                    </div>
+
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: textColor }}>
+                      {selectedItem.title || selectedItem.name}
+                    </h3>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '13px',
+                        color: accent,
+                        maxWidth: '500px',
+                        wordBreak: 'break-all',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {selectedItem.url || 'No URL specified'}
+                    </p>
+
+                    {selectedItem.url && (
+                      <Button
+                        type="primary"
+                        icon={<RiExternalLinkLine />}
+                        onClick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
+                        style={{
+                          marginTop: '6px',
+                          background: accent,
+                          borderColor: accent,
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Open on {detectPlatform(selectedItem.url)}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Tags */}
+                  {Array.isArray(selectedItem.tags) && selectedItem.tags.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <span style={{ fontSize: '11.5px', color: textMuted }}>Tags:</span>
+                      {selectedItem.tags.map((tag, idx) => (
+                        <Tag key={idx} style={{ borderRadius: '4px', fontSize: '11px' }}>
+                          #{tag}
                         </Tag>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Divider Line */}
-              <div style={{ height: '1px', background: isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)', margin: '2px 0' }} />
-
-              {/* Metadata Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '2px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiHistoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {new Date(repo.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Added</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiGitRepositoryLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {repo.platform || 'Git'}
-                    </span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Platform</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                  <RiTeamLine size={15} style={{ color: isLight ? '#666666' : '#88888b', flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: isLight ? '#111111' : '#ffffff' }}>
-                      {repo.isOwn ? 'Owner' : 'Member'}
-                    </span>
-                    <span style={{ fontSize: '9px', color: isLight ? '#88888b' : '#66666b' }}>Access</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px' }}>
-                <a
-                  href={repo.url} target="_blank" rel="noopener noreferrer"
-                  style={{
-                    background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${isLight ? '#d1d5db' : 'rgba(255,255,255,0.1)'}`,
-                    color: isLight ? '#111111' : '#ffffff', textDecoration: 'none', padding: '5px 12px',
-                    borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600
-                  }}
-                >
-                  <RiExternalLinkLine size={14} />
-                  <span>Open Repo</span>
-                </a>
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <button
-                    onClick={() => openEditModal(repo)}
-                    style={{ background: 'transparent', border: 'none', color: isLight ? '#4f46e5' : '#fb923c', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                  >
-                    Edit
-                  </button>
-                  <Popconfirm title="Remove repository link?" onConfirm={() => deleteMutation.mutate(repo._id)} okText="Delete" cancelText="Cancel">
-                    <button style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                      Delete
-                    </button>
-                  </Popconfirm>
-                </div>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          /* ── EMPTY STATE ── */
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '32px',
+              textAlign: 'center',
+            }}
+          >
+            {isSidebarCollapsed && (
+              <Button
+                icon={<RiMenuUnfoldLine />}
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{ position: 'absolute', top: '16px', left: '16px', borderRadius: '6px' }}
+              >
+                Open Sidebar
+              </Button>
+            )}
+
+            <img
+              src={reposIllustration}
+              alt="Repositories"
+              style={{
+                width: '180px',
+                height: '180px',
+                marginBottom: '18px',
+                opacity: isLight ? 0.9 : 0.85,
+              }}
+            />
+            <h3
+              style={{
+                fontSize: '17px',
+                fontWeight: 600,
+                color: textColor,
+                marginBottom: '8px',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              No repository selected
+            </h3>
+            <p
+              style={{
+                fontSize: '13px',
+                color: textMuted,
+                maxWidth: '360px',
+                lineHeight: 1.5,
+                margin: '0 0 18px',
+              }}
+            >
+              Select a repository from the folder tree on the left, or add a new repository link directly in {currentFolderPath}.
+            </p>
+            <Button
+              type="primary"
+              icon={<RiAddLine />}
+              onClick={() => handleCreateNewRepo(selectedFolderId)}
+              style={{
+                background: accent,
+                borderColor: accent,
+                borderRadius: '6px',
+                fontWeight: 600,
+                padding: '6px 18px',
+              }}
+            >
+              Add Repository
+            </Button>
+          </div>
+        )}
+      </main>
+
+      {/* ── Move Item Modal ── */}
+      {selectedItem && (
+        <MoveItemModal
+          isOpen={moveModalOpen}
+          onClose={() => setMoveModalOpen(false)}
+          spaceId={space._id}
+          item={selectedItem}
+          isLight={isLight}
+        />
       )}
-
-      {/* Add / Edit Modal */}
-      <QuickAddRepoModal
-        open={modalOpen}
-        onClose={closeModal}
-        space={space}
-        editingRepo={editingRepo}
-      />
-
     </div>
   );
 }

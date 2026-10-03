@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Modal, Input, Select, Button, Popconfirm, Skeleton, message, Tooltip } from 'antd';
+import { Input, Select, Button, Popconfirm, message, Tooltip } from 'antd';
 import {
-  RiAddLine, RiSearchLine, RiLightbulbLine, RiBugLine,
+  RiAddLine, RiLightbulbLine, RiBugLine,
   RiErrorWarningLine, RiCheckboxCircleLine, RiQuestionLine,
   RiSparklingLine, RiPushpinLine, RiPushpinFill, RiDeleteBinLine,
-  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine
+  RiEditLine, RiFileCopyLine, RiCheckLine, RiCloseLine, RiFolderLine,
+  RiFolderTransferLine, RiMenuUnfoldLine, RiSaveLine, RiEyeLine,
+  RiCodeSSlashLine
 } from 'react-icons/ri';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { QuickAddLearningModal } from './QuickAddModals';
+import ModuleSidebar from './ModuleSidebar';
+import MoveItemModal from './MoveItemModal';
 import api from '../../api/axios';
+import learningIllustration from '../../assets/editor/learning.svg';
+
+const { TextArea } = Input;
 
 const TYPE_CONFIG = {
   learning: { label: 'Learning', icon: RiLightbulbLine, color: '#eab308', bg: 'rgba(234, 179, 8, 0.08)', border: 'rgba(234, 179, 8, 0.15)' },
@@ -21,49 +27,79 @@ const TYPE_CONFIG = {
   idea: { label: 'Idea', icon: RiSparklingLine, color: '#a855f7', bg: 'rgba(168, 85, 247, 0.08)', border: 'rgba(168, 85, 247, 0.15)' },
 };
 
-const LANGUAGES = [
+const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
   { value: 'typescript', label: 'TypeScript' },
-  { value: 'jsx', label: 'React JSX' },
-  { value: 'tsx', label: 'React TSX' },
   { value: 'python', label: 'Python' },
-  { value: 'css', label: 'CSS' },
   { value: 'html', label: 'HTML' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'bash', label: 'Bash/Shell' },
+  { value: 'css', label: 'CSS' },
+  { value: 'bash', label: 'Bash / Shell' },
   { value: 'json', label: 'JSON' },
+  { value: 'sql', label: 'SQL' },
   { value: 'go', label: 'Go' },
   { value: 'rust', label: 'Rust' },
-  { value: 'other', label: 'Other' }
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'markdown', label: 'Markdown' },
 ];
 
-export default function LearningsSection({ space, isLight, highlightId }) {
+export default function LearningsSection({
+  space,
+  isLight,
+  highlightId,
+  selectedFolderId: propFolderId,
+  onSelectFolder: propOnSelectFolder,
+  onNavigateSection,
+}) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  
-  // Modal forms state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingLearning, setEditingLearning] = useState(null);
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('learning');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState([]);
-  const [hasCode, setHasCode] = useState(false);
-  const [codeLanguage, setCodeLanguage] = useState('javascript');
-  const [codeContent, setCodeContent] = useState('');
-
+  const [isEditing, setIsEditing] = useState(false);
+  const [localFolderId, setLocalFolderId] = useState(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Fetch learnings
-  const { data: learnings = [], isLoading } = useQuery({
-    queryKey: ['learnings', space._id],
+  // Form edit states
+  const [formTitle, setFormTitle] = useState('');
+  const [formType, setFormType] = useState('learning');
+  const [formContent, setFormContent] = useState('');
+  const [formLanguage, setFormLanguage] = useState('javascript');
+  const [formCode, setFormCode] = useState('');
+  const [formTags, setFormTags] = useState('');
+
+  const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
+  const handleSelectFolder = (fId) => {
+    if (propOnSelectFolder) propOnSelectFolder(fId);
+    else setLocalFolderId(fId);
+  };
+
+  // Fetch folders for breadcrumbs
+  const { data: folderData } = useQuery({
+    queryKey: ['folders', space._id],
     queryFn: async () => {
-      const response = await api.get(`/api/spaces/${space._id}/learnings`);
-      return response.data.learnings || [];
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
     }
   });
+
+  const folders = folderData || [];
+
+  const currentFolderPath = useMemo(() => {
+    if (!selectedFolderId) return 'Space Root';
+    const folder = folders.find(f => f._id === selectedFolderId);
+    return folder?.path || folder?.name || 'Space Root';
+  }, [folders, selectedFolderId]);
+
+  // Fetch learnings using unified items endpoint
+  const { data: itemsData, isLoading } = useQuery({
+    queryKey: ['items', space._id, 'learning'],
+    queryFn: async () => {
+      const response = await api.get(`/api/spaces/${space._id}/items?type=learning`);
+      return response.data.items || [];
+    }
+  });
+
+  const learnings = itemsData || [];
 
   // Deep-linking highlight handler
   useEffect(() => {
@@ -71,6 +107,7 @@ export default function LearningsSection({ space, isLight, highlightId }) {
       const found = learnings.find(l => l._id === highlightId);
       if (found) {
         setSelectedId(found._id);
+        setIsEditing(false);
       }
     }
   }, [highlightId, learnings]);
@@ -80,66 +117,129 @@ export default function LearningsSection({ space, isLight, highlightId }) {
     return learnings.find(l => l._id === selectedId) || null;
   }, [selectedId, learnings]);
 
-  // Client-side filtering & search
-  const filteredItems = useMemo(() => {
-    return learnings.filter(item => {
-      const matchesType = filterType === 'all' || item.type === filterType;
-      
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return matchesType;
+  // Sync form state when active selectedItem changes
+  useEffect(() => {
+    if (selectedItem) {
+      setFormTitle(selectedItem.title || '');
+      setFormType(selectedItem.learningType || selectedItem.type || 'learning');
+      setFormContent(selectedItem.content || '');
+      setFormLanguage(selectedItem.codeExample?.language || 'javascript');
+      setFormCode(selectedItem.codeExample?.code || '');
+      setFormTags(Array.isArray(selectedItem.tags) ? selectedItem.tags.join(', ') : (selectedItem.tags || ''));
+    }
+  }, [selectedItem]);
 
-      const titleMatches = item.title.toLowerCase().includes(query);
-      const contentMatches = item.content.toLowerCase().includes(query);
-      const tagMatches = item.tags?.some(t => t.toLowerCase().includes(query));
-
-      return matchesType && (titleMatches || contentMatches || tagMatches);
-    });
-  }, [learnings, filterType, searchQuery]);
-
-  // Split into pinned and unpinned lists
-  const pinnedLearnings = useMemo(() => filteredItems.filter(l => l.isPinned), [filteredItems]);
-  const normalLearnings = useMemo(() => filteredItems.filter(l => !l.isPinned), [filteredItems]);
-
-  // CRUD Mutations
-  const createMutation = useMutation({
-    mutationFn: async (payload) => {
-      return api.post(`/api/spaces/${space._id}/learnings`, payload);
+  // Create learning mutation (direct creation in folder/root, no popup modal)
+  const createLearningMutation = useMutation({
+    mutationFn: async ({ title, folderId, type, content }) => {
+      const res = await api.post(`/api/spaces/${space._id}/items`, {
+        type: 'learning',
+        title,
+        folderId: folderId || null,
+        learningType: type || 'learning',
+        content: content || 'Start logging what you learned here...',
+        codeExample: { language: 'javascript', code: '' },
+        tags: []
+      });
+      return res.data?.item || res.data;
     },
-    onSuccess: (res) => {
-      message.success('Learning logged!');
-      queryClient.invalidateQueries(['learnings', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
-      setSelectedId(res.data.learning._id);
-      closeModal();
+    onSuccess: (newLearning) => {
+      message.success('Learning created');
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      if (newLearning?._id) {
+        setSelectedId(newLearning._id);
+        setIsEditing(true);
+      }
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to save');
+      message.error(err.response?.data?.error || 'Failed to create learning');
     }
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }) => {
-      return api.patch(`/api/spaces/${space._id}/learnings/${id}`, payload);
+  const handleCreateNewLearning = useCallback((folderId) => {
+    const existingTitles = new Set(
+      learnings.map(l => (l.title || '').trim().toLowerCase())
+    );
+    let count = 1;
+    while (
+      existingTitles.has(`learning ${count}`.toLowerCase()) ||
+      existingTitles.has(`learning(${count})`.toLowerCase()) ||
+      existingTitles.has(`learning (${count})`.toLowerCase())
+    ) {
+      count++;
+    }
+    const defaultTitle = `Learning ${count}`;
+    const destinationFolderId = (folderId !== undefined && folderId !== 'undefined')
+      ? (folderId && folderId !== 'root' && folderId !== 'null' ? folderId : null)
+      : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
+
+    createLearningMutation.mutate({
+      title: defaultTitle,
+      folderId: destinationFolderId,
+      type: 'learning',
+      content: 'Write what you learned, key takeaways, fixes, or gotchas here...'
+    });
+  }, [learnings, selectedFolderId, createLearningMutation]);
+
+  // Save / Update mutation
+  const saveLearningMutation = useMutation({
+    mutationFn: async ({ id, title, type, content, language, code, tags }) => {
+      const parsedTags = typeof tags === 'string'
+        ? tags.split(',').map(t => t.trim()).filter(Boolean)
+        : (Array.isArray(tags) ? tags : []);
+
+      const res = await api.patch(`/api/spaces/${space._id}/items/${id}`, {
+        title: title.trim() || 'Untitled Learning',
+        learningType: type,
+        content: content.trim() || '',
+        codeExample: code?.trim() ? { language: language || 'javascript', code } : { language: '', code: '' },
+        tags: parsedTags
+      });
+      return res.data?.item || res.data;
     },
     onSuccess: () => {
-      message.success('Learning updated!');
-      queryClient.invalidateQueries(['learnings', space._id]);
-      closeModal();
+      message.success('Learning saved');
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      setIsEditing(false);
     },
     onError: (err) => {
-      message.error(err.response?.data?.error || 'Failed to update');
+      message.error(err.response?.data?.error || 'Failed to save learning');
     }
   });
 
+  const handleSave = () => {
+    if (!selectedId) return;
+    if (!formTitle.trim()) {
+      message.warning('Please enter a title for the learning');
+      return;
+    }
+    saveLearningMutation.mutate({
+      id: selectedId,
+      title: formTitle,
+      type: formType,
+      content: formContent,
+      language: formLanguage,
+      code: formCode,
+      tags: formTags
+    });
+  };
+
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      return api.delete(`/api/spaces/${space._id}/learnings/${id}`);
+      return api.delete(`/api/spaces/${space._id}/items/${id}`);
     },
     onSuccess: () => {
       message.success('Learning deleted');
-      queryClient.invalidateQueries(['learnings', space._id]);
-      queryClient.invalidateQueries(['space', space._id]);
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['space', space._id] });
       setSelectedId(null);
+      setIsEditing(false);
     },
     onError: (err) => {
       message.error(err.response?.data?.error || 'Failed to delete');
@@ -148,68 +248,18 @@ export default function LearningsSection({ space, isLight, highlightId }) {
 
   const togglePinMutation = useMutation({
     mutationFn: async ({ id }) => {
-      return api.patch(`/api/spaces/${space._id}/learnings/${id}/pin`);
+      return api.patch(`/api/spaces/${space._id}/items/${id}/pin`);
     },
     onSuccess: (res) => {
       const pinned = res.data?.isPinned;
       message.success(pinned ? 'Pinned to top' : 'Unpinned');
-      queryClient.invalidateQueries(['learnings', space._id]);
+      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'pinned'] });
     },
     onError: (err) => {
       message.error(err.response?.data?.error || 'Failed to update pin');
     }
   });
-
-  // Modal open helpers
-  const openCreateModal = () => {
-    setEditingLearning(null);
-    setTitle('');
-    setType('learning');
-    setContent('');
-    setTags([]);
-    setHasCode(false);
-    setCodeLanguage('javascript');
-    setCodeContent('');
-    setModalOpen(true);
-  };
-
-  const openEditModal = (item) => {
-    setEditingLearning(item);
-    setTitle(item.title);
-    setType(item.type);
-    setContent(item.content);
-    setTags(item.tags || []);
-    setHasCode(!!item.codeExample?.code);
-    setCodeLanguage(item.codeExample?.language || 'javascript');
-    setCodeContent(item.codeExample?.code || '');
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingLearning(null);
-  };
-
-  const handleSubmit = () => {
-    if (!title.trim() || !content.trim()) {
-      message.error('Title and explanation content are required');
-      return;
-    }
-
-    const payload = {
-      title,
-      type,
-      content,
-      tags,
-      codeExample: hasCode ? { language: codeLanguage, code: codeContent } : { language: '', code: '' }
-    };
-
-    if (editingLearning) {
-      updateMutation.mutate({ id: editingLearning._id, payload });
-    } else {
-      createMutation.mutate(payload);
-    }
-  };
 
   const handleCopyCode = (code) => {
     navigator.clipboard.writeText(code);
@@ -218,251 +268,62 @@ export default function LearningsSection({ space, isLight, highlightId }) {
     message.success('Code copied to clipboard!');
   };
 
-  // Color mappings
+  // Theme styles
   const themeCardBg = isLight ? '#ffffff' : '#14141c';
   const themeBorder = isLight ? '#ebebeb' : 'rgba(255,255,255,0.06)';
-  const themeInputBg = isLight ? '#ffffff' : '#0e0e12';
-  const themeInputBorder = isLight ? '#d9d9d9' : '#2a2a30';
+  const themeTextColor = isLight ? '#111827' : '#ffffff';
+  const themeTextMuted = '#64748b';
+  const themeAccent = isLight ? '#4f46e5' : '#6366f1';
+  const inputBg = isLight ? '#f9fafb' : '#171722';
 
   return (
     <div style={{
       display: 'flex',
+      flexDirection: 'row',
       flex: 1,
       overflow: 'hidden',
-      height: 'calc(100vh - 200px)',
-      minHeight: '550px'
+      height: '100%',
+      width: '100%',
+      minHeight: 0,
+      background: isLight ? '#ffffff' : '#0b0b0e'
     }}>
-      
-      {/* Dynamic styling overrides for select fields */}
-      <style>{`
-        .learning-tags-select .ant-select-selector {
-          background: ${themeInputBg} !important;
-          border-color: ${themeInputBorder} !important;
-          color: ${isLight ? '#111' : '#fff'} !important;
-        }
-        .learning-type-select .ant-select-selector {
-          background: ${themeInputBg} !important;
-          border-color: ${themeInputBorder} !important;
-          color: ${isLight ? '#111' : '#fff'} !important;
-        }
-      `}</style>
 
       {/* LEFT COLUMN: Sidebar Explorer */}
-      <div style={{
-        width: '320px',
-        borderRight: `1px solid ${themeBorder}`,
+      <ModuleSidebar
+        spaceId={space._id}
+        title="Learnings"
+        icon={RiLightbulbLine}
+        addButtonLabel="Log Learning"
+        itemType="learning"
+        items={learnings}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={handleSelectFolder}
+        selectedItemId={selectedId}
+        onSelectItem={(item) => {
+          setSelectedId(item._id);
+          setIsEditing(false);
+        }}
+        onAddItem={(folderId) => handleCreateNewLearning(folderId)}
+        isLight={isLight}
+        isMobile={false}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onCloseSidebar={() => setIsSidebarCollapsed(true)}
+        hasActiveItem={!!selectedId}
+      />
+
+      {/* RIGHT COLUMN: Viewport Details / Editor */}
+      <main style={{
+        flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        flexShrink: 0,
-        background: isLight ? '#fafafa' : '#0a0a0f'
+        minWidth: 0,
+        height: '100%',
+        overflow: 'hidden',
+        background: isLight ? '#ffffff' : '#0b0b0e'
       }}>
-        
-        {/* Title Block */}
-        <div style={{ padding: '16px 20px 8px' }}>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#111' : '#fff' }}>
-            {space.name} Journey
-          </h3>
-          <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#888' }}>
-            Structured knowledge and developer logs
-          </p>
-        </div>
-
-        {/* Search bar */}
-        <div style={{ padding: '10px 16px', position: 'relative' }}>
-          <RiSearchLine style={{ position: 'absolute', left: '26px', top: '50%', transform: 'translateY(-50%)', color: '#888' }} />
-          <input
-            placeholder="Search learnings..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px 8px 34px',
-              borderRadius: '8px',
-              border: `1px solid ${themeInputBorder}`,
-              background: themeInputBg,
-              color: isLight ? '#111' : '#fff',
-              fontSize: '13px',
-              outline: 'none',
-              fontFamily: 'var(--font-body)'
-            }}
-          />
-        </div>
-
-        {/* Filter controls */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px',
-          padding: '4px 16px 12px'
-        }}>
-          <button
-            onClick={() => setFilterType('all')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '20px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: `1px solid ${filterType === 'all' ? (isLight ? '#111' : '#fff') : themeInputBorder}`,
-              background: filterType === 'all' ? (isLight ? '#111' : '#fff') : 'transparent',
-              color: filterType === 'all' ? (isLight ? '#fff' : '#111') : '#888',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            All
-          </button>
-          {Object.entries(TYPE_CONFIG).map(([key, config]) => (
-            <button
-              key={key}
-              onClick={() => setFilterType(key)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '20px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: `1px solid ${filterType === key ? config.color : themeInputBorder}`,
-                background: filterType === key ? config.bg : 'transparent',
-                color: filterType === key ? config.color : '#888',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <config.icon size={12} />
-              {config.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Create Button */}
-        <div style={{ padding: '0 16px 14px' }}>
-          <Button
-            type="dashed"
-            icon={<RiAddLine />}
-            onClick={openCreateModal}
-            style={{
-              width: '100%',
-              borderColor: isLight ? '#4f46e5' : '#6366f1',
-              color: isLight ? '#4f46e5' : '#6366f1',
-              fontWeight: 600,
-              fontSize: '12px'
-            }}
-          >
-            Log New Learning
-          </Button>
-        </div>
-
-        {/* Learnings list */}
-        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '0 16px 20px' }}>
-          {isLoading ? (
-            <Skeleton active paragraph={{ rows: 6 }} />
-          ) : filteredItems.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#666', fontSize: '12px', padding: '40px 0' }}>
-              No learnings matching filters.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              
-              {/* PINNED SECTION */}
-              {pinnedLearnings.length > 0 && (
-                <div>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                    Pinned
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {pinnedLearnings.map(item => {
-                      const isActive = item._id === selectedId;
-                      const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.learning;
-                      return (
-                        <div
-                          key={item._id}
-                          onClick={() => setSelectedId(item._id)}
-                          style={{
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            background: isActive ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)') : themeCardBg,
-                            border: `1px solid ${isActive ? (isLight ? '#4f46e5' : '#6366f1') : themeBorder}`,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            transition: 'border-color 0.15s, background 0.15s'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                              <config.icon size={13} style={{ color: config.color, flexShrink: 0 }} />
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {item.title}
-                              </span>
-                            </div>
-                            <RiPushpinFill size={12} style={{ color: '#eab308', flexShrink: 0 }} />
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.content}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ALL SECTION */}
-              <div>
-                {pinnedLearnings.length > 0 && (
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginTop: '14px', marginBottom: '6px' }}>
-                    All Learnings
-                  </span>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {normalLearnings.map(item => {
-                    const isActive = item._id === selectedId;
-                    const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.learning;
-                    return (
-                      <div
-                        key={item._id}
-                        onClick={() => setSelectedId(item._id)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          background: isActive ? (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)') : themeCardBg,
-                          border: `1px solid ${isActive ? (isLight ? '#4f46e5' : '#6366f1') : themeBorder}`,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px',
-                          transition: 'border-color 0.15s, background 0.15s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                          <config.icon size={13} style={{ color: config.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: isLight ? '#111' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.title}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '11px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.content}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* RIGHT COLUMN: Viewport Details */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isLight ? '#ffffff' : '#0b0b0e' }}>
         {selectedItem ? (
           <>
-            {/* Sticky close bar */}
+            {/* Sticky Header Bar */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -470,49 +331,128 @@ export default function LearningsSection({ space, isLight, highlightId }) {
               padding: '10px 20px',
               borderBottom: `1px solid ${themeBorder}`,
               background: isLight ? '#fafafa' : '#101017',
-              flexShrink: 0
+              flexShrink: 0,
+              gap: '10px',
             }}>
-              {/* Top Edit, Pin, Delete Controls */}
+              {/* Left Action Controls */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <Tooltip title={selectedItem.isPinned ? 'Unpin from Top' : 'Pin to Top'}>
-                  <Button
-                    shape="circle"
-                    size="small"
-                    icon={selectedItem.isPinned ? <RiPushpinFill style={{ color: '#eab308' }} /> : <RiPushpinLine />}
-                    onClick={() => togglePinMutation.mutate({ id: selectedItem._id })}
-                    style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff' }}
-                  />
-                </Tooltip>
-                
-                <Button
-                  size="small"
-                  icon={<RiEditLine />}
-                  onClick={() => openEditModal(selectedItem)}
-                  style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
-                >
-                  Edit
-                </Button>
+                {isSidebarCollapsed && (
+                  <Tooltip title="Expand sidebar">
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: themeTextMuted,
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginRight: '4px',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = themeTextColor}
+                      onMouseLeave={e => e.currentTarget.style.color = themeTextMuted}
+                    >
+                      <RiMenuUnfoldLine size={16} />
+                    </button>
+                  </Tooltip>
+                )}
 
-                <Popconfirm
-                  title="Delete this learning record?"
-                  onConfirm={() => deleteMutation.mutate(selectedItem._id)}
-                  okText="Delete"
-                  cancelText="Cancel"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button
-                    size="small"
-                    danger
-                    icon={<RiDeleteBinLine />}
-                    style={{ background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.15)', fontSize: '12px' }}
-                  >
-                    Delete
-                  </Button>
-                </Popconfirm>
+                {isEditing ? (
+                  <>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<RiSaveLine />}
+                      loading={saveLearningMutation.isPending}
+                      onClick={handleSave}
+                      style={{
+                        background: themeAccent,
+                        borderColor: themeAccent,
+                        fontWeight: 600,
+                        fontSize: '12px'
+                      }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      size="small"
+                      icon={<RiEyeLine />}
+                      onClick={() => setIsEditing(false)}
+                      style={{
+                        background: 'transparent',
+                        border: `1px solid ${themeBorder}`,
+                        color: isLight ? '#111' : '#fff',
+                        fontSize: '12px'
+                      }}
+                    >
+                      View
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<RiEditLine />}
+                      onClick={() => setIsEditing(true)}
+                      style={{
+                        background: themeAccent,
+                        borderColor: themeAccent,
+                        fontWeight: 600,
+                        fontSize: '12px'
+                      }}
+                    >
+                      Edit Learning
+                    </Button>
+
+                    <Tooltip title={selectedItem.isPinned ? 'Unpin from Top' : 'Pin to Top'}>
+                      <Button
+                        shape="circle"
+                        size="small"
+                        icon={selectedItem.isPinned ? <RiPushpinFill style={{ color: '#eab308' }} /> : <RiPushpinLine />}
+                        onClick={() => togglePinMutation.mutate({ id: selectedItem._id })}
+                        style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff' }}
+                      />
+                    </Tooltip>
+
+                    <Button
+                      size="small"
+                      icon={<RiFolderTransferLine />}
+                      onClick={() => setMoveModalOpen(true)}
+                      style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
+                    >
+                      Move
+                    </Button>
+
+                    <Popconfirm
+                      title="Delete this learning record?"
+                      onConfirm={() => deleteMutation.mutate(selectedItem._id)}
+                      okText="Delete"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button
+                        size="small"
+                        danger
+                        icon={<RiDeleteBinLine />}
+                        style={{ background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.15)', fontSize: '12px' }}
+                      >
+                        Delete
+                      </Button>
+                    </Popconfirm>
+                  </>
+                )}
               </div>
 
+              {/* Close Viewport Button */}
               <button
-                onClick={() => setSelectedId(null)}
+                onClick={() => {
+                  setSelectedId(null);
+                  setIsEditing(false);
+                }}
                 title="Close"
                 style={{
                   display: 'flex',
@@ -537,207 +477,493 @@ export default function LearningsSection({ space, isLight, highlightId }) {
               </button>
             </div>
 
-          <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
-            
-            {/* Structured detail block */}
-            <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
-              {/* Type Badge Header */}
-              <div>
-                {(() => {
-                  const config = TYPE_CONFIG[selectedItem.type] || TYPE_CONFIG.learning;
-                  return (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      color: config.color,
-                      background: config.bg,
-                      border: `1px solid ${config.border}`
-                    }}>
-                      <config.icon size={13} />
-                      {config.label}
-                    </span>
-                  );
-                })()}
-              </div>
+            {/* Scrollable Body (Editor or Viewer) */}
+            <div data-lenis-prevent style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '28px 24px',
+              scrollbarWidth: 'thin'
+            }}>
+              <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                
+                {isEditing ? (
+                  /* ── INLINE EDIT MODE ── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    
+                    {/* Category Type & Folder Row */}
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div style={{ flex: '1 1 200px' }}>
+                        <label style={{ fontSize: '11px', textTransform: 'uppercase', color: themeTextMuted, fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                          Category / Type
+                        </label>
+                        <Select
+                          value={formType}
+                          onChange={setFormType}
+                          style={{ width: '100%' }}
+                          options={Object.entries(TYPE_CONFIG).map(([key, config]) => ({
+                            value: key,
+                            label: (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: config.color, fontWeight: 600 }}>
+                                <config.icon size={14} />
+                                {config.label}
+                              </span>
+                            )
+                          }))}
+                        />
+                      </div>
 
-              {/* Title */}
-              <h1 style={{
-                margin: 0,
-                fontSize: '24px',
-                fontWeight: 800,
-                color: isLight ? '#111' : '#fff',
-                lineHeight: 1.25,
-                letterSpacing: '-0.02em'
-              }}>
-                {selectedItem.title}
-              </h1>
+                      <div style={{ flex: '1 1 200px' }}>
+                        <label style={{ fontSize: '11px', textTransform: 'uppercase', color: themeTextMuted, fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                          Folder
+                        </label>
+                        <div
+                          onClick={() => setMoveModalOpen(true)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: `1px solid ${themeBorder}`,
+                            background: inputBg,
+                            color: themeTextColor,
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                          }}
+                          title="Click to move folder"
+                        >
+                          <RiFolderLine size={14} style={{ color: themeAccent }} />
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {selectedItem.folderPath || 'Space Root'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: themeTextMuted }}>Change</span>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Tags */}
-              {selectedItem.tags?.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {selectedItem.tags.map(tag => (
-                    <span key={tag} style={{
-                      fontSize: '11px',
-                      color: isLight ? '#4f46e5' : '#818cf8',
-                      background: isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.06)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontWeight: 500,
-                      border: `1px solid ${isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.1)'}`
-                    }}>
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+                    {/* Title Input */}
+                    <div>
+                      <label style={{ fontSize: '11px', textTransform: 'uppercase', color: themeTextMuted, fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                        Title
+                      </label>
+                      <Input
+                        value={formTitle}
+                        onChange={e => setFormTitle(e.target.value)}
+                        placeholder="What did you learn or solve?"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          background: inputBg,
+                          borderColor: themeBorder,
+                          color: themeTextColor
+                        }}
+                      />
+                    </div>
 
-              <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
+                    {/* What I Learned / Content */}
+                    <div>
+                      <label style={{ fontSize: '11px', textTransform: 'uppercase', color: themeTextMuted, fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                        What I Learned / Explanation
+                      </label>
+                      <TextArea
+                        rows={6}
+                        value={formContent}
+                        onChange={e => setFormContent(e.target.value)}
+                        placeholder="Explain the concept, the bug, the solution, or why this matters..."
+                        style={{
+                          fontSize: '13.5px',
+                          lineHeight: 1.6,
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          background: inputBg,
+                          borderColor: themeBorder,
+                          color: themeTextColor
+                        }}
+                      />
+                    </div>
 
-              {/* Explanation Content */}
-              <div>
-                <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
-                  What I Learned
-                </h4>
-                <p style={{
-                  margin: 0,
-                  fontSize: '14px',
-                  lineHeight: 1.6,
-                  color: isLight ? '#374151' : '#d1d5db',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {selectedItem.content}
-                </p>
-              </div>
-
-              {/* Code Example (Optional) */}
-              {selectedItem.codeExample?.code && (
-                <div>
-                  <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
-                    Code Example
-                  </h4>
-                  
-                  {/* Highlighter container card */}
-                  <div style={{
-                    borderRadius: '8px',
-                    border: `1px solid ${themeBorder}`,
-                    background: isLight ? '#f9fafb' : '#14141c',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}>
-                    {/* Header Row */}
+                    {/* Optional Code Example Block */}
                     <div style={{
+                      borderRadius: '8px',
+                      border: `1px solid ${themeBorder}`,
+                      background: isLight ? '#f9fafb' : '#14141c',
+                      padding: '14px',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '6px 14px',
-                      borderBottom: `1px solid ${themeBorder}`,
-                      background: isLight ? '#f3f4f6' : '#1b1b24'
+                      flexDirection: 'column',
+                      gap: '10px'
                     }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>
-                        {selectedItem.codeExample.language || 'Code'}
-                      </span>
-                      <button
-                        onClick={() => handleCopyCode(selectedItem.codeExample.code)}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: themeTextColor, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <RiCodeSSlashLine size={15} style={{ color: themeAccent }} />
+                          Code Example (Optional)
+                        </span>
+                        <Select
+                          size="small"
+                          value={formLanguage}
+                          onChange={setFormLanguage}
+                          style={{ width: '140px' }}
+                          options={CODE_LANGUAGES}
+                        />
+                      </div>
+
+                      <TextArea
+                        rows={5}
+                        value={formCode}
+                        onChange={e => setFormCode(e.target.value)}
+                        placeholder="// Paste or write code snippet here..."
+                        style={{
+                          fontFamily: 'Consolas, Monaco, monospace',
+                          fontSize: '12.5px',
+                          background: isLight ? '#ffffff' : '#0b0b0e',
+                          borderColor: themeBorder,
+                          color: themeTextColor
+                        }}
+                      />
+                    </div>
+
+                    {/* Tags Input */}
+                    <div>
+                      <label style={{ fontSize: '11px', textTransform: 'uppercase', color: themeTextMuted, fontWeight: 700, letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                        Tags (comma separated)
+                      </label>
+                      <Input
+                        value={formTags}
+                        onChange={e => setFormTags(e.target.value)}
+                        placeholder="react, hooks, debug, css"
+                        style={{
+                          borderRadius: '6px',
+                          background: inputBg,
+                          borderColor: themeBorder,
+                          color: themeTextColor
+                        }}
+                      />
+                    </div>
+
+                    {/* Save / Discard Bar */}
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px', paddingTop: '14px', borderTop: `1px solid ${themeBorder}` }}>
+                      <Button
+                        type="primary"
+                        icon={<RiSaveLine />}
+                        loading={saveLearningMutation.isPending}
+                        onClick={handleSave}
+                        style={{
+                          background: themeAccent,
+                          borderColor: themeAccent,
+                          fontWeight: 600,
+                          padding: '0 20px'
+                        }}
+                      >
+                        Save Learning
+                      </Button>
+                      <Button
+                        onClick={() => setIsEditing(false)}
                         style={{
                           background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#888',
-                          fontSize: '11px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          transition: 'background 0.15s'
+                          borderColor: themeBorder,
+                          color: themeTextColor
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        {copied ? <RiCheckLine size={13} style={{ color: '#10b981' }} /> : <RiFileCopyLine size={13} />}
-                        {copied ? 'Copied' : 'Copy'}
-                      </button>
+                        Cancel
+                      </Button>
                     </div>
 
-                    {/* Code highlight viewport */}
-                    <div style={{ fontSize: '13px', margin: 0, overflowX: 'auto', scrollbarWidth: 'thin' }}>
-                      <SyntaxHighlighter
-                        language={selectedItem.codeExample.language || 'javascript'}
-                        style={isLight ? coy : vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: '12px 14px',
-                          background: 'transparent',
-                          fontFamily: 'Consolas, Monaco, monospace'
-                        }}
-                      >
-                        {selectedItem.codeExample.code}
-                      </SyntaxHighlighter>
-                    </div>
                   </div>
+                ) : (
+                  /* ── READ / VIEW MODE ── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                    
+                    {/* Type Badge Header */}
+                    <div>
+                      {(() => {
+                        const config = TYPE_CONFIG[selectedItem.type] || TYPE_CONFIG.learning;
+                        return (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            color: config.color,
+                            background: config.bg,
+                            border: `1px solid ${config.border}`
+                          }}>
+                            <config.icon size={13} />
+                            {config.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
 
-                </div>
-              )}
+                    {/* Title */}
+                    <h1 style={{
+                      margin: 0,
+                      fontSize: '24px',
+                      fontWeight: 800,
+                      color: isLight ? '#111' : '#fff',
+                      lineHeight: 1.25,
+                      letterSpacing: '-0.02em'
+                    }}>
+                      {selectedItem.title}
+                    </h1>
 
-              <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
+                    {/* Folder Path */}
+                    <div
+                      onClick={() => {
+                        if (onNavigateSection) {
+                          onNavigateSection('explorer', selectedItem._id, selectedItem.folderId);
+                        }
+                      }}
+                      style={{
+                        fontSize: '12px',
+                        color: themeAccent,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        textDecoration: 'underline',
+                        fontWeight: 600,
+                      }}
+                      title="View in Explorer"
+                    >
+                      <RiFolderLine size={13} />
+                      <span>{selectedItem.folderPath || 'Space Root'}</span>
+                    </div>
 
-              {/* Created / Updated Timestamps & Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginTop: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '11px', color: '#666' }}>
-                    Created: {new Date(selectedItem.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                  </span>
-                  {selectedItem.updatedAt !== selectedItem.createdAt && (
-                    <span style={{ fontSize: '11px', color: '#666' }}>
-                      Updated: {new Date(selectedItem.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                    </span>
-                  )}
-                </div>
+                    {/* Tags */}
+                    {selectedItem.tags?.length > 0 && (
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {selectedItem.tags.map(tag => (
+                          <span key={tag} style={{
+                            fontSize: '11px',
+                            color: isLight ? '#4f46e5' : '#818cf8',
+                            background: isLight ? 'rgba(79,70,229,0.05)' : 'rgba(99,102,241,0.06)',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontWeight: 500,
+                            border: `1px solid ${isLight ? 'rgba(79,70,229,0.1)' : 'rgba(99,102,241,0.1)'}`
+                          }}>
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
+
+                    {/* Explanation Content */}
+                    <div>
+                      <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+                        What I Learned
+                      </h4>
+                      <p style={{
+                        margin: 0,
+                        fontSize: '14px',
+                        lineHeight: 1.6,
+                        color: isLight ? '#374151' : '#d1d5db',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {selectedItem.content}
+                      </p>
+                    </div>
+
+                    {/* Code Example (Optional) */}
+                    {selectedItem.codeExample?.code && (
+                      <div>
+                        <h4 style={{ fontSize: '11px', textTransform: 'uppercase', color: '#888', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+                          Code Example
+                        </h4>
+                        
+                        <div style={{
+                          borderRadius: '8px',
+                          border: `1px solid ${themeBorder}`,
+                          background: isLight ? '#f9fafb' : '#14141c',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}>
+                          {/* Header Row */}
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '6px 14px',
+                            borderBottom: `1px solid ${themeBorder}`,
+                            background: isLight ? '#f3f4f6' : '#1b1b24'
+                          }}>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>
+                              {selectedItem.codeExample.language || 'Code'}
+                            </span>
+                            <button
+                              onClick={() => handleCopyCode(selectedItem.codeExample.code)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#888',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                              {copied ? <RiCheckLine size={13} style={{ color: '#10b981' }} /> : <RiFileCopyLine size={13} />}
+                              {copied ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+
+                          {/* Code highlight viewport */}
+                          <div style={{ fontSize: '13px', margin: 0, overflowX: 'auto', scrollbarWidth: 'thin' }}>
+                            <SyntaxHighlighter
+                              language={selectedItem.codeExample.language || 'javascript'}
+                              style={isLight ? coy : vscDarkPlus}
+                              customStyle={{
+                                margin: 0,
+                                padding: '12px 14px',
+                                background: 'transparent',
+                                fontFamily: 'Consolas, Monaco, monospace'
+                              }}
+                            >
+                              {selectedItem.codeExample.code}
+                            </SyntaxHighlighter>
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
+
+                    <hr style={{ border: 'none', borderBottom: `1px solid ${themeBorder}`, margin: 0 }} />
+
+                    {/* Timestamps & Edit Button */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', color: '#666' }}>
+                          Created: {new Date(selectedItem.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                        </span>
+                        {selectedItem.updatedAt !== selectedItem.createdAt && (
+                          <span style={{ fontSize: '11px', color: '#666' }}>
+                            Updated: {new Date(selectedItem.updatedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                          </span>
+                        )}
+                      </div>
+
+                      <Button
+                        type="default"
+                        size="small"
+                        icon={<RiEditLine />}
+                        onClick={() => setIsEditing(true)}
+                        style={{
+                          background: 'transparent',
+                          borderColor: themeBorder,
+                          color: themeTextColor,
+                          fontSize: '12px'
+                        }}
+                      >
+                        Edit Learning
+                      </Button>
+                    </div>
+
+                  </div>
+                )}
+
               </div>
 
             </div>
-
-          </div>
           </>
         ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-            <RiLightbulbLine size={48} style={{ opacity: 0.15 }} />
-            <p style={{ marginTop: 12, fontSize: '14px' }}>Select a learning card to view detail logs</p>
-            <p style={{ fontSize: '12px', marginTop: 2, opacity: 0.7 }}>or create a structured log entry</p>
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#64748b',
+            position: 'relative',
+            padding: '20px'
+          }}>
+            {isSidebarCollapsed && (
+              <div style={{ position: 'absolute', top: '12px', left: '12px' }}>
+                <Tooltip title="Expand sidebar">
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid ${themeBorder}`,
+                      color: themeTextMuted,
+                      cursor: 'pointer',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = themeTextColor}
+                    onMouseLeave={e => e.currentTarget.style.color = themeTextMuted}
+                  >
+                    <RiMenuUnfoldLine size={16} />
+                    <span>Show Sidebar</span>
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+
+            <img
+              src={learningIllustration}
+              alt="Learnings"
+              style={{
+                width: '100%',
+                maxWidth: '180px',
+                maxHeight: '150px',
+                height: 'auto',
+                objectFit: 'contain',
+                marginBottom: '16px',
+                opacity: isLight ? 0.9 : 0.85,
+                pointerEvents: 'none',
+              }}
+            />
+            <p style={{ margin: '4px 0 2px', fontSize: '15px', color: themeTextColor, fontWeight: 700 }}>No learning selected</p>
+            <p style={{ fontSize: '12px', margin: '0 0 16px', color: themeTextMuted }}>Current folder: {currentFolderPath}</p>
             <Button
               type="primary"
               icon={<RiAddLine />}
-              onClick={openCreateModal}
+              onClick={() => handleCreateNewLearning(selectedFolderId)}
               style={{
-                marginTop: 16,
-                background: isLight ? '#4f46e5' : '#6366f1',
-                borderColor: isLight ? '#4f46e5' : '#6366f1',
-                fontWeight: 600
+                background: themeAccent,
+                borderColor: themeAccent,
+                fontWeight: 600,
+                borderRadius: '8px',
+                height: '36px',
+                padding: '0 18px'
               }}
             >
-              New structured log
+              Log Learning
             </Button>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* CREATE / EDIT DIALOG MODAL */}
-      <QuickAddLearningModal
-        open={modalOpen}
-        onClose={closeModal}
+      {/* MOVE ITEM MODAL */}
+      <MoveItemModal
+        open={moveModalOpen}
+        onClose={() => setMoveModalOpen(false)}
         space={space}
-        editingLearning={editingLearning}
-        onSuccess={(learning) => {
-          if (learning?._id) setSelectedId(learning._id);
+        item={selectedItem}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['learnings', space._id] });
+          queryClient.invalidateQueries({ queryKey: ['items', space._id] });
         }}
       />
     </div>
   );
 }
+

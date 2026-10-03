@@ -2604,5 +2604,237 @@ body.light-mode .auth-modal-subtitle-text,
   color: #4338ca !important;
 }
 
+/* ==========================================================================
+   18. DevOneStack Auth Pages - Comprehensive Responsive Breakpoints
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .auth-main-content {
+    padding: clamp(24px, 4vh, 48px) 24px;
+  }
+
+  .auth-layout-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    max-width: 580px;
+  }
+
+  .auth-hero-container {
+    padding-right: 0;
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-hero-title {
+    font-size: clamp(30px, 4vw, 42px);
+    text-align: center;
+  }
+
+  .auth-hero-subtitle {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .auth-hero-badge {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .auth-hero-visual-wrapper {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .auth-glass-card {
+    max-width: 580px;
+    width: 100%;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .auth-main-content {
+    padding: 20px 16px 40px 16px;
+  }
+
+  .auth-layout-grid {
+    gap: 32px;
+    max-width: 100%;
+  }
+
+  .auth-hero-title {
+    font-size: 26px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .auth-hero-subtitle {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .auth-hero-visual-wrapper {
+    max-width: 100%;
+  }
+
+  .auth-glass-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .auth-card-title {
+    font-size: 22px;
+  }
+
+  .auth-input-styled {
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .auth-social-btn.google {
+    height: 46px;
+    font-size: 14px;
+  }
+
+  .auth-cta-gradient-btn,
+  .auth-submit-btn {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  /* Scale down or hide complex floating elements on tablet/mobile to prevent overflow */
+  .auth-floating-satellite {
+    display: none !important;
+  }
+
+  .auth-recent-activity-card {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 16px;
+  }
+
+  .auth-modal-card {
+    max-width: calc(100vw - 32px) !important;
+    padding: 24px 20px !important;
+    border-radius: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-main-content {
+    padding: 14px 12px 32px 12px;
+  }
+
+  .auth-layout-grid {
+    gap: 24px;
+  }
+
+  .auth-hero-title {
+    font-size: 22px;
+  }
+
+  .auth-hero-subtitle {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .auth-hero-badge {
+    padding: 4px 10px;
+    margin-bottom: 12px;
+  }
+
+  .auth-badge-text {
+    font-size: 11.5px;
+  }
+
+  .auth-hero-visual-wrapper {
+    display: none; /* Hide heavy laptop illustration on phone screens so form is immediate & fits nicely */
+  }
+
+  .auth-glass-card {
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .auth-card-title {
+    font-size: 20px;
+  }
+
+  .auth-card-subtitle {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .auth-form-body {
+    gap: 14px;
+  }
+
+  .auth-field-label {
+    font-size: 12px;
+  }
+
+  .auth-input-styled {
+    height: 44px;
+    font-size: 14px;
+    padding-left: 36px;
+  }
+
+  .auth-input-icon-left {
+    left: 10px;
+  }
+
+  .auth-password-toggle-btn {
+    right: 8px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .auth-checkbox-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .auth-forgot-link {
+    align-self: flex-start;
+    font-size: 12.5px;
+  }
+
+  .auth-modal-card {
+    max-width: calc(100vw - 20px) !important;
+    padding: 20px 14px !important;
+  }
+
+  .auth-modal-title {
+    font-size: 18px !important;
+  }
+
+  .auth-modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .auth-modal-btn {
+    width: 100%;
+    height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .auth-glass-card {
+    padding: 16px 12px;
+  }
+
+  .auth-card-title {
+    font-size: 18px;
+  }
+
+  .auth-back-link {
+    font-size: 12px;
+  }
+}
+
+
 
 

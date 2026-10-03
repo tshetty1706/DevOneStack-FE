@@ -4,15 +4,15 @@ import { message } from 'antd';
 
 export const spaceKeys = {
   all: ['spaces'],
-  list: () => ['spaces', 'list'],
+  list: (params) => ['spaces', 'list', params],
   detail: (id) => ['spaces', 'detail', id],
   history: (id) => ['spaces', 'history', id],
 };
 
-export function useSpaces() {
+export function useSpaces(params) {
   return useQuery({
-    queryKey: spaceKeys.all,
-    queryFn: spacesApi.getSpaces,
+    queryKey: params ? spaceKeys.list(params) : spaceKeys.all,
+    queryFn: () => spacesApi.getSpaces(params),
     staleTime: 1000 * 60 * 5, // 5 min
   });
 }
@@ -45,7 +45,7 @@ export function useSpaceMutations() {
       message.success('Space created successfully');
     },
     onError: (err) => {
-      message.error(err?.response?.data?.message || 'Failed to create space');
+      message.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to create space');
     },
   });
 
@@ -57,7 +57,17 @@ export function useSpaceMutations() {
       message.success('Space updated');
     },
     onError: (err) => {
-      message.error(err?.response?.data?.message || 'Failed to update space');
+      message.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to update space');
+    },
+  });
+
+  const toggleStar = useMutation({
+    mutationFn: (spaceId) => spacesApi.toggleStarSpace(spaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: spaceKeys.all });
+    },
+    onError: (err) => {
+      message.error(err?.response?.data?.error || 'Failed to update star');
     },
   });
 
@@ -68,7 +78,7 @@ export function useSpaceMutations() {
       message.success('Space deleted');
     },
     onError: (err) => {
-      message.error(err?.response?.data?.message || 'Failed to delete space');
+      message.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to delete space');
     },
   });
 
@@ -77,7 +87,10 @@ export function useSpaceMutations() {
     isCreating: createSpace.isPending,
     updateSpace: updateSpace.mutateAsync,
     isUpdating: updateSpace.isPending,
+    toggleStar: toggleStar.mutateAsync,
+    isTogglingStar: toggleStar.isPending,
     deleteSpace: deleteSpace.mutateAsync,
     isDeleting: deleteSpace.isPending,
   };
 }
+

@@ -10,8 +10,9 @@ import {
   RiLightbulbLine, RiBugLine, RiErrorWarningLine,
   RiCheckboxCircleLine, RiQuestionLine, RiSparklingLine
 } from 'react-icons/ri';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import FolderPicker from './FolderPicker';
 
 const { Dragger } = Upload;
 
@@ -84,27 +85,29 @@ const labelStyle = { fontSize: '11px', color: '#888', display: 'block', marginBo
 
 const modalBodyStyles = {
   content: {
-    maxHeight: '85vh',
+    maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
   },
   body: {
-    maxHeight: 'calc(85vh - 110px)',
+    maxHeight: 'calc(90vh - 120px)',
     overflowY: 'auto',
-    padding: '20px 24px',
+    overscrollBehavior: 'contain',
+    padding: '16px 20px',
     scrollbarWidth: 'thin',
-    scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+    scrollbarColor: 'var(--accent-color, #6366f1) transparent',
   },
   mask: { backdropFilter: 'blur(4px)' },
 };
 
 // ─── 1. LEARNING MODAL ────────────────────────────────────────────────────────
-export function QuickAddLearningModal({ open, onClose, space, editingLearning = null, onSuccess }) {
+export function QuickAddLearningModal({ open, onClose, space, editingLearning = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [title, setTitle]               = useState('');
   const [type, setType]                 = useState('learning');
   const [content, setContent]           = useState('');
+  const [folderId, setFolderId]         = useState(defaultFolderId);
   const [tags, setTags]                 = useState([]);
   const [hasCode, setHasCode]           = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('javascript');
@@ -116,6 +119,7 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
         setTitle(editingLearning.title || '');
         setType(editingLearning.type || 'learning');
         setContent(editingLearning.content || '');
+        setFolderId(editingLearning.folderId || defaultFolderId || null);
         setTags(editingLearning.tags || []);
         setHasCode(!!editingLearning.codeExample?.code);
         setCodeLanguage(editingLearning.codeExample?.language || 'javascript');
@@ -124,27 +128,30 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
         setTitle('');
         setType('learning');
         setContent('');
+        setFolderId(defaultFolderId || null);
         setTags([]);
         setHasCode(false);
         setCodeLanguage('javascript');
         setCodeContent('');
       }
     }
-  }, [open, editingLearning]);
+  }, [open, editingLearning, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingLearning) {
-        return api.patch(`/api/spaces/${space._id}/learnings/${editingLearning._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingLearning._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/learnings`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'learning' });
     },
     onSuccess: (res) => {
       message.success(editingLearning ? 'Learning updated!' : 'Learning logged!');
+      queryClient.invalidateQueries(['items', space._id, 'learning']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['learnings', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.learning);
+      onSuccess?.(res.data?.item || res.data?.learning);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save'),
@@ -156,9 +163,10 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
       return;
     }
     mutation.mutate({
-      title,
-      type,
-      content,
+      title: title.trim(),
+      learningType: type,
+      content: content.trim(),
+      folderId: folderId || null,
       tags,
       codeExample: hasCode ? { language: codeLanguage, code: codeContent } : { language: '', code: '' }
     });
@@ -178,6 +186,15 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>PURPOSE / TYPE</label>
           <Select
@@ -243,10 +260,11 @@ export function QuickAddLearningModal({ open, onClose, space, editingLearning = 
 }
 
 // ─── 2. SNIPPET MODAL ────────────────────────────────────────────────────────
-export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = null, onSuccess }) {
+export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [caption, setCaption]   = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId);
   const [language, setLanguage] = useState('javascript');
   const [code, setCode]         = useState('');
   const [tags, setTags]         = useState([]);
@@ -256,32 +274,36 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
       if (editingSnippet) {
         setName(editingSnippet.name || '');
         setCaption(editingSnippet.caption || '');
+        setFolderId(editingSnippet.folderId || defaultFolderId || null);
         setLanguage(editingSnippet.language || 'javascript');
         setCode(editingSnippet.code || '');
         setTags(editingSnippet.tags || []);
       } else {
         setName('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setLanguage('javascript');
         setCode('');
         setTags([]);
       }
     }
-  }, [open, editingSnippet]);
+  }, [open, editingSnippet, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingSnippet) {
-        return api.patch(`/api/spaces/${space._id}/snippets/${editingSnippet._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingSnippet._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/snippets`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'snippet' });
     },
     onSuccess: (res) => {
       message.success(editingSnippet ? 'Snippet updated!' : 'Snippet created!');
+      queryClient.invalidateQueries(['items', space._id, 'snippet']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['snippets', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.snippet);
+      onSuccess?.(res.data?.item || res.data?.snippet);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save snippet'),
@@ -289,7 +311,14 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
 
   const handleOk = () => {
     if (!name || !code) { message.error('Name and Code are required'); return; }
-    mutation.mutate({ name, caption, language, code, tags });
+    mutation.mutate({
+      title: name.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      language: language.trim(),
+      content: code,
+      tags
+    });
   };
 
   const handleKeyDown = (e) => {
@@ -316,6 +345,15 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>SNIPPET NAME</label>
           <Input placeholder="e.g. Express Server Middleware Setup" value={name} onChange={e => setName(e.target.value)} />
@@ -350,12 +388,13 @@ export function QuickAddSnippetModal({ open, onClose, space, editingSnippet = nu
 }
 
 // ─── 3. DOC MODAL ────────────────────────────────────────────────────────────
-export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
+export function QuickAddDocModal({ open, onClose, space, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('url');
   const [title, setTitle]         = useState('');
   const [url, setUrl]             = useState('');
   const [caption, setCaption]     = useState('');
+  const [folderId, setFolderId]   = useState(defaultFolderId);
   const [tags, setTags]           = useState([]);
   const [file, setFile]           = useState(null);
   const [loading, setLoading]     = useState(false);
@@ -366,16 +405,27 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
       setTitle('');
       setUrl('');
       setCaption('');
+      setFolderId(defaultFolderId || null);
       setTags([]);
       setFile(null);
       setLoading(false);
     }
-  }, [open]);
+  }, [open, defaultFolderId]);
 
   const addUrlMutation = useMutation({
-    mutationFn: (payload) => api.post(`/api/spaces/${space._id}/docs/url`, payload),
+    mutationFn: (payload) => api.post(`/api/spaces/${space._id}/items`, {
+      type: 'doc',
+      docType: 'url',
+      title: payload.title,
+      url: payload.url,
+      caption: payload.caption,
+      folderId: payload.folderId || null,
+      tags: payload.tags
+    }),
     onSuccess: () => {
       message.success('Document link added!');
+      queryClient.invalidateQueries(['items', space._id, 'doc']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['docs', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
@@ -392,10 +442,13 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
     formData.append('file', file);
     formData.append('title', title || file.name);
     formData.append('caption', caption);
+    if (folderId && folderId !== 'root' && folderId !== 'null') formData.append('folderId', folderId);
     formData.append('tags', JSON.stringify(tags));
     try {
-      await api.post(`/api/spaces/${space._id}/docs/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`/api/spaces/${space._id}/items/upload`, formData);
       message.success('File uploaded successfully!');
+      queryClient.invalidateQueries(['items', space._id, 'doc']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['docs', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
@@ -409,7 +462,7 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
   const handleOk = () => {
     if (activeTab === 'url') {
       if (!title || !url) { message.error('Title and URL are required'); return; }
-      addUrlMutation.mutate({ title, url, caption, tags });
+      addUrlMutation.mutate({ title, url, caption, folderId, tags });
     } else { handleUpload(); }
   };
 
@@ -444,6 +497,15 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         {activeTab === 'url' ? (
           <>
             <div>
@@ -495,11 +557,12 @@ export function QuickAddDocModal({ open, onClose, space, onSuccess }) {
 }
 
 // ─── 4. REPO MODAL ───────────────────────────────────────────────────────────
-export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, onSuccess }) {
+export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [url, setUrl]            = useState('');
   const [caption, setCaption]    = useState('');
+  const [folderId, setFolderId]  = useState(defaultFolderId);
   const [platform, setPlatform]  = useState('github');
   const [tags, setTags]          = useState([]);
   const [isOwn, setIsOwn]        = useState(false);
@@ -510,6 +573,7 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
         setName(editingRepo.name || '');
         setUrl(editingRepo.url || '');
         setCaption(editingRepo.caption || '');
+        setFolderId(editingRepo.folderId || defaultFolderId || null);
         setPlatform(editingRepo.platform || 'github');
         setTags(editingRepo.tags || []);
         setIsOwn(!!editingRepo.isOwn);
@@ -517,26 +581,29 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
         setName('');
         setUrl('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setPlatform('github');
         setTags([]);
         setIsOwn(false);
       }
     }
-  }, [open, editingRepo]);
+  }, [open, editingRepo, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingRepo) {
-        return api.patch(`/api/spaces/${space._id}/repos/${editingRepo._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingRepo._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/repos`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'repo' });
     },
     onSuccess: (res) => {
       message.success(editingRepo ? 'Repository updated!' : 'Repository linked!');
+      queryClient.invalidateQueries(['items', space._id, 'repo']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['repos', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.repo);
+      onSuccess?.(res.data?.item || res.data?.repo);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to link repository'),
@@ -560,7 +627,15 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
 
   const handleOk = () => {
     if (!name || !url) { message.error('Name and URL are required'); return; }
-    mutation.mutate({ name, url, caption, platform, tags, isOwn });
+    mutation.mutate({
+      title: name.trim(),
+      url: url.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      platform,
+      tags,
+      isOwn
+    });
   };
 
   return (
@@ -577,6 +652,15 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>REPOSITORY URL</label>
           <Input placeholder="e.g. https://github.com/facebook/react" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => detectPlatformAndName(url)} />
@@ -609,11 +693,12 @@ export function QuickAddRepoModal({ open, onClose, space, editingRepo = null, on
 }
 
 // ─── 5. PROMPT MODAL ─────────────────────────────────────────────────────────
-export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null, onSuccess }) {
+export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
   const [title, setTitle]             = useState('');
   const [body, setBody]               = useState('');
   const [caption, setCaption]         = useState('');
+  const [folderId, setFolderId]       = useState(defaultFolderId);
   const [model, setModel]             = useState('Claude 3.5 Sonnet');
   const [customModel, setCustomModel] = useState('');
   const [tags, setTags]               = useState([]);
@@ -622,8 +707,9 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
     if (open) {
       if (editingPrompt) {
         setTitle(editingPrompt.title || '');
-        setBody(editingPrompt.body || '');
+        setBody(editingPrompt.body || editingPrompt.content || '');
         setCaption(editingPrompt.caption || '');
+        setFolderId(editingPrompt.folderId || defaultFolderId || null);
         const isStandard = AI_MODELS.some(m => m.value === editingPrompt.model);
         if (isStandard) {
           setModel(editingPrompt.model);
@@ -637,26 +723,29 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
         setTitle('');
         setBody('');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setModel('Claude 3.5 Sonnet');
         setCustomModel('');
         setTags([]);
       }
     }
-  }, [open, editingPrompt]);
+  }, [open, editingPrompt, defaultFolderId]);
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingPrompt) {
-        return api.patch(`/api/spaces/${space._id}/prompts/${editingPrompt._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingPrompt._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/prompts`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'prompt' });
     },
     onSuccess: (res) => {
       message.success(editingPrompt ? 'Prompt updated!' : 'AI Prompt saved!');
+      queryClient.invalidateQueries(['items', space._id, 'prompt']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['prompts', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.prompt);
+      onSuccess?.(res.data?.item || res.data?.prompt);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to save prompt'),
@@ -665,7 +754,14 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
   const handleOk = () => {
     if (!title || !body) { message.error('Title and Prompt Body are required'); return; }
     const finalModel = model === 'Custom' ? customModel : model;
-    mutation.mutate({ title, body, caption, model: finalModel, tags });
+    mutation.mutate({
+      title: title.trim(),
+      content: body.trim(),
+      caption: caption?.trim() || '',
+      folderId: folderId || null,
+      model: finalModel,
+      tags
+    });
   };
 
   return (
@@ -682,6 +778,15 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>PROMPT TITLE</label>
           <Input placeholder="e.g. Code Review Assistant" value={title} onChange={e => setTitle(e.target.value)} />
@@ -724,22 +829,24 @@ export function QuickAddPromptModal({ open, onClose, space, editingPrompt = null
 }
 
 // ─── 6. COMMUNITY MODAL ───────────────────────────────────────────────────────
-export function QuickAddCommunityModal({ open, onClose, space, editingCommunity = null, onSuccess }) {
+export function QuickAddCommunityModal({ open, onClose, space, editingCommunity = null, defaultFolderId = null, onSuccess }) {
   const queryClient = useQueryClient();
-  const [name, setName]             = useState('');
-  const [url, setUrl]               = useState('');
-  const [platform, setPlatform]     = useState('discord');
-  const [caption, setCaption]       = useState('');
-  const [tags, setTags]             = useState([]);
+  const [name, setName]               = useState('');
+  const [url, setUrl]                 = useState('');
+  const [platform, setPlatform]       = useState('discord');
+  const [caption, setCaption]         = useState('');
+  const [folderId, setFolderId]       = useState(defaultFolderId);
+  const [tags, setTags]               = useState([]);
   const [memberCount, setMemberCount] = useState('');
 
   useEffect(() => {
     if (open) {
       if (editingCommunity) {
-        setName(editingCommunity.name || '');
+        setName(editingCommunity.title || editingCommunity.name || '');
         setUrl(editingCommunity.url || '');
         setPlatform(editingCommunity.platform || 'discord');
         setCaption(editingCommunity.caption || '');
+        setFolderId(editingCommunity.folderId || defaultFolderId || null);
         setTags(editingCommunity.tags || []);
         setMemberCount(editingCommunity.memberCount || '');
       } else {
@@ -747,35 +854,41 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
         setUrl('');
         setPlatform('discord');
         setCaption('');
+        setFolderId(defaultFolderId || null);
         setTags([]);
         setMemberCount('');
       }
     }
-  }, [open, editingCommunity]);
+  }, [open, editingCommunity, defaultFolderId]);
 
   const detectPlatform = (inputUrl) => {
     if (!inputUrl) return;
-    if (inputUrl.includes('discord.gg') || inputUrl.includes('discord.com')) setPlatform('discord');
-    else if (inputUrl.includes('reddit.com')) setPlatform('reddit');
-    else if (inputUrl.includes('slack.com')) setPlatform('slack');
-    else if (inputUrl.includes('twitter.com') || inputUrl.includes('x.com')) setPlatform('twitter');
-    else if (inputUrl.includes('youtube.com')) setPlatform('youtube');
-    else if (inputUrl.includes('github.com')) setPlatform('github');
+    const lower = inputUrl.toLowerCase();
+    if (lower.includes('discord.gg') || lower.includes('discord.com')) setPlatform('discord');
+    else if (lower.includes('reddit.com')) setPlatform('reddit');
+    else if (lower.includes('slack.com')) setPlatform('slack');
+    else if (lower.includes('twitter.com') || lower.includes('x.com')) setPlatform('twitter');
+    else if (lower.includes('youtube.com') || lower.includes('youtu.be')) setPlatform('youtube');
+    else if (lower.includes('github.com')) setPlatform('github');
+    else if (lower.includes('t.me') || lower.includes('telegram.me')) setPlatform('telegram');
+    else if (lower.includes('whatsapp.com')) setPlatform('whatsapp');
   };
 
   const mutation = useMutation({
     mutationFn: (payload) => {
       if (editingCommunity) {
-        return api.patch(`/api/spaces/${space._id}/communities/${editingCommunity._id}`, payload);
+        return api.patch(`/api/spaces/${space._id}/items/${editingCommunity._id}`, payload);
       }
-      return api.post(`/api/spaces/${space._id}/communities`, payload);
+      return api.post(`/api/spaces/${space._id}/items`, { ...payload, type: 'community' });
     },
     onSuccess: (res) => {
       message.success(editingCommunity ? 'Community updated!' : 'Community link added!');
+      queryClient.invalidateQueries(['items', space._id, 'community']);
+      queryClient.invalidateQueries(['items', space._id, 'all']);
       queryClient.invalidateQueries(['communities', space._id]);
       queryClient.invalidateQueries(['space', space._id]);
       queryClient.invalidateQueries(['history', space._id]);
-      onSuccess?.(res.data?.community);
+      onSuccess?.(res.data?.item || res.data?.community);
       onClose();
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to add community'),
@@ -783,7 +896,15 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
 
   const handleOk = () => {
     if (!name || !url) { message.error('Name and URL are required'); return; }
-    mutation.mutate({ name, url, platform, caption, tags, memberCount });
+    mutation.mutate({
+      title: name,
+      url,
+      platform,
+      caption,
+      folderId: folderId || null,
+      tags,
+      memberCount
+    });
   };
 
   return (
@@ -795,11 +916,20 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
       okText={editingCommunity ? 'Update Community' : 'Add Community'}
       cancelText="Cancel"
       confirmLoading={mutation.isPending}
-      width={520}
+      width={540}
       style={{ top: 30 }}
       styles={modalBodyStyles}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
         <div>
           <label style={labelStyle}>COMMUNITY LINK URL</label>
           <Input placeholder="e.g. https://discord.gg/react" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => detectPlatform(url)} />
@@ -809,7 +939,7 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
           <Input placeholder="e.g. React Developers Discord" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div>
-          <label style={labelStyle}>CAPTION / DESCRIPTION</label>
+          <label style={labelStyle}>ABOUT / DESCRIPTION</label>
           <Input placeholder="What is this community useful for..." value={caption} onChange={e => setCaption(e.target.value)} maxLength={200} />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -818,13 +948,128 @@ export function QuickAddCommunityModal({ open, onClose, space, editingCommunity 
             <Select options={COMMUNITY_PLATFORMS} style={{ width: '100%' }} value={platform} onChange={setPlatform} />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>EST. MEMBER COUNT</label>
-            <Input placeholder="e.g. 45K or 2.1M" value={memberCount} onChange={e => setMemberCount(e.target.value)} />
+            <label style={labelStyle}>EST. MEMBER COUNT / STATUS</label>
+            <Input placeholder="e.g. 45K members or Active" value={memberCount} onChange={e => setMemberCount(e.target.value)} />
           </div>
         </div>
         <div>
           <label style={labelStyle}>TAGS</label>
           <Select mode="tags" style={{ width: '100%' }} placeholder="Tags..." value={tags} onChange={setTags} />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── 7. NOTE MODAL ───────────────────────────────────────────────────────────
+export function QuickAddNoteModal({ open, onClose, space, defaultFolderId = null, onSuccess }) {
+  const queryClient = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId);
+  const [tags, setTags] = useState([]);
+
+  // Fetch folders for destination selection
+  const { data: foldersData } = useQuery({
+    queryKey: ['folders', space?._id],
+    queryFn: async () => {
+      if (!space?._id) return [];
+      const res = await api.get(`/api/spaces/${space._id}/folders`);
+      return res.data.folders || [];
+    },
+    enabled: !!space?._id
+  });
+
+  const folders = foldersData || [];
+
+  useEffect(() => {
+    if (open) {
+      setTitle('');
+      setContent('');
+      setTags([]);
+      setFolderId(defaultFolderId || null);
+    }
+  }, [open, defaultFolderId]);
+
+  const mutation = useMutation({
+    mutationFn: (payload) => {
+      return api.post(`/api/spaces/${space._id}/items`, {
+        type: 'note',
+        ...payload
+      });
+    },
+    onSuccess: (res) => {
+      message.success('Note created!');
+      queryClient.invalidateQueries(['items', space._id]);
+      queryClient.invalidateQueries(['folders', space._id]);
+      queryClient.invalidateQueries(['space', space._id]);
+      queryClient.invalidateQueries(['history', space._id]);
+      onSuccess?.(res.data?.item);
+      onClose();
+    },
+    onError: (err) => message.error(err.response?.data?.error || 'Failed to create note'),
+  });
+
+  const handleOk = () => {
+    if (!title.trim()) {
+      message.error('Note title is required');
+      return;
+    }
+    mutation.mutate({
+      title: title.trim(),
+      content: content || `# ${title.trim()}\n\nStart writing notes...`,
+      folderId,
+      tags
+    });
+  };
+
+  return (
+    <Modal
+      title="Create New Note"
+      open={open}
+      onCancel={onClose}
+      onOk={handleOk}
+      okText="Create Note"
+      cancelText="Cancel"
+      confirmLoading={mutation.isPending}
+      width={540}
+      style={{ top: 30 }}
+      styles={modalBodyStyles}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+        <div>
+          <label style={labelStyle}>NOTE TITLE</label>
+          <Input
+            placeholder="e.g. Authentication Flow, Spring Security JWT"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>SAVE IN</label>
+          <FolderPicker
+            spaceId={space?._id}
+            value={folderId}
+            onChange={setFolderId}
+            allowRoot={true}
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>INITIAL CONTENT (OPTIONAL MARKDOWN)</label>
+          <Input.TextArea
+            rows={4}
+            placeholder="Add initial notes or draft content..."
+            value={content}
+            onChange={e => setContent(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>TAGS</label>
+          <Select mode="tags" style={{ width: '100%' }} placeholder="Add tags..." value={tags} onChange={setTags} />
         </div>
       </div>
     </Modal>

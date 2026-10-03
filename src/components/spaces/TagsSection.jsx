@@ -190,12 +190,12 @@ export default function TagsSection({ space, isLight }) {
   };
 
   return (
-    <div style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 'clamp(12px, 3vw, 24px)', width: '100%', boxSizing: 'border-box' }}>
       
       {/* Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: isLight ? '#111827' : '#ffffff', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: 'clamp(20px, 4vw, 24px)', fontWeight: 700, margin: 0, color: isLight ? '#111827' : '#ffffff', letterSpacing: '-0.02em' }}>
             Tags
           </h1>
           <p style={{ fontSize: '13px', color: isLight ? '#6b7280' : '#9ca3af', margin: '4px 0 0' }}>
@@ -212,7 +212,7 @@ export default function TagsSection({ space, isLight }) {
             onChange={(e) => setSearchQuery(e.target.value)}
             allowClear
             style={{
-              width: '220px',
+              width: 'min(100%, 220px)',
               borderRadius: '8px',
               background: isLight ? '#ffffff' : '#141721',
               borderColor: isLight ? '#e5e7eb' : '#262a38',
@@ -240,7 +240,7 @@ export default function TagsSection({ space, isLight }) {
       <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
         {/* Left Column: Popular Tags Cards */}
-        <div style={{ flex: 1, minWidth: '320px' }}>
+        <div style={{ flex: '1 1 min(100%, 300px)', minWidth: 'min(100%, 280px)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <h4 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: isLight ? '#6b7280' : '#8a90a2', margin: 0, fontWeight: 700 }}>
               Popular Tags
@@ -435,8 +435,9 @@ export default function TagsSection({ space, isLight }) {
         {/* Right Column: Selected Tag Detail Panel */}
         {selectedTag ? (
           <div style={{
-            width: '380px',
-            flexShrink: 0,
+            width: '100%',
+            maxWidth: '380px',
+            flex: '1 1 min(100%, 320px)',
             background: isLight ? '#ffffff' : '#13151f',
             border: `1px solid ${isLight ? '#e5e7eb' : '#212534'}`,
             borderRadius: '16px',
