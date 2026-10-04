@@ -130,7 +130,7 @@ export default function Profile() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: bg, transition: 'background 0.3s ease', position: 'relative', overflowY: 'auto', scrollBehavior: 'smooth' }}>
+    <div style={{ minHeight: '100vh', background: bg, transition: 'background 0.3s ease', position: 'relative' }}>
 
       {/* Subtle Background Glow Orbs */}
       <div className="hero-background-flow" style={{ opacity: isLight ? 0.015 : 0.04 }}>
@@ -518,8 +518,8 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* 2. Static Contribution Heatmap */}
-            <ContributionHeatmap />
+            {/* 2. Dynamic Server-Driven Contribution Heatmap */}
+            <ContributionHeatmap username={user.username} />
 
             {/* 3. Spaces Section (ONLY Spaces - no other module tabs) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

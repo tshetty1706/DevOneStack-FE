@@ -1,73 +1,32 @@
-import React, { useMemo, useState } from 'react';
-import { Tooltip, Select } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Tooltip, Select, Spin } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../context/ThemeContext';
-
-/**
- * Isolated static contribution activity generator.
- * Structured so real contribution data can replace this without changing the UI.
- */
-const generateStaticContributions = () => {
-  const weeks = 52;
-  const daysPerWeek = 7;
-  const grid = [];
-  const today = new Date();
-  
-  // Seeded pseudo-random pattern for realistic look
-  let total = 0;
-  for (let w = 0; w < weeks; w++) {
-    const week = [];
-    for (let d = 0; d < daysPerWeek; d++) {
-      // Calculate date
-      const daysAgo = (weeks - 1 - w) * 7 + (6 - d);
-      const cellDate = new Date(today);
-      cellDate.setDate(cellDate.getDate() - daysAgo);
-
-      // Deterministic activity pattern
-      const pseudoVal = (Math.sin(w * 12.9898 + d * 78.233) * 43758.5453) % 1;
-      const absVal = Math.abs(pseudoVal);
-      let count = 0;
-      let level = 0;
-
-      if (absVal > 0.82) {
-        count = Math.floor(absVal * 8) + 1;
-        level = count > 5 ? 4 : count > 3 ? 3 : count > 1 ? 2 : 1;
-      } else if (absVal > 0.65) {
-        count = Math.floor(absVal * 3) + 1;
-        level = 1;
-      }
-
-      total += count;
-      week.push({
-        date: cellDate.toISOString().split('T')[0],
-        dateFormatted: cellDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        count,
-        level,
-      });
-    }
-    grid.push(week);
-  }
-
-  return { grid, totalContributions: total || 132 };
-};
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAY_LABELS = [
-  { label: 'Mon', index: 1 },
-  { label: 'Wed', index: 3 },
-  { label: 'Fri', index: 5 },
-];
+import { useAuth } from '../../context/AuthContext';
+import { communityApi } from '../../api/communityApi';
 
 export default function ContributionHeatmap({
-  data = null, // Future real data placeholder
+  username = '',
   className = '',
 }) {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isLight = theme === 'light';
   const [selectedRange, setSelectedRange] = useState('12');
 
-  const { grid, totalContributions } = useMemo(() => {
-    return generateStaticContributions();
-  }, []);
+  const targetUsername = username || user?.username;
+
+  // Fetch real server-calculated contributions
+  const {
+    data: contributionData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['contributions', targetUsername, selectedRange],
+    queryFn: () => communityApi.getUserContributions(targetUsername, { months: selectedRange }),
+    enabled: Boolean(targetUsername),
+    staleTime: 60 * 1000,
+  });
 
   // Theme color tokens
   const cardBg = 'var(--card-bg)';
@@ -76,12 +35,12 @@ export default function ContributionHeatmap({
   const textMuted = 'var(--text-secondary)';
   const accentColor = isLight ? '#4f46e5' : '#6366f1';
 
-  // Heatmap cell color maps
+  // Heatmap cell color maps (5 discrete levels)
   const getCellBg = (level) => {
-    if (level === 0) return isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.04)';
-    if (level === 1) return isLight ? 'rgba(79, 70, 229, 0.25)' : 'rgba(99, 102, 241, 0.25)';
-    if (level === 2) return isLight ? 'rgba(79, 70, 229, 0.50)' : 'rgba(99, 102, 241, 0.50)';
-    if (level === 3) return isLight ? 'rgba(79, 70, 229, 0.75)' : 'rgba(99, 102, 241, 0.75)';
+    if (level === 0) return isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)';
+    if (level === 1) return isLight ? 'rgba(79, 70, 229, 0.28)' : 'rgba(99, 102, 241, 0.28)';
+    if (level === 2) return isLight ? 'rgba(79, 70, 229, 0.52)' : 'rgba(99, 102, 241, 0.52)';
+    if (level === 3) return isLight ? 'rgba(79, 70, 229, 0.78)' : 'rgba(99, 102, 241, 0.78)';
     return isLight ? '#4f46e5' : '#6366f1';
   };
 
@@ -89,6 +48,19 @@ export default function ContributionHeatmap({
     if (level === 0) return isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.06)';
     return 'transparent';
   };
+
+  const grid = contributionData?.grid || [];
+  const monthHeaders = contributionData?.monthHeaders || [];
+  const totalContributions = contributionData?.totalContributions || 0;
+
+  // Map month names to column index for aligned header row
+  const headerMap = useMemo(() => {
+    const map = new Map();
+    monthHeaders.forEach((m) => {
+      map.set(m.colIndex, m.month);
+    });
+    return map;
+  }, [monthHeaders]);
 
   return (
     <div
@@ -103,35 +75,41 @@ export default function ContributionHeatmap({
         boxSizing: 'border-box',
         width: '100%',
       }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--card-hover-border)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = border}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--card-hover-border)')}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = border)}
     >
       {/* Header Row */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: '12px',
-        flexWrap: 'wrap',
-        marginBottom: '20px',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          marginBottom: '20px',
+        }}
+      >
         <div>
-          <h3 style={{
-            fontSize: '15px',
-            fontWeight: 700,
-            color: textPrimary,
-            margin: '0 0 4px 0',
-            fontFamily: 'var(--font-display)',
-          }}>
+          <h3
+            style={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: textPrimary,
+              margin: '0 0 4px 0',
+              fontFamily: 'var(--font-display)',
+            }}
+          >
             Contribution Activity
           </h3>
-          <p style={{
-            fontSize: '12.5px',
-            color: textMuted,
-            margin: 0,
-            lineHeight: 1.4,
-          }}>
-            Your activity across spaces, learnings, snippets, notes and more.
+          <p
+            style={{
+              fontSize: '12.5px',
+              color: textMuted,
+              margin: 0,
+              lineHeight: 1.4,
+            }}
+          >
+            Meaningful developer activity across items, notes, learnings, docs, and snippets.
           </p>
         </div>
 
@@ -139,7 +117,7 @@ export default function ContributionHeatmap({
           value={selectedRange}
           onChange={setSelectedRange}
           size="small"
-          style={{ width: 130 }}
+          style={{ width: 135 }}
           options={[
             { value: '12', label: 'Last 12 months' },
             { value: '6', label: 'Last 6 months' },
@@ -148,88 +126,135 @@ export default function ContributionHeatmap({
         />
       </div>
 
-      {/* Heatmap Container with horizontal scroll container for small screens */}
-      <div
-        data-lenis-prevent
-        style={{
-          overflowX: 'auto',
-          paddingBottom: '8px',
-          width: '100%',
-          scrollbarWidth: 'thin',
-          scrollbarColor: `${isLight ? '#cbd5e1' : 'rgba(255,255,255,0.1)'} transparent`,
-        }}
-      >
-        <div style={{ minWidth: '660px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          
-          {/* Month labels row */}
-          <div style={{
-            display: 'flex',
-            paddingLeft: '32px',
-            justifyContent: 'space-between',
-            fontSize: '11px',
-            color: textMuted,
-            fontWeight: 500,
-            marginBottom: '2px',
-          }}>
-            {MONTHS.map((m) => (
-              <span key={m} style={{ flex: 1, textAlign: 'left' }}>
-                {m}
-              </span>
-            ))}
+      {/* Heatmap Grid Container - Fluid without horizontal scrollbar */}
+      {isLoading ? (
+        <div style={{ padding: '50px 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Spin size="default" />
+        </div>
+      ) : isError || grid.length === 0 ? (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: textMuted, fontSize: '13px' }}>
+          No contribution activity recorded for this period.
+        </div>
+      ) : (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {/* Month labels header row aligned to each week column */}
+          <div style={{ display: 'flex', gap: '2.5px', paddingLeft: '28px', width: '100%', boxSizing: 'border-box' }}>
+            {grid.map((_, colIdx) => {
+              const monthLabel = headerMap.get(colIdx);
+              return (
+                <div
+                  key={colIdx}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: '10.5px',
+                    color: textMuted,
+                    fontWeight: 500,
+                    height: '16px',
+                    lineHeight: '16px',
+                    position: 'relative',
+                  }}
+                >
+                  {monthLabel && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        whiteSpace: 'nowrap',
+                        zIndex: 2,
+                      }}
+                    >
+                      {monthLabel}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Grid with Day Labels on Left */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            
-            {/* Days of week labels */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              height: '88px',
-              fontSize: '10px',
-              color: textMuted,
-              fontWeight: 500,
-              width: '24px',
-              flexShrink: 0,
-            }}>
-              <span>Mon</span>
-              <span>Wed</span>
-              <span>Fri</span>
+          {/* Grid with Day of Week Labels on the left */}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'stretch', width: '100%' }}>
+            {/* Days of week labels (Mon, Wed, Fri aligned with rows 1, 3, 5) */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateRows: 'repeat(7, 1fr)',
+                gap: '2.5px',
+                fontSize: '9.5px',
+                color: textMuted,
+                fontWeight: 500,
+                width: '22px',
+                flexShrink: 0,
+                textAlign: 'left',
+              }}
+            >
+              <div />
+              <div style={{ display: 'flex', alignItems: 'center' }}>Mon</div>
+              <div />
+              <div style={{ display: 'flex', alignItems: 'center' }}>Wed</div>
+              <div />
+              <div style={{ display: 'flex', alignItems: 'center' }}>Fri</div>
+              <div />
             </div>
 
-            {/* Weeks Columns */}
-            <div style={{
-              display: 'flex',
-              gap: '3px',
-              flex: 1,
-            }}>
+            {/* Week Columns */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '2.5px',
+                flex: 1,
+                width: '100%',
+                minWidth: 0,
+              }}
+            >
               {grid.map((week, wIdx) => (
-                <div key={wIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                <div
+                  key={wIdx}
+                  style={{
+                    display: 'grid',
+                    gridTemplateRows: 'repeat(7, 1fr)',
+                    gap: '2.5px',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
                   {week.map((cell, dIdx) => {
-                    const tooltipTitle = cell.count > 0
-                      ? `${cell.count} contribution${cell.count > 1 ? 's' : ''} on ${cell.dateFormatted}`
-                      : `No contributions on ${cell.dateFormatted}`;
+                    if (cell.isFuture || cell.level < 0) {
+                      return <div key={dIdx} style={{ aspectRatio: '1/1', width: '100%', visibility: 'hidden' }} />;
+                    }
+
+                    const breakdownParts = [];
+                    if (cell.creates > 0) breakdownParts.push(`${cell.creates} create${cell.creates > 1 ? 's' : ''}`);
+                    if (cell.edits > 0) breakdownParts.push(`${cell.edits} edit${cell.edits > 1 ? 's' : ''}`);
+                    if (cell.reads > 0) breakdownParts.push(`${cell.reads} read${cell.reads > 1 ? 's' : ''}`);
+
+                    const breakdownStr = breakdownParts.length > 0 ? ` (${breakdownParts.join(', ')})` : '';
+
+                    const tooltipTitle =
+                      cell.count > 0
+                        ? `${cell.count} contribution${cell.count > 1 ? 's' : ''}${breakdownStr} on ${cell.dateFormatted}`
+                        : `No contributions on ${cell.dateFormatted}`;
 
                     return (
-                      <Tooltip key={dIdx} title={tooltipTitle} placement="top">
+                      <Tooltip key={dIdx} title={tooltipTitle} placement="top" trigger={['hover', 'click']}>
                         <div
+                          tabIndex={0}
                           style={{
                             aspectRatio: '1/1',
                             width: '100%',
-                            minWidth: '10px',
-                            minHeight: '10px',
-                            borderRadius: '2.5px',
+                            borderRadius: '2px',
                             background: getCellBg(cell.level),
                             border: `1px solid ${getCellBorder(cell.level)}`,
                             transition: 'transform 0.1s ease, filter 0.1s ease',
                             cursor: 'pointer',
+                            outline: 'none',
                           }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.transform = 'scale(1.25)';
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.35)';
                             e.currentTarget.style.zIndex = 10;
                           }}
-                          onMouseLeave={e => {
+                          onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'scale(1)';
                             e.currentTarget.style.zIndex = 1;
                           }}
@@ -240,26 +265,27 @@ export default function ContributionHeatmap({
                 </div>
               ))}
             </div>
-
           </div>
         </div>
-      </div>
+      )}
 
       {/* Footer / Legend */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: '14px',
-        paddingTop: '12px',
-        borderTop: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)'}`,
-        flexWrap: 'wrap',
-        gap: '8px',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: '16px',
+          paddingTop: '12px',
+          borderTop: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)'}`,
+          flexWrap: 'wrap',
+          gap: '8px',
+        }}
+      >
         {/* Legend */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: textMuted }}>
           <span>Less</span>
-          {[0, 1, 2, 3, 4].map(level => (
+          {[0, 1, 2, 3, 4].map((level) => (
             <div
               key={level}
               style={{
@@ -276,7 +302,7 @@ export default function ContributionHeatmap({
 
         {/* Count summary */}
         <div style={{ fontSize: '11.5px', fontWeight: 600, color: textMuted }}>
-          <span style={{ color: accentColor, fontWeight: 700 }}>{totalContributions}</span> contributions this year
+          <span style={{ color: accentColor, fontWeight: 700 }}>{totalContributions}</span> contributions in selected period
         </div>
       </div>
     </div>

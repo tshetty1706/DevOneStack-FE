@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Spin, Button, Empty, message, Pagination } from 'antd';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import Logo from '../components/layout/Logo';
@@ -11,230 +13,49 @@ import PinnedResources from '../components/dashboard/PinnedResources';
 import CommandPalette from '../components/dashboard/CommandPalette';
 import { useSpaces } from '../hooks/useSpaces';
 import ToolSpacesGrid from '../components/dashboard/ToolSpacesGrid';
+import CommunityPostCard from '../components/community/CommunityPostCard';
+import DashboardSidebar from '../components/dashboard/DashboardSidebar';
+import { communityApi } from '../api/communityApi';
+import { spacesApi } from '../api/spacesApi';
 import {
   RiAddLine,
-  RiDashboardLine, RiFolder5Line, RiTeamLine, RiBookmarkLine, RiCompassLine, RiStarLine,
-  RiSettingsLine, RiHomeLine
+  RiStarFill,
+  RiCompassLine,
+  RiArticleLine,
+  RiEditLine,
 } from 'react-icons/ri';
-
-function DashboardSidebar({ activeView, setActiveView }) {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const navigate = useNavigate();
-
-  const menuItems = [
-    { id: 'spaces', label: 'My Spaces', icon: RiFolder5Line },
-    { id: 'shared', label: 'Shared with me', icon: RiTeamLine },
-    { id: 'templates', label: 'Templates', icon: RiBookmarkLine },
-    { id: 'explore', label: 'Explore', icon: RiCompassLine },
-    { id: 'starred', label: 'Starred Stacks', icon: RiStarLine },
-    { id: 'settings', label: 'Settings', icon: RiSettingsLine }
-  ];
-
-  return (
-    <aside style={{
-      width: '240px',
-      borderRight: `1px solid ${isLight ? '#ebebeb' : 'rgba(255,255,255,0.05)'}`,
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      background: isLight ? '#ffffff' : '#08080c',
-      flexShrink: 0,
-      transition: 'background 0.3s ease, border-color 0.3s ease',
-    }}>
-      {/* Brand Logo */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '20px 24px 18px',
-        fontFamily: 'var(--font-display)',
-        fontWeight: 800,
-        fontSize: '18px',
-        color: 'var(--text-color)',
-        borderBottom: `1px solid ${isLight ? '#f0f0f0' : 'rgba(255,255,255,0.04)'}`,
-        cursor: 'pointer',
-      }} onClick={() => navigate('/')}>
-        <Logo />
-      </div>
-
-      {/* Navigation Links */}
-      <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
-        {/* Home Link */}
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            fontWeight: 500,
-            fontSize: '13px',
-            fontFamily: 'var(--font-body)',
-            cursor: 'pointer',
-            textAlign: 'left',
-            width: '100%',
-            transition: 'background 0.2s, color 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)';
-            e.currentTarget.style.color = 'var(--text-color)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          <RiHomeLine size={18} />
-          <span>Home</span>
-        </button>
-
-        {/* Active Dashboard Link */}
-        <button
-          onClick={() => setActiveView('dashboard')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeView === 'dashboard'
-              ? (isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)')
-              : 'transparent',
-            color: activeView === 'dashboard' ? 'var(--accent-color)' : 'var(--text-secondary)',
-            fontWeight: activeView === 'dashboard' ? 600 : 500,
-            fontSize: '13px',
-            fontFamily: 'var(--font-body)',
-            cursor: 'pointer',
-            textAlign: 'left',
-            width: '100%',
-            transition: 'background 0.2s, color 0.2s',
-          }}
-          onMouseEnter={e => {
-            if (activeView !== 'dashboard') {
-              e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)';
-              e.currentTarget.style.color = 'var(--text-color)';
-            }
-          }}
-          onMouseLeave={e => {
-            if (activeView !== 'dashboard') {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-            }
-          }}
-        >
-          <RiDashboardLine size={18} />
-          <span>Dashboard</span>
-        </button>
-
-        {/* Community Link */}
-        <button
-          onClick={() => navigate('/community')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-secondary)',
-            fontWeight: 500,
-            fontSize: '13px',
-            fontFamily: 'var(--font-body)',
-            cursor: 'pointer',
-            textAlign: 'left',
-            width: '100%',
-            transition: 'background 0.2s, color 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)';
-            e.currentTarget.style.color = 'var(--text-color)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          <RiCompassLine size={18} />
-          <span>Community</span>
-        </button>
-
-        {/* WORKSPACES Header */}
-        <div style={{
-          fontSize: '10px',
-          fontWeight: 700,
-          color: 'var(--text-secondary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-          margin: '20px 0 6px 14px',
-        }}>
-          Workspaces
-        </div>
-
-        {menuItems.map(item => {
-          const Icon = item.icon;
-          const isActive = activeView === item.id;
-          return (
-            <button
-              key={item.label}
-              onClick={() => setActiveView(item.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '9px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: isActive
-                  ? (isLight ? 'rgba(79,70,229,0.08)' : 'rgba(99,102,241,0.12)')
-                  : 'transparent',
-                color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: '13px',
-                fontFamily: 'var(--font-body)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-                transition: 'background 0.2s, color 0.2s',
-              }}
-              onMouseEnter={e => {
-                if (!isActive) {
-                  e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)';
-                  e.currentTarget.style.color = 'var(--text-color)';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }
-              }}
-            >
-              <Icon size={18} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </aside>
-  );
-}
 
 function DashboardContent() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeView, setActiveView] = useState('dashboard');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [myPostsPage, setMyPostsPage] = useState(1);
 
   const { data: spaces = [], isLoading: spacesLoading } = useSpaces();
+
+  // Query for Starred Spaces
+  const {
+    data: starredSpaces = [],
+    isLoading: starredLoading,
+  } = useQuery({
+    queryKey: ['spaces', 'starred'],
+    queryFn: () => spacesApi.getSpaces({ tab: 'starred' }),
+    enabled: activeView === 'starred' && !!user,
+  });
+
+  // Query for User's Community Posts
+  const {
+    data: myPostsData,
+    isLoading: myPostsLoading,
+  } = useQuery({
+    queryKey: ['community', 'my-posts', myPostsPage],
+    queryFn: () => communityApi.getMyPosts({ page: myPostsPage, limit: 10 }),
+    enabled: activeView === 'my-posts' && !!user,
+  });
 
   const isLight = theme === 'light';
   const bg = 'var(--bg-color)';
@@ -258,6 +79,10 @@ function DashboardContent() {
     const view = searchParams.get('view') || searchParams.get('tab');
     if (view === 'spaces') {
       setActiveView('spaces');
+    } else if (view === 'starred') {
+      setActiveView('starred');
+    } else if (view === 'my-posts') {
+      setActiveView('my-posts');
     } else if (view && view !== 'dashboard') {
       setActiveView(view);
     } else {
@@ -272,6 +97,27 @@ function DashboardContent() {
 
   const handleNavigateCreateSpace = () => {
     navigate(`/u/${encodeURIComponent(user?.username || 'user')}/spaces/create`);
+  };
+
+  const handlePostDeleted = (deletedId) => {
+    queryClient.setQueryData(['community', 'my-posts', myPostsPage], (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        posts: (old.posts || []).filter((p) => p._id !== deletedId),
+        total: Math.max(0, (old.total || 1) - 1),
+      };
+    });
+  };
+
+  const handlePostUpdated = (updatedPost) => {
+    queryClient.setQueryData(['community', 'my-posts', myPostsPage], (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        posts: (old.posts || []).map((p) => (p._id === updatedPost._id ? updatedPost : p)),
+      };
+    });
   };
 
   return (
@@ -407,6 +253,193 @@ function DashboardContent() {
                   spaces={spaces}
                   onAddSpaceClick={handleNavigateCreateSpace}
                 />
+              )}
+            </div>
+          ) : activeView === 'starred' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+              {/* Starred Stacks Header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+              }}>
+                <div>
+                  <h1 style={{
+                    fontSize: 'clamp(20px, 3vw, 24px)',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    margin: '0 0 4px',
+                    color: isLight ? '#16161a' : '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}>
+                    <RiStarFill size={22} color="#f59e0b" />
+                    <span>Starred Stacks</span>
+                  </h1>
+                  <p style={{ fontSize: '13px', color: textMuted, margin: 0 }}>
+                    Quick access to public spaces you've starred across the community.
+                  </p>
+                </div>
+
+                <Button
+                  icon={<RiCompassLine size={16} />}
+                  onClick={() => navigate('/community')}
+                  style={{
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                  }}
+                >
+                  Discover More Spaces
+                </Button>
+              </div>
+
+              {/* Starred Grid or Empty State */}
+              {starredLoading ? (
+                <div style={{ color: textMuted, fontSize: '14px', padding: '60px 0', textAlign: 'center' }}>
+                  <Spin size="large" />
+                </div>
+              ) : starredSpaces.length === 0 ? (
+                <div style={{
+                  background: isLight ? '#ffffff' : '#111218',
+                  border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                  borderRadius: '16px',
+                  padding: '60px 24px',
+                  textAlign: 'center',
+                }}>
+                  <Empty
+                    description={
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-color)', fontWeight: 600, fontSize: '15px' }}>
+                          No Starred Stacks yet
+                        </span>
+                        <span style={{ color: textMuted, fontSize: '13px', maxWidth: '400px' }}>
+                          Star public spaces you find interesting in the Community or Discover tab to quickly find them here.
+                        </span>
+                      </div>
+                    }
+                  >
+                    <Button
+                      type="primary"
+                      icon={<RiCompassLine size={16} />}
+                      onClick={() => navigate('/community')}
+                      style={{ marginTop: '12px', borderRadius: '8px' }}
+                    >
+                      Explore Community
+                    </Button>
+                  </Empty>
+                </div>
+              ) : (
+                <ToolSpacesGrid
+                  spaces={starredSpaces}
+                  onAddSpaceClick={handleNavigateCreateSpace}
+                />
+              )}
+            </div>
+          ) : activeView === 'my-posts' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', maxWidth: '900px' }}>
+              {/* My Posts Header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+              }}>
+                <div>
+                  <h1 style={{
+                    fontSize: 'clamp(20px, 3vw, 24px)',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    margin: '0 0 4px',
+                    color: isLight ? '#16161a' : '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}>
+                    <RiArticleLine size={22} color="var(--accent-color)" />
+                    <span>My Community Posts</span>
+                  </h1>
+                  <p style={{ fontSize: '13px', color: textMuted, margin: 0 }}>
+                    Track, manage, and view engagement on your shared posts and attached spaces.
+                  </p>
+                </div>
+
+                <Button
+                  type="primary"
+                  icon={<RiEditLine size={16} />}
+                  onClick={() => navigate('/community')}
+                  style={{
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                  }}
+                >
+                  Create Post
+                </Button>
+              </div>
+
+              {/* My Posts Content */}
+              {myPostsLoading ? (
+                <div style={{ color: textMuted, fontSize: '14px', padding: '60px 0', textAlign: 'center' }}>
+                  <Spin size="large" />
+                </div>
+              ) : !myPostsData?.posts || myPostsData.posts.length === 0 ? (
+                <div style={{
+                  background: isLight ? '#ffffff' : '#111218',
+                  border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                  borderRadius: '16px',
+                  padding: '60px 24px',
+                  textAlign: 'center',
+                }}>
+                  <Empty
+                    description={
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-color)', fontWeight: 600, fontSize: '15px' }}>
+                          You haven't posted yet
+                        </span>
+                        <span style={{ color: textMuted, fontSize: '13px', maxWidth: '400px' }}>
+                          Share ideas, code snippets, project milestones, or public spaces with the developer community!
+                        </span>
+                      </div>
+                    }
+                  >
+                    <Button
+                      type="primary"
+                      icon={<RiEditLine size={16} />}
+                      onClick={() => navigate('/community')}
+                      style={{ marginTop: '12px', borderRadius: '8px' }}
+                    >
+                      Share with Community
+                    </Button>
+                  </Empty>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {myPostsData.posts.map((post) => (
+                    <CommunityPostCard
+                      key={post._id}
+                      post={post}
+                      onPostDeleted={handlePostDeleted}
+                      onPostUpdated={handlePostUpdated}
+                      onFollowChange={() => {}}
+                    />
+                  ))}
+
+                  {/* Pagination */}
+                  {myPostsData.total > 10 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                      <Pagination
+                        current={myPostsPage}
+                        pageSize={10}
+                        total={myPostsData.total}
+                        onChange={(p) => setMyPostsPage(p)}
+                        showSizeChanger={false}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ) : (

@@ -15,6 +15,7 @@ import ModuleSidebar from './ModuleSidebar';
 import MoveItemModal from './MoveItemModal';
 import api from '../../api/axios';
 import learningIllustration from '../../assets/editor/learning.svg';
+import useItemEngagement from '../../hooks/useItemEngagement';
 
 const { TextArea } = Input;
 
@@ -54,6 +55,9 @@ export default function LearningsSection({
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Server-driven contribution engagement tracker
+  useItemEngagement(space?._id, selectedId, Boolean(selectedId && !isEditing));
   const [localFolderId, setLocalFolderId] = useState(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);

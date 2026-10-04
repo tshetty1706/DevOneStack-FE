@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, message, Select, Spin, Empty, Tooltip } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Input, Button, message, Select, Spin, Empty, Tooltip, Pagination } from 'antd';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { communityApi } from '../api/communityApi';
 import { spacesApi } from '../api/spacesApi';
 import { inboxApi } from '../api/inboxApi';
 import CommunityPostCard from '../components/community/CommunityPostCard';
+import PublicSpaceCard from '../components/community/PublicSpaceCard';
 import InboxModal from '../components/inbox/InboxModal';
 import UserMiniProfileModal from '../components/community/UserMiniProfileModal';
-import Logo from '../components/layout/Logo';
+import DashboardSidebar from '../components/dashboard/DashboardSidebar';
 import {
   RiSearchLine,
   RiNotification3Line,
   RiCompassLine,
   RiUserFollowLine,
+  RiUserUnfollowLine,
   RiImageLine,
   RiLinkM,
   RiSendPlaneFill,
@@ -29,6 +31,8 @@ import {
   RiAddLine,
   RiCloseLine,
   RiEditLine,
+  RiTeamLine,
+  RiArticleLine,
 } from 'react-icons/ri';
 
 const POPULAR_TOPICS = [
@@ -65,14 +69,24 @@ export default function Community() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isLight = theme === 'light';
   const composerInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState('following'); // 'following' | 'discover'
+  // Tab & Filters State
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'following'); // 'following' | 'discover'
   const [selectedTopic, setSelectedTopic] = useState('All');
+  
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchFilter, setSearchFilter] = useState('all'); // 'all' | 'users' | 'spaces' | 'posts'
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchResults, setSearchResults] = useState({ users: [], spaces: [], posts: [], totalUsers: 0, totalSpaces: 0, totalPosts: 0, totalPages: 1 });
+  const [isSearching, setIsSearching] = useState(false);
 
+  // Feed State
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [page, setPage] = useState(1);
@@ -98,16 +112,66 @@ export default function Community() {
   // Profile Preview Modal
   const [previewUser, setPreviewUser] = useState(null);
 
+  // Debounce search query
   useEffect(() => {
-    fetchPosts(1, activeTab, true);
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+      setSearchPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Execute Search API call
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setSearchResults({ users: [], spaces: [], posts: [], totalUsers: 0, totalSpaces: 0, totalPosts: 0, totalPages: 1 });
+      return;
+    }
+
+    const executeSearch = async () => {
+      try {
+        setIsSearching(true);
+        const res = await communityApi.search({
+          q: debouncedQuery,
+          query: debouncedQuery,
+          filter: searchFilter,
+          page: searchPage,
+          limit: searchFilter === 'all' ? 6 : 12,
+        });
+        setSearchResults({
+          users: res.users || [],
+          spaces: res.spaces || [],
+          posts: res.posts || [],
+          totalUsers: res.totalUsers || 0,
+          totalSpaces: res.totalSpaces || 0,
+          totalPosts: res.totalPosts || 0,
+          totalPages: res.totalPages || 1,
+        });
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    executeSearch();
+  }, [debouncedQuery, searchFilter, searchPage]);
+
+  useEffect(() => {
+    if (!debouncedQuery) {
+      fetchPosts(1, activeTab, true);
+    }
+  }, [activeTab, debouncedQuery]);
+
+  useEffect(() => {
     fetchTrendingSpaces();
     if (user) {
       fetchMyPublicSpaces();
       inboxApi.getUnreadCount()
         .then((data) => setUnreadTotal(data.totalUnread || 0))
-        .catch(() => {});
+        .catch(() => { });
     }
-  }, [activeTab, user]);
+  }, [user]);
 
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
@@ -233,25 +297,58 @@ export default function Community() {
 
   const handlePostDeleted = (deletedId) => {
     setPosts((prev) => prev.filter((p) => p._id !== deletedId));
+    setSearchResults((prev) => ({
+      ...prev,
+      posts: prev.posts.filter((p) => p._id !== deletedId),
+    }));
   };
 
   const handlePostUpdated = (updatedPost) => {
     setPosts((prev) => prev.map((p) => (p._id === updatedPost._id ? updatedPost : p)));
+    setSearchResults((prev) => ({
+      ...prev,
+      posts: prev.posts.map((p) => (p._id === updatedPost._id ? updatedPost : p)),
+    }));
   };
 
-  // Filter posts by search query or topic if selected
-  const filteredPosts = posts.filter((p) => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchText = p.text?.toLowerCase().includes(q);
-      const matchAuthor = p.author?.username?.toLowerCase().includes(q) || p.author?.displayName?.toLowerCase().includes(q);
-      const matchSpace = p.spaceId?.name?.toLowerCase().includes(q) || p.spaceId?.tags?.some(t => t.toLowerCase().includes(q));
-      if (!matchText && !matchAuthor && !matchSpace) return false;
+  const handleToggleUserFollow = async (targetUser) => {
+    if (!user) {
+      message.info('Please log in to follow users.');
+      navigate('/login');
+      return;
     }
+    try {
+      if (targetUser.isFollowing) {
+        await communityApi.unfollowUser(targetUser._id);
+        message.success(`Unfollowed @${targetUser.username}`);
+      } else {
+        await communityApi.followUser(targetUser._id);
+        message.success(`Following @${targetUser.username}`);
+      }
+      // Update local search results
+      setSearchResults((prev) => ({
+        ...prev,
+        users: prev.users.map((u) =>
+          u._id === targetUser._id
+            ? {
+                ...u,
+                isFollowing: !u.isFollowing,
+                followersCount: u.isFollowing ? Math.max(0, u.followersCount - 1) : u.followersCount + 1,
+              }
+            : u
+        ),
+      }));
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to update follow state.');
+    }
+  };
+
+  // Filter posts by topic if selected (in feed mode)
+  const filteredFeedPosts = posts.filter((p) => {
     if (selectedTopic !== 'All') {
       const topicLower = selectedTopic.toLowerCase();
       const matchText = p.text?.toLowerCase().includes(topicLower);
-      const matchTags = p.spaceId?.tags?.some(t => t.toLowerCase().includes(topicLower));
+      const matchTags = p.space?.tags?.some((t) => t.toLowerCase().includes(topicLower));
       if (!matchText && !matchTags) return false;
     }
     return true;
@@ -264,738 +361,1048 @@ export default function Community() {
         background: isLight ? '#f8fafc' : '#08080c',
         color: 'var(--text-color)',
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
+        width: '100vw',
+        overflowX: 'hidden',
       }}
     >
-      {/* Top Header Bar */}
-      <header
-        style={{
-          height: '64px',
-          borderBottom: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.06)'}`,
-          background: isLight ? '#ffffff' : '#08080c',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 clamp(16px, 3.5vw, 36px)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        {/* Left: Brand Logo & Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <Logo />
-        </div>
+      {/* Main Dashboards Sidebar */}
+      <DashboardSidebar activeView="community" />
 
-        {/* Center: Search input with ⌘K */}
-        <div style={{ flex: 1, maxWidth: '440px', margin: '0 20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '0 12px',
-              height: '38px',
-              borderRadius: '20px',
-              background: isLight ? '#f1f5f9' : '#12131a',
-              border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-            }}
-          >
-            <RiSearchLine size={15} color={isLight ? '#94a3b8' : '#64748b'} />
-            <input
-              type="text"
-              placeholder="Search posts, spaces, users, topics..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: '13px',
-                color: isLight ? '#0f172a' : '#ffffff',
-                fontFamily: 'var(--font-body)',
-              }}
-            />
-            <span
-              style={{
-                fontSize: '11px',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                background: isLight ? '#e2e8f0' : '#1c1d26',
-                color: isLight ? '#64748b' : '#94a3b8',
-                fontWeight: 600,
-              }}
-            >
-              ⌘ K
-            </span>
-          </div>
-        </div>
-
-        {/* Right: Notifications, Avatar, Create Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <Tooltip title="Inbox">
-            <button
-              type="button"
-              onClick={() => setInboxOpen(true)}
-              style={{
-                position: 'relative',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                color: isLight ? '#475569' : '#94a3b8',
-                padding: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RiNotification3Line size={20} />
-              {unreadTotal > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '7px',
-                    height: '7px',
-                    borderRadius: '50%',
-                    background: '#ef4444',
-                  }}
-                />
-              )}
-            </button>
-          </Tooltip>
-
-          {/* User Avatar */}
-          {user && (
-            <div
-              onClick={() => setPreviewUser(user.username)}
-              style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '50%',
-                background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #6366f1, #a78bfa)',
-                border: `2px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: '#ffffff',
-                cursor: 'pointer',
-                overflow: 'hidden',
-              }}
-            >
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                (user.displayName?.[0] || user.username?.[0] || 'U').toUpperCase()
-              )}
-            </div>
-          )}
-
-          {/* Create Post Button */}
-          <button
-            type="button"
-            onClick={handleFocusComposer}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 16px',
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.25)',
-              transition: 'opacity 0.2s',
-            }}
-          >
-            <RiEditLine size={15} />
-            <span>Create</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Grid Layout Container */}
+      {/* Main Content Area */}
       <div
         style={{
           flex: 1,
-          maxWidth: '1200px',
-          width: '100%',
-          margin: '0 auto',
-          padding: '24px 20px 60px',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) 340px',
-          gap: '28px',
-          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          minHeight: '100vh',
         }}
-        className="community-page-container"
       >
-        {/* Left Column: Title, Subtitle, Tabs, Composer, Feed */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
-          {/* Main Title & Subtitle Header */}
-          <div>
-            <h1
+        {/* Top Header Bar */}
+        <header
+          style={{
+            height: '64px',
+            borderBottom: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.06)'}`,
+            background: isLight ? '#ffffff' : '#08080c',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 clamp(16px, 3.5vw, 36px)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+          }}
+        >
+          {/* Center: Search input */}
+          <div style={{ flex: 1, maxWidth: '520px', margin: '0 20px' }}>
+            <div
               style={{
-                margin: 0,
-                fontSize: '26px',
-                fontWeight: 800,
-                color: isLight ? '#0f172a' : '#ffffff',
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '-0.02em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '0 14px',
+                height: '40px',
+                borderRadius: '20px',
+                background: isLight ? '#f1f5f9' : '#12131a',
+                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                transition: 'border-color 0.2s',
               }}
             >
-              Community
-            </h1>
-            <p
-              style={{
-                margin: '6px 0 0',
-                fontSize: '14px',
-                color: isLight ? '#64748b' : '#94a3b8',
-                lineHeight: 1.5,
-              }}
-            >
-              Share your knowledge, discover amazing developer content, and connect with other builders.
-            </p>
-          </div>
-
-          {/* Underline Tabs: Following vs Discover */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '24px',
-              borderBottom: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-              paddingBottom: '2px',
-            }}
-          >
-            {[
-              { key: 'following', label: 'Following' },
-              { key: 'discover', label: 'Discover' },
-            ].map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
+              <RiSearchLine size={16} color={isLight ? '#94a3b8' : '#64748b'} />
+              <input
+                type="text"
+                placeholder="Search users, public spaces, and posts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '13.5px',
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  fontFamily: 'var(--font-body)',
+                }}
+              />
+              {searchQuery && (
                 <button
-                  key={tab.key}
                   type="button"
-                  onClick={() => {
-                    if (tab.key === 'following' && !user) {
-                      message.info('Log in to view posts from people you follow.');
-                      navigate('/login');
-                      return;
-                    }
-                    setActiveTab(tab.key);
-                  }}
+                  onClick={() => setSearchQuery('')}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    padding: '8px 4px 12px',
-                    fontSize: '14.5px',
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? (isLight ? '#4f46e5' : '#ffffff') : (isLight ? '#64748b' : '#94a3b8'),
+                    color: isLight ? '#94a3b8' : '#64748b',
                     cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'color 0.15s ease',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
-                  <span>{tab.label}</span>
-                  {isActive && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '-1px',
-                        left: 0,
-                        right: 0,
-                        height: '2.5px',
-                        background: isLight ? '#4f46e5' : '#6366f1',
-                        borderRadius: '2px',
-                      }}
-                    />
-                  )}
+                  <RiCloseLine size={16} />
                 </button>
-              );
-            })}
+              )}
+            </div>
           </div>
 
-          {/* Composer Box ("What's on your mind?") */}
-          {user && (
-            <div
-              style={{
-                background: isLight ? '#ffffff' : '#111218',
-                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-                borderRadius: '16px',
-                padding: '18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #6366f1, #a78bfa)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    (user.displayName?.[0] || user.username?.[0] || 'U').toUpperCase()
-                  )}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <Input.TextArea
-                    ref={composerInputRef}
-                    placeholder="What's on your mind?"
-                    value={newPostText}
-                    onChange={(e) => setNewPostText(e.target.value)}
-                    maxLength={500}
-                    rows={2}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      boxShadow: 'none',
-                      padding: '4px 0',
-                      fontSize: '14.5px',
-                      color: isLight ? '#0f172a' : '#ffffff',
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Attached Image Preview */}
-              {attachedImagePreview && (
-                <div
-                  style={{
-                    position: 'relative',
-                    width: 'fit-content',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)'}`,
-                    background: isLight ? '#f1f5f9' : '#08080c',
-                    maxHeight: '200px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <img
-                    src={attachedImagePreview}
-                    alt="Upload preview"
-                    style={{
-                      maxHeight: '200px',
-                      maxWidth: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                      borderRadius: '12px',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    style={{
-                      position: 'absolute',
-                      top: '6px',
-                      right: '6px',
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      background: 'rgba(0, 0, 0, 0.75)',
-                      border: 'none',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s ease',
-                    }}
-                  >
-                    <RiCloseLine size={16} />
-                  </button>
-                </div>
-              )}
-
-              {/* Space Selector Row if open */}
-              {showSpaceSelector && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: isLight ? '#f8fafc' : '#090a0f',
-                    border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-                  }}
-                >
-                  <RiFolderLine size={16} color="var(--accent-color)" />
-                  <Select
-                    placeholder="Select a public Space to attach..."
-                    value={selectedSpaceId}
-                    onChange={setSelectedSpaceId}
-                    allowClear
-                    style={{ flex: 1 }}
-                    options={myPublicSpaces.map((s) => ({
-                      value: s._id,
-                      label: `${s.name} (${s.tags?.slice(0, 2).join(', ') || 'Space'})`,
-                    }))}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSpaceId(null);
-                      setShowSpaceSelector(false);
-                    }}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                  >
-                    <RiCloseLine size={18} />
-                  </button>
-                </div>
-              )}
-
-              {/* Bottom Actions inside Composer Card */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: '6px',
-                  borderTop: `1px solid ${isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'}`,
-                }}
-              >
-                {/* Media & Link Icons */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  {/* Hidden image input */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
-                    onChange={handleImageSelect}
-                    style={{ display: 'none' }}
-                  />
-
-                  <Tooltip title="Attach image">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: attachedImageFile ? 'var(--accent-color)' : (isLight ? '#64748b' : '#94a3b8'),
-                        cursor: 'pointer',
-                        padding: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        transition: 'color 0.15s ease',
-                      }}
-                    >
-                      <RiImageLine size={18} />
-                    </button>
-                  </Tooltip>
-
-                  <Tooltip title="Attach Public Space">
-                    <button
-                      type="button"
-                      onClick={() => setShowSpaceSelector(!showSpaceSelector)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: showSpaceSelector || selectedSpaceId ? 'var(--accent-color)' : (isLight ? '#64748b' : '#94a3b8'),
-                        cursor: 'pointer',
-                        padding: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <RiLinkM size={18} />
-                    </button>
-                  </Tooltip>
-                </div>
-
-                {/* Counter + Post Button */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: isLight ? '#94a3b8' : '#64748b' }}>
-                    {newPostText.length}/500
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={!newPostText.trim() || submittingPost}
-                    onClick={handleCreatePost}
-                    style={{
-                      padding: '5px 18px',
-                      borderRadius: '8px',
-                      background: newPostText.trim() ? (isLight ? '#4f46e5' : '#6366f1') : (isLight ? '#cbd5e1' : '#1f202b'),
-                      color: newPostText.trim() ? '#ffffff' : (isLight ? '#94a3b8' : '#4b5563'),
-                      border: 'none',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: newPostText.trim() && !submittingPost ? 'pointer' : 'not-allowed',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {submittingPost ? 'Posting...' : 'Post'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Posts Feed List */}
-          {loadingPosts && posts.length === 0 ? (
-            <div style={{ padding: '60px 0', textAlign: 'center' }}>
-              <Spin size="large" />
-            </div>
-          ) : filteredPosts.length === 0 ? (
-            <div
-              style={{
-                background: isLight ? '#ffffff' : '#111218',
-                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-                borderRadius: '16px',
-                padding: '48px 24px',
-                textAlign: 'center',
-              }}
-            >
-              <Empty
-                description={
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                    {activeTab === 'following'
-                      ? 'No posts from people you follow yet. Check out Discover to find creators!'
-                      : 'No posts found. Share your ideas or check back later!'}
-                  </span>
-                }
-              />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {filteredPosts.map((post) => (
-                <CommunityPostCard
-                  key={post._id}
-                  post={post}
-                  onPostDeleted={handlePostDeleted}
-                  onPostUpdated={handlePostUpdated}
-                  onFollowChange={() => fetchPosts(1, activeTab, true)}
-                />
-              ))}
-
-              {/* Load More Button */}
-              {hasMore && (
-                <div style={{ textAlign: 'center', paddingTop: '12px' }}>
-                  <Button
-                    loading={loadingPosts}
-                    onClick={() => fetchPosts(page + 1, activeTab, false)}
-                    style={{
-                      borderRadius: '20px',
-                      padding: '0 24px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Load More Posts
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Trending Spaces & Popular Topics */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Widget 1: Trending Spaces */}
-          <div
-            style={{
-              background: isLight ? '#ffffff' : '#111218',
-              border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.07)'}`,
-              borderRadius: '16px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
-                Trending Spaces
-              </h3>
+          {/* Right: Notifications, Avatar, Create Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <Tooltip title="Inbox">
               <button
                 type="button"
-                onClick={() => setActiveTab('discover')}
+                onClick={() => setInboxOpen(true)}
                 style={{
+                  position: 'relative',
                   background: 'transparent',
                   border: 'none',
-                  color: isLight ? '#4f46e5' : '#818cf8',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
                   cursor: 'pointer',
-                  padding: 0,
+                  color: isLight ? '#475569' : '#94a3b8',
+                  padding: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                View all
+                <RiNotification3Line size={20} />
+                {unreadTotal > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      background: '#ef4444',
+                    }}
+                  />
+                )}
               </button>
+            </Tooltip>
+
+            {/* User Avatar */}
+            {user && (
+              <div
+                onClick={() => setPreviewUser(user.username)}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #6366f1, #a78bfa)',
+                  border: `2px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                }}
+              >
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  (user.displayName?.[0] || user.username?.[0] || 'U').toUpperCase()
+                )}
+              </div>
+            )}
+
+            {/* Create Post Button */}
+            <button
+              type="button"
+              onClick={handleFocusComposer}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 16px',
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                color: '#ffffff',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.25)',
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <RiEditLine size={15} />
+              <span>Create</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Grid Layout Container */}
+        <div
+          style={{
+            flex: 1,
+            maxWidth: '1200px',
+            width: '100%',
+            margin: '0 auto',
+            padding: '24px 20px 60px',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) 340px',
+            gap: '28px',
+            boxSizing: 'border-box',
+          }}
+          className="community-page-container"
+        >
+          {/* Left Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+            {/* Header: Title & Subtitle */}
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: '26px',
+                  fontWeight: 800,
+                  color: isLight ? '#0f172a' : '#ffffff',
+                  fontFamily: 'var(--font-display)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {debouncedQuery ? `Search Results for "${debouncedQuery}"` : 'Community'}
+              </h1>
+              <p
+                style={{
+                  margin: '6px 0 0',
+                  fontSize: '14px',
+                  color: isLight ? '#64748b' : '#94a3b8',
+                  lineHeight: 1.5,
+                }}
+              >
+                {debouncedQuery
+                  ? 'Find developers, explore public stacks, and search community discussions.'
+                  : 'Share your knowledge, discover amazing developer content, and connect with other builders.'}
+              </p>
             </div>
 
-            {loadingTrending ? (
-              <div style={{ padding: '24px 0', textAlign: 'center' }}>
-                <Spin size="small" />
-              </div>
-            ) : trendingSpaces.length === 0 ? (
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                No trending spaces yet.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {trendingSpaces.map((s, idx) => {
-                  const IconComponent = TRENDING_ICONS[idx % TRENDING_ICONS.length];
-                  const iconCol = TRENDING_ICON_COLORS[idx % TRENDING_ICON_COLORS.length];
-                  const iconBg = TRENDING_ICON_BGS[idx % TRENDING_ICON_BGS.length];
+            {/* If SEARCHING: Show Search Filter Tabs */}
+            {debouncedQuery ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Search Filter Tabs */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '10px',
+                    borderBottom: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                    paddingBottom: '12px',
+                    overflowX: 'auto',
+                  }}
+                >
+                  {[
+                    { key: 'all', label: 'All Results' },
+                    { key: 'users', label: `Users (${searchResults.totalUsers || searchResults.users?.length || 0})` },
+                    { key: 'spaces', label: `Spaces (${searchResults.totalSpaces || searchResults.spaces?.length || 0})` },
+                    { key: 'posts', label: `Posts (${searchResults.totalPosts || searchResults.posts?.length || 0})` },
+                  ].map((tab) => {
+                    const isActive = searchFilter === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => {
+                          setSearchFilter(tab.key);
+                          setSearchPage(1);
+                        }}
+                        style={{
+                          padding: '6px 16px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: isActive ? 600 : 500,
+                          background: isActive ? (isLight ? '#4f46e5' : '#6366f1') : (isLight ? '#f1f5f9' : '#14151e'),
+                          color: isActive ? '#ffffff' : (isLight ? '#475569' : '#94a3b8'),
+                          border: `1px solid ${isActive ? 'transparent' : (isLight ? '#e2e8f0' : 'rgba(255,255,255,0.06)')}`,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                  return (
+                {/* Search Results Content */}
+                {isSearching ? (
+                  <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                    <Spin size="large" />
+                  </div>
+                ) : (searchResults.users.length === 0 && searchResults.spaces.length === 0 && searchResults.posts.length === 0) ? (
+                  <div
+                    style={{
+                      background: isLight ? '#ffffff' : '#111218',
+                      border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                      borderRadius: '16px',
+                      padding: '48px 24px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Empty
+                      description={
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                          No results found matching "{debouncedQuery}". Try another search term.
+                        </span>
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                    {/* USERS RESULTS */}
+                    {(searchFilter === 'all' || searchFilter === 'users') && searchResults.users.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RiTeamLine size={18} color="var(--accent-color)" />
+                          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                            Users
+                          </h3>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+                            gap: '14px',
+                          }}
+                        >
+                          {searchResults.users.map((u) => (
+                            <div
+                              key={u._id}
+                              style={{
+                                background: isLight ? '#ffffff' : '#111218',
+                                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                                borderRadius: '14px',
+                                padding: '16px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px',
+                                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                              }}
+                            >
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div
+                                  onClick={() => setPreviewUser(u.username)}
+                                  style={{
+                                    width: '42px',
+                                    height: '42px',
+                                    borderRadius: '50%',
+                                    background: u.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #6366f1, #a78bfa)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '15px',
+                                    fontWeight: 700,
+                                    color: '#ffffff',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {u.avatarUrl ? (
+                                    <img src={u.avatarUrl} alt={u.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  ) : (
+                                    (u.displayName?.[0] || u.username?.[0] || 'U').toUpperCase()
+                                  )}
+                                </div>
+
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div
+                                    onClick={() => setPreviewUser(u.username)}
+                                    style={{
+                                      fontSize: '14px',
+                                      fontWeight: 700,
+                                      color: isLight ? '#0f172a' : '#ffffff',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                  >
+                                    {u.displayName || u.username}
+                                  </div>
+                                  <div style={{ fontSize: '12.5px', color: isLight ? '#64748b' : '#94a3b8' }}>
+                                    @{u.username}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {u.bio && (
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: '12.5px',
+                                    color: isLight ? '#475569' : '#94a3b8',
+                                    lineHeight: 1.4,
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  {u.bio}
+                                </p>
+                              )}
+
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  marginTop: 'auto',
+                                  paddingTop: '8px',
+                                  borderTop: `1px solid ${isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)'}`,
+                                }}
+                              >
+                                <span style={{ fontSize: '12px', color: isLight ? '#64748b' : '#94a3b8' }}>
+                                  <strong>{u.followersCount || 0}</strong> followers
+                                </span>
+
+                                {!u.isSelf && user && (
+                                  <Button
+                                    size="small"
+                                    type={u.isFollowing ? 'default' : 'primary'}
+                                    icon={u.isFollowing ? <RiUserUnfollowLine size={13} /> : <RiUserFollowLine size={13} />}
+                                    onClick={() => handleToggleUserFollow(u)}
+                                    style={{ borderRadius: '6px', fontSize: '12px' }}
+                                  >
+                                    {u.isFollowing ? 'Following' : 'Follow'}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PUBLIC SPACES RESULTS */}
+                    {(searchFilter === 'all' || searchFilter === 'spaces') && searchResults.spaces.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RiFolderLine size={18} color="var(--accent-color)" />
+                          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                            Public Spaces
+                          </h3>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          {searchResults.spaces.map((space) => (
+                            <PublicSpaceCard key={space._id} space={space} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* POSTS RESULTS */}
+                    {(searchFilter === 'all' || searchFilter === 'posts') && searchResults.posts.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <RiArticleLine size={18} color="var(--accent-color)" />
+                          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                            Community Posts
+                          </h3>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {searchResults.posts.map((post) => (
+                            <CommunityPostCard
+                              key={post._id}
+                              post={post}
+                              onPostDeleted={handlePostDeleted}
+                              onPostUpdated={handlePostUpdated}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Single Category Pagination */}
+                    {searchFilter !== 'all' && searchResults.totalPages > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                        <Pagination
+                          current={searchPage}
+                          pageSize={12}
+                          total={
+                            searchFilter === 'users'
+                              ? searchResults.totalUsers
+                              : searchFilter === 'spaces'
+                              ? searchResults.totalSpaces
+                              : searchResults.totalPosts
+                          }
+                          onChange={(p) => setSearchPage(p)}
+                          showSizeChanger={false}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* If NOT SEARCHING: Regular Following / Discover Feed */
+              <>
+                {/* Underline Tabs: Following vs Discover */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '24px',
+                    borderBottom: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                    paddingBottom: '2px',
+                  }}
+                >
+                  {[
+                    { key: 'following', label: 'Following' },
+                    { key: 'discover', label: 'Discover' },
+                  ].map((tab) => {
+                    const isActive = activeTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => {
+                          if (tab.key === 'following' && !user) {
+                            message.info('Log in to view posts from people you follow.');
+                            navigate('/login');
+                            return;
+                          }
+                          setActiveTab(tab.key);
+                          setSearchParams({ tab: tab.key });
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '8px 4px 12px',
+                          fontSize: '14.5px',
+                          fontWeight: isActive ? 700 : 500,
+                          color: isActive ? (isLight ? '#4f46e5' : '#ffffff') : (isLight ? '#64748b' : '#94a3b8'),
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'color 0.15s ease',
+                        }}
+                      >
+                        <span>{tab.label}</span>
+                        {isActive && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: '-1px',
+                              left: 0,
+                              right: 0,
+                              height: '2.5px',
+                              background: isLight ? '#4f46e5' : '#6366f1',
+                              borderRadius: '2px',
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Composer Box ("What's on your mind?") */}
+                {user && (
+                  <div
+                    style={{
+                      background: isLight ? '#ffffff' : '#111218',
+                      border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                      borderRadius: '16px',
+                      padding: '18px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: user.avatarUrl ? 'transparent' : 'linear-gradient(135deg, #6366f1, #a78bfa)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          color: '#ffffff',
+                          flexShrink: 0,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          (user.displayName?.[0] || user.username?.[0] || 'U').toUpperCase()
+                        )}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <Input.TextArea
+                          ref={composerInputRef}
+                          placeholder="What's on your mind?"
+                          value={newPostText}
+                          onChange={(e) => setNewPostText(e.target.value)}
+                          maxLength={500}
+                          rows={2}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            boxShadow: 'none',
+                            padding: '4px 0',
+                            fontSize: '14.5px',
+                            color: isLight ? '#0f172a' : '#ffffff',
+                            resize: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Attached Image Preview */}
+                    {attachedImagePreview && (
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: 'fit-content',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)'}`,
+                          background: isLight ? '#f1f5f9' : '#08080c',
+                          maxHeight: '200px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <img
+                          src={attachedImagePreview}
+                          alt="Upload preview"
+                          style={{
+                            maxHeight: '200px',
+                            maxWidth: '100%',
+                            objectFit: 'contain',
+                            display: 'block',
+                            borderRadius: '12px',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            border: 'none',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'transform 0.15s ease',
+                          }}
+                        >
+                          <RiCloseLine size={16} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Space Selector Row if open */}
+                    {showSpaceSelector && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: isLight ? '#f8fafc' : '#090a0f',
+                          border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                        }}
+                      >
+                        <RiFolderLine size={16} color="var(--accent-color)" />
+                        <Select
+                          placeholder="Select a public Space to attach..."
+                          value={selectedSpaceId}
+                          onChange={setSelectedSpaceId}
+                          allowClear
+                          style={{ flex: 1 }}
+                          options={myPublicSpaces.map((s) => ({
+                            value: s._id,
+                            label: `${s.name} (${s.tags?.slice(0, 2).join(', ') || 'Space'})`,
+                          }))}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSpaceId(null);
+                            setShowSpaceSelector(false);
+                          }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                        >
+                          <RiCloseLine size={18} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Bottom Actions inside Composer Card */}
                     <div
-                      key={s._id}
-                      onClick={() => navigate(user ? `/u/${encodeURIComponent(user.username || 'user')}/spaces/${s._id}` : '/login')}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: '12px',
-                        cursor: 'pointer',
-                        padding: '6px 4px',
-                        borderRadius: '8px',
-                        transition: 'background 0.15s ease',
+                        paddingTop: '6px',
+                        borderTop: `1px solid ${isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'}`,
                       }}
                     >
-                      {/* Icon + Title + Author */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            background: iconBg,
-                            color: iconCol,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <IconComponent size={18} />
-                        </div>
+                      {/* Media & Link Icons */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        {/* Hidden image input */}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
+                          onChange={handleImageSelect}
+                          style={{ display: 'none' }}
+                        />
 
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div
+                        <Tooltip title="Attach image">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
                             style={{
-                              fontSize: '13.5px',
-                              fontWeight: 600,
-                              color: isLight ? '#0f172a' : '#ffffff',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
+                              background: 'transparent',
+                              border: 'none',
+                              color: attachedImageFile ? 'var(--accent-color)' : (isLight ? '#64748b' : '#94a3b8'),
+                              cursor: 'pointer',
+                              padding: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'color 0.15s ease',
                             }}
                           >
-                            {s.name}
-                          </div>
-                          <div style={{ fontSize: '12px', color: isLight ? '#64748b' : '#94a3b8' }}>
-                            @{s.owner?.username || s.ownerUsername || 'creator'}
-                          </div>
-                        </div>
+                            <RiImageLine size={18} />
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip title="Attach Public Space">
+                          <button
+                            type="button"
+                            onClick={() => setShowSpaceSelector(!showSpaceSelector)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: showSpaceSelector || selectedSpaceId ? 'var(--accent-color)' : (isLight ? '#64748b' : '#94a3b8'),
+                              cursor: 'pointer',
+                              padding: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <RiLinkM size={18} />
+                          </button>
+                        </Tooltip>
                       </div>
 
-                      {/* Right Metrics: Stars + Views */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: isLight ? '#64748b' : '#94a3b8', flexShrink: 0 }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <RiStarFill size={12} color="#f59e0b" />
-                          {formatMetric(s.starsCount || 0)}
+                      {/* Counter + Post Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '12px', color: isLight ? '#94a3b8' : '#64748b' }}>
+                          {newPostText.length}/500
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <RiEyeLine size={13} />
-                          {formatMetric(s.viewsCount || 0)}
-                        </span>
+
+                        <button
+                          type="button"
+                          disabled={!newPostText.trim() || submittingPost}
+                          onClick={handleCreatePost}
+                          style={{
+                            padding: '5px 18px',
+                            borderRadius: '8px',
+                            background: newPostText.trim() ? (isLight ? '#4f46e5' : '#6366f1') : (isLight ? '#cbd5e1' : '#1f202b'),
+                            color: newPostText.trim() ? '#ffffff' : (isLight ? '#94a3b8' : '#4b5563'),
+                            border: 'none',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: newPostText.trim() && !submittingPost ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {submittingPost ? 'Posting...' : 'Post'}
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+
+                {/* Posts Feed List */}
+                {loadingPosts && posts.length === 0 ? (
+                  <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                    <Spin size="large" />
+                  </div>
+                ) : filteredFeedPosts.length === 0 ? (
+                  <div
+                    style={{
+                      background: isLight ? '#ffffff' : '#111218',
+                      border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                      borderRadius: '16px',
+                      padding: '48px 24px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Empty
+                      description={
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--text-color)', fontWeight: 600, fontSize: '14.5px' }}>
+                            {activeTab === 'following'
+                              ? "You're not following anyone yet."
+                              : 'No posts found in Discover.'}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '13px', maxWidth: '420px' }}>
+                            {activeTab === 'following'
+                              ? 'Discover active developers and public spaces across the community to build your customized feed.'
+                              : 'Be the first to share an idea, code snippet, or public project!'}
+                          </span>
+                        </div>
+                      }
+                    >
+                      {activeTab === 'following' && (
+                        <Button
+                          type="primary"
+                          icon={<RiCompassLine size={16} />}
+                          onClick={() => {
+                            setActiveTab('discover');
+                            setSearchParams({ tab: 'discover' });
+                          }}
+                          style={{ marginTop: '12px', borderRadius: '8px' }}
+                        >
+                          Discover developers
+                        </Button>
+                      )}
+                    </Empty>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {filteredFeedPosts.map((post) => (
+                      <CommunityPostCard
+                        key={post._id}
+                        post={post}
+                        onPostDeleted={handlePostDeleted}
+                        onPostUpdated={handlePostUpdated}
+                        onFollowChange={() => fetchPosts(1, activeTab, true)}
+                      />
+                    ))}
+
+                    {/* Load More Button */}
+                    {hasMore && (
+                      <div style={{ textAlign: 'center', paddingTop: '12px' }}>
+                        <Button
+                          loading={loadingPosts}
+                          onClick={() => fetchPosts(page + 1, activeTab, false)}
+                          style={{
+                            borderRadius: '20px',
+                            padding: '0 24px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Load More Posts
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Widget 2: Popular Topics */}
-          <div
-            style={{
-              background: isLight ? '#ffffff' : '#111218',
-              border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.07)'}`,
-              borderRadius: '16px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
-                Popular Topics
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedTopic('All')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: isLight ? '#4f46e5' : '#818cf8',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                View all
-              </button>
+          {/* Right Column: Trending Spaces & Popular Topics */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Widget 1: Trending Spaces */}
+            <div
+              style={{
+                background: isLight ? '#ffffff' : '#111218',
+                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.07)'}`,
+                borderRadius: '16px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                  Trending Spaces
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('discover');
+                    setSearchParams({ tab: 'discover' });
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: isLight ? '#4f46e5' : '#818cf8',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  View all
+                </button>
+              </div>
+
+              {loadingTrending ? (
+                <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                  <Spin size="small" />
+                </div>
+              ) : trendingSpaces.length === 0 ? (
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                  No trending spaces yet.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {trendingSpaces.map((s, idx) => {
+                    const IconComponent = TRENDING_ICONS[idx % TRENDING_ICONS.length];
+                    const iconCol = TRENDING_ICON_COLORS[idx % TRENDING_ICON_COLORS.length];
+                    const iconBg = TRENDING_ICON_BGS[idx % TRENDING_ICON_BGS.length];
+
+                    return (
+                      <div
+                        key={s._id}
+                        onClick={() => navigate(user ? `/u/${encodeURIComponent(user.username || 'user')}/spaces/${s._id}` : '/login')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          padding: '6px 4px',
+                          borderRadius: '8px',
+                          transition: 'background 0.15s ease',
+                        }}
+                      >
+                        {/* Icon + Title + Author */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '10px',
+                              background: iconBg,
+                              color: iconCol,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <IconComponent size={18} />
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: '13.5px',
+                                fontWeight: 600,
+                                color: isLight ? '#0f172a' : '#ffffff',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {s.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: isLight ? '#64748b' : '#94a3b8' }}>
+                              @{s.owner?.username || s.ownerUsername || 'creator'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Metrics: Stars + Views */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11.5px', color: isLight ? '#64748b' : '#94a3b8', flexShrink: 0 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <RiStarFill size={12} color="#f59e0b" />
+                            {formatMetric(s.starsCount || 0)}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <RiEyeLine size={13} />
+                            {formatMetric(s.viewsCount || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Topics Pills */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {POPULAR_TOPICS.map((topic) => {
-                const isSelected = selectedTopic === topic;
-                return (
-                  <button
-                    key={topic}
-                    type="button"
-                    onClick={() => setSelectedTopic(topic)}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '20px',
-                      border: isSelected
-                        ? '1px solid var(--accent-color)'
-                        : `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
-                      background: isSelected
-                        ? (isLight ? '#4f46e5' : '#6366f1')
-                        : (isLight ? '#f1f5f9' : '#1a1b24'),
-                      color: isSelected ? '#ffffff' : (isLight ? '#475569' : '#cbd5e1'),
-                      fontSize: '12px',
-                      fontWeight: isSelected ? 600 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {topic}
-                  </button>
-                );
-              })}
+            {/* Widget 2: Popular Topics */}
+            <div
+              style={{
+                background: isLight ? '#ffffff' : '#111218',
+                border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.07)'}`,
+                borderRadius: '16px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                  Popular Topics
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTopic('All')}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: isLight ? '#4f46e5' : '#818cf8',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  View all
+                </button>
+              </div>
+
+              {/* Topics Pills */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {POPULAR_TOPICS.map((topic) => {
+                  const isSelected = selectedTopic === topic;
+                  return (
+                    <button
+                      key={topic}
+                      type="button"
+                      onClick={() => setSelectedTopic(topic)}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: '20px',
+                        border: isSelected
+                          ? '1px solid var(--accent-color)'
+                          : `1px solid ${isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)'}`,
+                        background: isSelected
+                          ? (isLight ? '#4f46e5' : '#6366f1')
+                          : (isLight ? '#f1f5f9' : '#1a1b24'),
+                        color: isSelected ? '#ffffff' : (isLight ? '#475569' : '#cbd5e1'),
+                        fontSize: '12px',
+                        fontWeight: isSelected ? 600 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {topic}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -10,18 +10,14 @@ import SpaceThumbnail from '../common/SpaceThumbnail';
 import {
   RiLockLine,
   RiGlobalLine,
-  RiLinkM,
   RiStarLine,
   RiStarFill,
   RiMoreFill,
   RiEyeLine,
   RiShareLine,
   RiTeamLine,
-  RiPushpinLine,
-  RiPushpinFill,
   RiEditLine,
   RiDeleteBinLine,
-  RiFileCopyLine,
   RiExternalLinkLine,
   RiStackLine
 } from 'react-icons/ri';
@@ -176,15 +172,6 @@ export default function ToolSpaceCard({
         message.error(err?.response?.data?.error || 'Failed to delete space');
       }
     }
-  };
-
-  // Copy Link Handler
-  const handleCopyLink = (e) => {
-    e.stopPropagation();
-    setShowDropdown(false);
-    const url = `${window.location.origin}/u/${encodeURIComponent(user?.username || 'user')}/spaces/${spaceId}`;
-    navigator.clipboard.writeText(url);
-    message.success('Space link copied to clipboard!');
   };
 
   // Open Space Navigation
@@ -485,67 +472,6 @@ export default function ToolSpaceCard({
                       >
                         <RiExternalLinkLine size={14} style={{ color: textSecondary }} />
                         Open Space
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleCopyLink}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          width: '100%',
-                          padding: '8px 10px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: textPrimary,
-                          fontSize: '12.5px',
-                          fontWeight: 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontFamily: 'var(--font-body)',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <RiFileCopyLine size={14} style={{ color: textSecondary }} />
-                        Copy Link
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleTogglePin}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          width: '100%',
-                          padding: '8px 10px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: textPrimary,
-                          fontSize: '12.5px',
-                          fontWeight: 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontFamily: 'var(--font-body)',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        {isPinned ? (
-                          <>
-                            <RiPushpinFill size={14} style={{ color: 'var(--accent-color)' }} />
-                            Unpin Space
-                          </>
-                        ) : (
-                          <>
-                            <RiPushpinLine size={14} style={{ color: textSecondary }} />
-                            Pin Space
-                          </>
-                        )}
                       </button>
 
                       {onEditClick && (
