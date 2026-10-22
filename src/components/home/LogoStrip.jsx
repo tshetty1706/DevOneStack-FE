@@ -1,88 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay } from 'swiper/modules';
-import 'swiper/css';
+import React from 'react';
+import {
+  RiDraftLine,
+  RiFileTextLine,
+  RiCodeSSlashLine,
+  RiLightbulbLine,
+  RiTerminalBoxLine,
+} from 'react-icons/ri';
 
-// React Icons Imports
-import { FaReact, FaDocker, FaGitAlt, FaFigma, FaPython, FaJava } from 'react-icons/fa';
-import { SiMongodb, SiPostman, SiPycharm } from 'react-icons/si';
-import { RiTailwindCssFill } from 'react-icons/ri';
-import { DiNodejs } from 'react-icons/di';
-import { VscVscodeInsiders } from 'react-icons/vsc';
+// Pixel-perfect Folder with Git Branch icon matching Image 2
+const RepoGitIcon = ({ size = 26 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 2H5a2 2 0 0 0-2 2v3Z" />
+    <circle cx="15.5" cy="13.5" r="1.5" />
+    <circle cx="18.5" cy="17.5" r="1.5" />
+    <path d="M15.5 15v2.5h1.5" />
+  </svg>
+);
 
-const tools = [
-  { name: 'React', icon: <FaReact size={32} />, color: '#61DAFB' },
-  { name: 'Docker', icon: <FaDocker size={32} />, color: '#2496ED' },
-  { name: 'MongoDB', icon: <SiMongodb size={32} />, color: '#47A248' },
-  { name: 'Tailwind', icon: <RiTailwindCssFill size={32} />, color: '#38BDF8' },
-  { name: 'Git', icon: <FaGitAlt size={32} />, color: '#F05032' },
-  { name: 'Figma', icon: <FaFigma size={32} />, color: '#F24E1E' },
-  { name: 'Postman', icon: <SiPostman size={32} />, color: '#FF6C37' },
-  { name: 'Node.js', icon: <DiNodejs size={32} />, color: '#339933' },
-  { name: 'VS Code', icon: <VscVscodeInsiders size={32} />, color: '#007ACC' },
-  { name: 'PyCharm', icon: <SiPycharm size={32} />, color: '#21D789' },
-  { name: 'Python', icon: <FaPython size={32} />, color: '#3776AB' },
-  { name: 'Java', icon: <FaJava size={32} />, color: '#5382A1' }
+const MODULE_ITEMS = [
+  { id: 'notes', name: 'Notes', icon: RiDraftLine },
+  { id: 'docs', name: 'Docs', icon: RiFileTextLine },
+  { id: 'snippets', name: 'Snippets', icon: RiCodeSSlashLine },
+  { id: 'learnings', name: 'Learnings', icon: RiLightbulbLine },
+  { id: 'prompts', name: 'Prompts', icon: RiTerminalBoxLine },
+  { id: 'repos', name: 'Repositories', icon: RepoGitIcon },
 ];
 
-// Helper to convert hex to RGB string for box-shadow support
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`
-    : '99, 102, 241';
-}
+// Duplicate items twice per track so each track is >2200px wide (fits all monitors)
+const TRACK_ITEMS = [...MODULE_ITEMS, ...MODULE_ITEMS];
 
 export default function LogoStrip() {
-  const [hoveredIndex, setHoveredIndex] = useState(null);
-
   return (
-    <section className="logo-strip-section">
-      <h3 className="logo-strip-title">Built for the tools you already use</h3>
+    <section className="logo-strip-section" aria-label="Developer Modules Flow">
+      <h3 className="logo-strip-title">YOUR DEVELOPER KNOWLEDGE, ORGANIZED</h3>
 
-      <Swiper
-        modules={[Autoplay]}
-        slidesPerView={2}
-        spaceBetween={20}
-        loop={true}
-        speed={4000}
-        autoplay={{
-          delay: 0,
-          disableOnInteraction: false,
-        }}
-        breakpoints={{
-          480: { slidesPerView: 3, spaceBetween: 24 },
-          768: { slidesPerView: 4, spaceBetween: 30 },
-          1024: { slidesPerView: 6, spaceBetween: 40 },
-        }}
-        style={{ width: '100%', pointerEvents: 'none' }}
-      >
-        {tools.map((tool, index) => {
-          const isHovered = index === hoveredIndex;
-          return (
-            <SwiperSlide key={`${tool.name}-${index}`} style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="modules-marquee-container">
+        {/* Soft edge fade overlays without mask-image rasterization bugs */}
+        <div className="modules-fade-left" aria-hidden="true" />
+        <div className="modules-fade-right" aria-hidden="true" />
+
+        {/* Track 1: continuous non-stopping motion */}
+        <div className="modules-marquee-track">
+          {TRACK_ITEMS.map((mod, index) => {
+            const Icon = mod.icon;
+            return (
               <div
-                className={`logo-strip-icon-card ${isHovered ? 'glow-active' : ''}`}
-                style={{
-                  pointerEvents: 'auto',
-                  cursor: 'pointer',
-                  marginTop: '10px',
-                  ...(isHovered ? {
-                    borderColor: tool.color,
-                    color: tool.color,
-                    boxShadow: `0 10px 25px rgba(${hexToRgb(tool.color)}, calc(0.24 * var(--glow-intensity)))`,
-                  } : {})
-                }}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
+                key={`t1-${mod.id}-${index}`}
+                className="module-strip-card"
+                title={`${mod.name} module`}
               >
-                {tool.icon}
-                <span className="logo-strip-icon-name">{tool.name}</span>
+                <div className="module-strip-icon-wrapper">
+                  <Icon size={28} />
+                </div>
+                <span className="module-strip-name">{mod.name}</span>
               </div>
-            </SwiperSlide>
-          );
-        })}
-      </Swiper>
+            );
+          })}
+        </div>
+
+        {/* Track 2: duplicate track for seamless infinite marquee loop */}
+        <div className="modules-marquee-track" aria-hidden="true">
+          {TRACK_ITEMS.map((mod, index) => {
+            const Icon = mod.icon;
+            return (
+              <div
+                key={`t2-${mod.id}-${index}`}
+                className="module-strip-card"
+                title={`${mod.name} module`}
+              >
+                <div className="module-strip-icon-wrapper">
+                  <Icon size={28} />
+                </div>
+                <span className="module-strip-name">{mod.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }
