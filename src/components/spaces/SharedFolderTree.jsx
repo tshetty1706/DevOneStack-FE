@@ -83,6 +83,7 @@ export default function SharedFolderTree({
   showHeader = true,
   maxHeight = '100%',
   style = {},
+  canEdit = true,
 }) {
   const queryClient = useQueryClient();
 
@@ -309,6 +310,7 @@ export default function SharedFolderTree({
 
   // Move item / folder drag-and-drop mutation
   const handleDropOnFolder = async (targetFolderId) => {
+    if (!canEdit) return;
     if (!draggingObject) return;
     const destId = targetFolderId === 'root' ? null : targetFolderId;
 
@@ -353,6 +355,7 @@ export default function SharedFolderTree({
 
   // Open Create Folder Dialog with depth check
   const handleOpenCreateFolder = (targetParentId = null) => {
+    if (!canEdit) return;
     const parentFolder = targetParentId
       ? folders.find(f => f._id === targetParentId)
       : (selectedFolderId ? folders.find(f => f._id === selectedFolderId) : null);
@@ -371,6 +374,7 @@ export default function SharedFolderTree({
 
   // Trigger New Item creation in folder
   const handleTriggerNewItem = (type, targetFolderId) => {
+    if (!canEdit) return;
     const validFolderId = (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' && targetFolderId !== 'undefined') ? targetFolderId : null;
     const finalType = type || filterItemType || 'note';
     if (onAddItem) {
@@ -383,7 +387,7 @@ export default function SharedFolderTree({
 
   // Inline Rename submit
   const handleInlineRenameSubmit = () => {
-    if (!editingId || !editName.trim()) {
+    if (!canEdit || !editingId || !editName.trim()) {
       setEditingId(null);
       return;
     }
@@ -423,7 +427,7 @@ export default function SharedFolderTree({
     }
 
     // Context Menu Items
-    const contextMenuItems = [
+    const contextMenuItems = canEdit ? [
       {
         key: 'new-item',
         label: filterItemType ? `New ${ITEM_TYPE_META[filterItemType]?.label || 'Item'}` : 'New Item',
@@ -491,19 +495,20 @@ export default function SharedFolderTree({
           });
         },
       },
-    ];
+    ] : [];
 
     return (
       <Dropdown
         key={node._id}
         menu={{ items: contextMenuItems }}
-        trigger={['contextMenu']}
+        trigger={canEdit && contextMenuItems.length > 0 ? ['contextMenu'] : []}
       >
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {/* Folder Row */}
           <div
-            draggable={!isEditing}
+            draggable={canEdit && !isEditing}
             onDragStart={(e) => {
+              if (!canEdit) return;
               e.stopPropagation();
               setDraggingObject({ type: 'folder', id: node._id, name: node.name });
             }}
@@ -606,6 +611,7 @@ export default function SharedFolderTree({
                   }}
                   title={node.name}
                   onDoubleClick={(e) => {
+                    if (!canEdit) return;
                     e.stopPropagation();
                     setEditingId(`folder:${node._id}`);
                     setEditName(node.name);
@@ -616,31 +622,33 @@ export default function SharedFolderTree({
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
-              {/* More Actions Dropdown Trigger */}
-              <Dropdown menu={{ items: contextMenuItems }} trigger={['click']} placement="bottomRight">
-                <button
-                  type="button"
-                  onClick={e => e.stopPropagation()}
-                  aria-label="Folder actions"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '2px',
-                    borderRadius: '4px',
-                    color: isSelected ? selectedColor : textMuted,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    opacity: isSelected ? 1 : 0.6,
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                  onMouseLeave={e => e.currentTarget.style.opacity = isSelected ? 1 : 0.6}
-                >
-                  <RiMore2Fill size={13} />
-                </button>
-              </Dropdown>
-            </div>
+            {canEdit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
+                {/* More Actions Dropdown Trigger */}
+                <Dropdown menu={{ items: contextMenuItems }} trigger={['click']} placement="bottomRight">
+                  <button
+                    type="button"
+                    onClick={e => e.stopPropagation()}
+                    aria-label="Folder actions"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '2px',
+                      borderRadius: '4px',
+                      color: isSelected ? selectedColor : textMuted,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      opacity: isSelected ? 1 : 0.6,
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = isSelected ? 1 : 0.6}
+                  >
+                    <RiMore2Fill size={13} />
+                  </button>
+                </Dropdown>
+              </div>
+            )}
           </div>
 
           {/* Children (Subfolders & Items) when Expanded */}
@@ -660,7 +668,7 @@ export default function SharedFolderTree({
                 // Search query match
                 if (query && !item.title.toLowerCase().includes(query)) return null;
 
-                const itemContextMenu = [
+                const itemContextMenu = canEdit ? [
                   {
                     key: 'open',
                     label: 'Open',
@@ -705,13 +713,21 @@ export default function SharedFolderTree({
                       });
                     },
                   },
+                ] : [
+                  {
+                    key: 'open',
+                    label: 'Open',
+                    icon: <RiEyeLine size={14} />,
+                    onClick: () => onSelectItem?.(item),
+                  },
                 ];
 
                 return (
-                  <Dropdown key={item._id} menu={{ items: itemContextMenu }} trigger={['contextMenu']}>
+                  <Dropdown key={item._id} menu={{ items: itemContextMenu }} trigger={canEdit ? ['contextMenu'] : []}>
                     <div
-                      draggable={!isItemEditing}
+                      draggable={canEdit && !isItemEditing}
                       onDragStart={(e) => {
+                        if (!canEdit) return;
                         e.stopPropagation();
                         setDraggingObject({
                           type: 'item',
@@ -781,6 +797,7 @@ export default function SharedFolderTree({
                             }}
                             title={item.title}
                             onDoubleClick={(e) => {
+                              if (!canEdit) return;
                               e.stopPropagation();
                               setEditingId(`item:${item._id}`);
                               setEditName(item.title);
@@ -791,27 +808,29 @@ export default function SharedFolderTree({
                         )}
                       </div>
 
-                      <Dropdown menu={{ items: itemContextMenu }} trigger={['click']} placement="bottomRight">
-                        <button
-                          type="button"
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            padding: '1px',
-                            borderRadius: '3px',
-                            color: isItemActive ? selectedColor : textMuted,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            opacity: isItemActive ? 1 : 0.5,
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                          onMouseLeave={e => e.currentTarget.style.opacity = isItemActive ? 1 : 0.5}
-                        >
-                          <RiMore2Fill size={12} />
-                        </button>
-                      </Dropdown>
+                      {canEdit && (
+                        <Dropdown menu={{ items: itemContextMenu }} trigger={['click']} placement="bottomRight">
+                          <button
+                            type="button"
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '1px',
+                              borderRadius: '3px',
+                              color: isItemActive ? selectedColor : textMuted,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              opacity: isItemActive ? 1 : 0.5,
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                            onMouseLeave={e => e.currentTarget.style.opacity = isItemActive ? 1 : 0.5}
+                          >
+                            <RiMore2Fill size={12} />
+                          </button>
+                        </Dropdown>
+                      )}
                     </div>
                   </Dropdown>
                 );
@@ -826,7 +845,7 @@ export default function SharedFolderTree({
   const totalAllItemsCount = allItems.length;
 
   // Space Root Context Menu
-  const rootContextMenu = [
+  const rootContextMenu = canEdit ? [
     {
       key: 'new-root-item',
       label: filterItemType ? `New ${ITEM_TYPE_META[filterItemType]?.label || 'Item'} at Root` : 'New Item at Root',
@@ -839,7 +858,7 @@ export default function SharedFolderTree({
       icon: <RiFolderAddLine size={14} />,
       onClick: () => handleOpenCreateFolder(null),
     },
-  ];
+  ] : [];
 
   return (
     <div
@@ -876,61 +895,63 @@ export default function SharedFolderTree({
             Explorer
           </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            <Tooltip title="New Item" placement="bottom">
-              <button
-                type="button"
-                onClick={() => handleTriggerNewItem(filterItemType || 'note', selectedFolderId || null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: textMuted,
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.background = hoverBg;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.color = textMuted;
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <RiAddLine size={15} />
-              </button>
-            </Tooltip>
+          {canEdit && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <Tooltip title="New Item" placement="bottom">
+                <button
+                  type="button"
+                  onClick={() => handleTriggerNewItem(filterItemType || 'note', selectedFolderId || null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = accentColor;
+                    e.currentTarget.style.background = hoverBg;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = textMuted;
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <RiAddLine size={15} />
+                </button>
+              </Tooltip>
 
-            <Tooltip title="New Folder" placement="bottom">
-              <button
-                type="button"
-                onClick={() => handleOpenCreateFolder(selectedFolderId || null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: textMuted,
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.color = accentColor;
-                  e.currentTarget.style.background = hoverBg;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.color = textMuted;
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <RiFolderAddLine size={15} />
-              </button>
-            </Tooltip>
-          </div>
+              <Tooltip title="New Folder" placement="bottom">
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateFolder(selectedFolderId || null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: textMuted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = accentColor;
+                    e.currentTarget.style.background = hoverBg;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = textMuted;
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <RiFolderAddLine size={15} />
+                </button>
+              </Tooltip>
+            </div>
+          )}
         </div>
       )}
 
@@ -988,18 +1009,21 @@ export default function SharedFolderTree({
         }}
       >
         {/* Space Root Row (Root / Unfiltered) */}
-        <Dropdown menu={{ items: rootContextMenu }} trigger={['contextMenu']}>
+        <Dropdown menu={{ items: rootContextMenu }} trigger={canEdit && rootContextMenu.length > 0 ? ['contextMenu'] : []}>
           <div
             onDragOver={(e) => {
+              if (!canEdit) return;
               e.preventDefault();
               e.stopPropagation();
               if (dragOverId !== 'root') setDragOverId('root');
             }}
             onDragLeave={(e) => {
+              if (!canEdit) return;
               e.stopPropagation();
               if (dragOverId === 'root') setDragOverId(null);
             }}
             onDrop={(e) => {
+              if (!canEdit) return;
               e.preventDefault();
               e.stopPropagation();
               handleDropOnFolder('root');
@@ -1036,29 +1060,31 @@ export default function SharedFolderTree({
               <span>Space Root</span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Dropdown menu={{ items: rootContextMenu }} trigger={['click']} placement="bottomRight">
-                <button
-                  type="button"
-                  onClick={e => e.stopPropagation()}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '2px',
-                    borderRadius: '4px',
-                    color: textMuted,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    opacity: 0.6,
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                  onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
-                >
-                  <RiMore2Fill size={13} />
-                </button>
-              </Dropdown>
-            </div>
+            {canEdit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Dropdown menu={{ items: rootContextMenu }} trigger={['click']} placement="bottomRight">
+                  <button
+                    type="button"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '2px',
+                      borderRadius: '4px',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      opacity: 0.6,
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0.6}
+                  >
+                    <RiMore2Fill size={13} />
+                  </button>
+                </Dropdown>
+              </div>
+            )}
           </div>
         </Dropdown>
 
@@ -1077,7 +1103,7 @@ export default function SharedFolderTree({
           const query = (searchQuery || folderSearch || '').toLowerCase().trim();
           if (query && !item.title.toLowerCase().includes(query)) return null;
 
-          const rootItemContextMenu = [
+          const rootItemContextMenu = canEdit ? [
             {
               key: 'open',
               label: 'Open',
@@ -1122,13 +1148,21 @@ export default function SharedFolderTree({
                 });
               },
             },
+          ] : [
+            {
+              key: 'open',
+              label: 'Open',
+              icon: <RiEyeLine size={14} />,
+              onClick: () => onSelectItem?.(item),
+            },
           ];
 
           return (
-            <Dropdown key={item._id} menu={{ items: rootItemContextMenu }} trigger={['contextMenu']}>
+            <Dropdown key={item._id} menu={{ items: rootItemContextMenu }} trigger={canEdit ? ['contextMenu'] : []}>
               <div
-                draggable={!isItemEditing}
+                draggable={canEdit && !isItemEditing}
                 onDragStart={(e) => {
+                  if (!canEdit) return;
                   e.stopPropagation();
                   setDraggingObject({
                     type: 'item',
@@ -1198,6 +1232,7 @@ export default function SharedFolderTree({
                       }}
                       title={item.title}
                       onDoubleClick={(e) => {
+                        if (!canEdit) return;
                         e.stopPropagation();
                         setEditingId(`item:${item._id}`);
                         setEditName(item.title);
@@ -1208,27 +1243,29 @@ export default function SharedFolderTree({
                   )}
                 </div>
 
-                <Dropdown menu={{ items: rootItemContextMenu }} trigger={['click']} placement="bottomRight">
-                  <button
-                    type="button"
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      padding: '1px',
-                      borderRadius: '3px',
-                      color: isItemActive ? selectedColor : textMuted,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      opacity: isItemActive ? 1 : 0.5,
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={e => e.currentTarget.style.opacity = isItemActive ? 1 : 0.5}
-                  >
-                    <RiMore2Fill size={12} />
-                  </button>
-                </Dropdown>
+                {canEdit && (
+                  <Dropdown menu={{ items: rootItemContextMenu }} trigger={['click']} placement="bottomRight">
+                    <button
+                      type="button"
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '1px',
+                        borderRadius: '3px',
+                        color: isItemActive ? selectedColor : textMuted,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        opacity: isItemActive ? 1 : 0.5,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                      onMouseLeave={e => e.currentTarget.style.opacity = isItemActive ? 1 : 0.5}
+                    >
+                      <RiMore2Fill size={12} />
+                    </button>
+                  </Dropdown>
+                )}
               </div>
             </Dropdown>
           );

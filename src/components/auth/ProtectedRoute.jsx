@@ -13,7 +13,7 @@ import NotFoundPage from '../../pages/NotFoundPage';
  */
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  const { username } = useParams();
+  const { username, spaceId } = useParams();
 
   // While the initial /api/auth/me check is in-flight, show a spinner
   // so we don't flash the login page to an authenticated user.
@@ -44,8 +44,14 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  // If a username parameter is specified in URL, verify ownership
-  if (username && user.username && username !== user.username) {
+  // If a spaceId is present in URL but the username prefix belongs to another user (e.g. shared space link),
+  // redirect seamlessly to the current authenticated user's space route
+  if (spaceId && username && user?.username && decodeURIComponent(username).toLowerCase() !== user.username.toLowerCase()) {
+    return <Navigate to={`/u/${encodeURIComponent(user.username)}/spaces/${spaceId}`} replace />;
+  }
+
+  // For user-private personal routes (/dashboard, /profile, /spaces/create), verify identity
+  if (!spaceId && username && user?.username && decodeURIComponent(username).toLowerCase() !== user.username.toLowerCase()) {
     return <NotFoundPage />;
   }
 

@@ -43,6 +43,8 @@ export default function PromptsSection({
   selectedFolderId: propFolderId,
   onSelectFolder: propOnSelectFolder,
   onNavigateSection,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
@@ -208,6 +210,7 @@ export default function PromptsSection({
 
   // Direct prompt creation handler
   const handleCreateNewPrompt = useCallback((targetFolderId) => {
+    if (!canEdit) return;
     const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
       ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
       : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
@@ -222,7 +225,7 @@ export default function PromptsSection({
       model: 'Claude 3.5 Sonnet',
       caption: '',
     });
-  }, [prompts.length, selectedFolderId, createPromptMutation]);
+  }, [canEdit, prompts.length, selectedFolderId, createPromptMutation]);
 
   // Handle save prompt form
   const handleSavePrompt = () => {
@@ -295,7 +298,8 @@ export default function PromptsSection({
           setSelectedId(item._id);
           setIsEditing(false);
         }}
-        onAddItem={(folderId) => handleCreateNewPrompt(folderId)}
+        onAddItem={canEdit ? (folderId) => handleCreateNewPrompt(folderId) : undefined}
+        canEdit={canEdit}
         isLight={isLight}
         isSidebarCollapsed={isSidebarCollapsed}
         onCloseSidebar={() => setIsSidebarCollapsed(true)}
@@ -369,29 +373,31 @@ export default function PromptsSection({
                   <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
 
-                <Tooltip title="Move to folder">
-                  <button
-                    type="button"
-                    onClick={() => setMoveModalOpen(true)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      padding: '3px 6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
-                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
-                  >
-                    <RiFolderTransferLine size={13} />
-                    <span>Move</span>
-                  </button>
-                </Tooltip>
+                {canEdit && (
+                  <Tooltip title="Move to folder">
+                    <button
+                      type="button"
+                      onClick={() => setMoveModalOpen(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                      onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                    >
+                      <RiFolderTransferLine size={13} />
+                      <span>Move</span>
+                    </button>
+                  </Tooltip>
+                )}
 
                 {selectedItem.model && (
                   <Tag color="purple" style={{ margin: 0, borderRadius: '4px', fontSize: '10.5px', fontWeight: 600 }}>
@@ -420,58 +426,66 @@ export default function PromptsSection({
                 </Button>
 
                 {/* Edit / Save Toggle */}
-                {isEditing ? (
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<RiSaveLine />}
-                    loading={updatePromptMutation.isPending}
-                    onClick={handleSavePrompt}
-                    style={{
-                      background: accent,
-                      borderColor: accent,
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                    }}
-                  >
-                    Save
-                  </Button>
+                {canEdit ? (
+                  isEditing ? (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<RiSaveLine />}
+                      loading={updatePromptMutation.isPending}
+                      onClick={handleSavePrompt}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                      }}
+                    >
+                      Save
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      icon={<RiEditLine />}
+                      onClick={() => setIsEditing(true)}
+                      style={{ borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      Edit
+                    </Button>
+                  )
                 ) : (
-                  <Button
-                    size="small"
-                    icon={<RiEditLine />}
-                    onClick={() => setIsEditing(true)}
-                    style={{ borderRadius: '6px', fontSize: '12px' }}
-                  >
-                    Edit
-                  </Button>
+                  <Tag style={{ margin: 0, borderRadius: '4px', fontSize: '11px' }}>Read-Only</Tag>
                 )}
 
                 {/* Pin Button */}
-                <PinButton
-                  isPinned={selectedItem.isPinned}
-                  onToggle={() => pinMutation.mutate(selectedItem._id)}
-                  isLight={isLight}
-                />
+                {canEdit && (
+                  <PinButton
+                    isPinned={selectedItem.isPinned}
+                    onToggle={() => pinMutation.mutate(selectedItem._id)}
+                    isLight={isLight}
+                  />
+                )}
 
                 {/* Delete Button */}
-                <Popconfirm
-                  title="Delete Prompt"
-                  description="Are you sure you want to delete this prompt?"
-                  okText="Delete"
-                  okType="danger"
-                  cancelText="Cancel"
-                  onConfirm={() => deletePromptMutation.mutate(selectedItem._id)}
-                >
-                  <Button
-                    danger
-                    type="text"
-                    size="small"
-                    icon={<RiDeleteBinLine size={15} />}
-                    style={{ borderRadius: '6px' }}
-                  />
-                </Popconfirm>
+                {canEdit && (
+                  <Popconfirm
+                    title="Delete Prompt"
+                    description="Are you sure you want to delete this prompt?"
+                    okText="Delete"
+                    okType="danger"
+                    cancelText="Cancel"
+                    onConfirm={() => deletePromptMutation.mutate(selectedItem._id)}
+                  >
+                    <Button
+                      danger
+                      type="text"
+                      size="small"
+                      icon={<RiDeleteBinLine size={15} />}
+                      style={{ borderRadius: '6px' }}
+                    />
+                  </Popconfirm>
+                )}
               </div>
             </div>
 
@@ -767,20 +781,22 @@ export default function PromptsSection({
             >
               Select a prompt from the folder tree on the left, or create a new prompt directly in {currentFolderPath}.
             </p>
-            <Button
-              type="primary"
-              icon={<RiAddLine />}
-              onClick={() => handleCreateNewPrompt(selectedFolderId)}
-              style={{
-                background: accent,
-                borderColor: accent,
-                borderRadius: '6px',
-                fontWeight: 600,
-                padding: '6px 18px',
-              }}
-            >
-              Create Prompt
-            </Button>
+            {canEdit && (
+              <Button
+                type="primary"
+                icon={<RiAddLine />}
+                onClick={() => handleCreateNewPrompt(selectedFolderId)}
+                style={{
+                  background: accent,
+                  borderColor: accent,
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  padding: '6px 18px',
+                }}
+              >
+                Create Prompt
+              </Button>
+            )}
           </div>
         )}
       </main>

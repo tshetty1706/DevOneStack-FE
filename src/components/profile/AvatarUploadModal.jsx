@@ -62,8 +62,10 @@ export default function AvatarUploadModal({ open, onClose }) {
 
   const syncUserAcrossApp = (updatedUser) => {
     setUser(updatedUser);
-    localStorage.setItem('dos_profile_name', updatedUser.displayName || updatedUser.username || '');
-    localStorage.setItem('dos_profile_avatar', updatedUser.avatarUrl || '');
+    if (updatedUser?._id) {
+      localStorage.setItem(`dos_profile_name_${updatedUser._id}`, updatedUser.displayName || updatedUser.username || '');
+      localStorage.setItem(`dos_profile_avatar_${updatedUser._id}`, updatedUser.avatarUrl || '');
+    }
     window.dispatchEvent(new Event('profile_update'));
   };
 

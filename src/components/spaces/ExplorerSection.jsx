@@ -33,6 +33,8 @@ export default function ExplorerSection({
   highlightFolderId,
   selectedFolderId,
   onSelectFolder,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
 
@@ -332,48 +334,50 @@ export default function ExplorerSection({
         </div>
 
         {/* Right action buttons: Add Folder & Add Item */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setNewFolderParentId(currentFolderId);
-              setCreateFolderModalOpen(true);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              border: `1px solid ${cardBorder}`,
-              background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.05)',
-              color: textColor,
-              fontSize: '12.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <RiFolderLine size={15} />
-            <span>+ New Folder</span>
-          </button>
+        {canEdit && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setNewFolderParentId(currentFolderId);
+                setCreateFolderModalOpen(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${cardBorder}`,
+                background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.05)',
+                color: textColor,
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <RiFolderLine size={15} />
+              <span>+ New Folder</span>
+            </button>
 
-          {/* Add Item Dropdown Trigger */}
-          <Select
-            placeholder="+ Add Item"
-            style={{ width: 130 }}
-            value={null}
-            onChange={(type) => setAddItemType(type)}
-            options={[
-              { value: 'note', label: '+ Note' },
-              { value: 'doc', label: '+ Doc' },
-              { value: 'snippet', label: '+ Snippet' },
-              { value: 'learning', label: '+ Learning' },
-              { value: 'prompt', label: '+ Prompt' },
-              { value: 'repo', label: '+ Repository' },
-            ]}
-          />
-        </div>
+            {/* Add Item Dropdown Trigger */}
+            <Select
+              placeholder="+ Add Item"
+              style={{ width: 130 }}
+              value={null}
+              onChange={(type) => setAddItemType(type)}
+              options={[
+                { value: 'note', label: '+ Note' },
+                { value: 'doc', label: '+ Doc' },
+                { value: 'snippet', label: '+ Snippet' },
+                { value: 'learning', label: '+ Learning' },
+                { value: 'prompt', label: '+ Prompt' },
+                { value: 'repo', label: '+ Repository' },
+              ]}
+            />
+          </div>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
@@ -549,26 +553,28 @@ export default function ExplorerSection({
 
               {/* 3-dots Folder Actions */}
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFolderToRename(folder);
-                    setRenamedFolderName(folder.name);
-                    setRenameFolderModalOpen(true);
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: textMuted,
-                    cursor: 'pointer',
-                    padding: '4px',
-                    borderRadius: '4px',
-                  }}
-                  title="Folder actions"
-                >
-                  <RiMore2Fill size={16} />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFolderToRename(folder);
+                      setRenamedFolderName(folder.name);
+                      setRenameFolderModalOpen(true);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: textMuted,
+                      cursor: 'pointer',
+                      padding: '4px',
+                      borderRadius: '4px',
+                    }}
+                    title="Folder actions"
+                  >
+                    <RiMore2Fill size={16} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -691,26 +697,28 @@ export default function ExplorerSection({
                     </button>
                   </Tooltip>
 
-                  <Tooltip title="Move to Folder">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setItemToMove(item);
-                        setTargetFolderId(item.folderId || null);
-                        setMoveItemModalOpen(true);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: textMuted,
-                        cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      <RiFolderTransferLine size={15} />
-                    </button>
-                  </Tooltip>
+                  {canEdit && (
+                    <Tooltip title="Move to Folder">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setItemToMove(item);
+                          setTargetFolderId(item.folderId || null);
+                          setMoveItemModalOpen(true);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: textMuted,
+                          cursor: 'pointer',
+                          padding: '4px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        <RiFolderTransferLine size={15} />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
               </div>
             );

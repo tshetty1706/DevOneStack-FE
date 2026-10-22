@@ -24,24 +24,30 @@ export default function DashboardNav({ onSearchOpen, onNewSpaceClick, onToggleSi
     }
   }, [user]);
 
-  const [localAvatar, setLocalAvatar] = useState(() => localStorage.getItem('dos_profile_avatar') || '');
-  const [localName, setLocalName] = useState(() => localStorage.getItem('dos_profile_name') || '');
+  const [localAvatar, setLocalAvatar] = useState(() => (user?._id ? localStorage.getItem(`dos_profile_avatar_${user._id}`) : '') || '');
+  const [localName, setLocalName] = useState(() => (user?._id ? localStorage.getItem(`dos_profile_name_${user._id}`) : '') || '');
 
-  // Listen for global profile updates
+  // Listen for global profile updates and sync when user changes
   useEffect(() => {
     const handleProfileUpdate = () => {
-      setLocalAvatar(localStorage.getItem('dos_profile_avatar') || '');
-      setLocalName(localStorage.getItem('dos_profile_name') || '');
+      if (user?._id) {
+        setLocalAvatar(localStorage.getItem(`dos_profile_avatar_${user._id}`) || '');
+        setLocalName(localStorage.getItem(`dos_profile_name_${user._id}`) || '');
+      } else {
+        setLocalAvatar('');
+        setLocalName('');
+      }
     };
+    handleProfileUpdate();
     window.addEventListener('profile_update', handleProfileUpdate);
     window.addEventListener('storage', handleProfileUpdate);
     return () => {
       window.removeEventListener('profile_update', handleProfileUpdate);
       window.removeEventListener('storage', handleProfileUpdate);
     };
-  }, []);
+  }, [user?._id]);
 
-  const avatarVal = user?.avatarUrl !== undefined ? user.avatarUrl : (localAvatar || '');
+  const avatarVal = user?.avatarUrl !== undefined && user?.avatarUrl !== '' ? user.avatarUrl : (localAvatar || '');
   const userName = user?.displayName || user?.username || localName || 'Your Name';
   const nameParts = userName.trim().split(/\s+/);
   const initials = nameParts.length > 1

@@ -14,6 +14,7 @@ import {
   RiDatabase2Line,
   RiServerLine,
   RiTerminalBoxLine,
+  RiLockLine,
 } from 'react-icons/ri';
 
 const ICONS = [RiStackLine, RiCodeSSlashLine, RiDatabase2Line, RiServerLine, RiTerminalBoxLine];
@@ -41,8 +42,30 @@ export default function PublicSpaceCard({ space, onCloned, variant = 'attached' 
 
   const [cloning, setCloning] = useState(false);
   const [cloneProgress, setCloneProgress] = useState(null);
+  const [expandedDesc, setExpandedDesc] = useState(false);
 
   if (!space) return null;
+
+  if (space.isUnavailable) {
+    return (
+      <div
+        style={{
+          background: isLight ? '#f9fafb' : '#0e1017',
+          border: `1px dashed ${isLight ? '#d1d5db' : 'rgba(255, 255, 255, 0.12)'}`,
+          borderRadius: '12px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          color: 'var(--text-secondary)',
+          fontSize: '13px',
+        }}
+      >
+        <RiLockLine size={18} style={{ opacity: 0.6 }} />
+        <span>This attached Space is private or no longer available.</span>
+      </div>
+    );
+  }
 
   const isOwner = user && (user._id === (space.owner?._id || space.owner) || user.id === (space.owner?._id || space.owner));
   const ownerUsername = space.owner?.username || space.ownerUsername || 'creator';
@@ -177,20 +200,50 @@ export default function PublicSpaceCard({ space, onCloned, variant = 'attached' 
 
         {/* Description */}
         {space.description && (
-          <p
-            style={{
-              margin: 0,
-              fontSize: '13px',
-              color: isLight ? '#64748b' : '#94a3b8',
-              lineHeight: 1.45,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {space.description}
-          </p>
+          <div style={{ marginTop: '2px' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '13px',
+                color: isLight ? '#64748b' : '#94a3b8',
+                lineHeight: 1.45,
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                ...(expandedDesc
+                  ? {}
+                  : {
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }),
+              }}
+            >
+              {space.description}
+            </p>
+            {space.description.length > 90 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedDesc(!expandedDesc);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '2px 0 0 0',
+                  color: isLight ? '#4f46e5' : '#818cf8',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                {expandedDesc ? 'Show less' : 'Read more'}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Tags Row */}

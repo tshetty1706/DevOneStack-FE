@@ -702,7 +702,7 @@ body.light-mode .glow-orb {
 }
 
 .hero-headline {
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: clamp(32px, 5vw, 52px);
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -1254,6 +1254,7 @@ body.light-mode .floating-badge svg {
 }
 
 @media (max-width: 768px) {
+
   .navbar-menu,
   .navbar-actions {
     display: none !important;
@@ -1581,23 +1582,28 @@ body.light-mode .floating-badge svg {
     flex-direction: column;
     height: auto;
   }
+
   .db-sidebar {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--nav-border);
     padding: 10px 14px;
   }
+
   .db-menu {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 4px;
   }
+
   .db-menu-item-bottom {
     display: none;
   }
+
   .db-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .db-main {
     padding: 14px;
   }
@@ -1915,7 +1921,8 @@ body {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #818cf8 !important; /* purple accent matching screenshot */
+  color: #818cf8 !important;
+  /* purple accent matching screenshot */
   transition: gap 0.2s ease, color 0.2s ease;
   margin-top: auto;
   text-decoration: none;
@@ -1926,7 +1933,8 @@ body {
 }
 
 .dashboard-continue-card:hover .continue-link {
-  color: #9f7aea !important; /* slightly brighter violet on hover */
+  color: #9f7aea !important;
+  /* slightly brighter violet on hover */
 }
 
 .dashboard-continue-card:hover .continue-link svg {
@@ -2075,13 +2083,15 @@ body {
     max-width: calc(100vw - 32px) !important;
   }
 
-  .ant-popover-inner, .ant-popconfirm-inner {
+  .ant-popover-inner,
+  .ant-popconfirm-inner {
     max-width: calc(100vw - 32px) !important;
   }
 }
 
 /* Code block & pre horizontal scroll containment */
-pre, code {
+pre,
+code {
   max-width: 100%;
   overflow-x: auto;
   word-break: break-word;
@@ -2094,11 +2104,12 @@ button:active:not(:disabled) {
 
 /* Accessible touch targets */
 @media (pointer: coarse) {
-  button, 
-  a, 
-  input[type="button"], 
-  input[type="submit"], 
+
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"],
   .ant-btn {
     min-height: 38px;
   }
-}
+}

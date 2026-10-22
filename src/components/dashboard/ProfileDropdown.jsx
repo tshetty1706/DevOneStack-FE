@@ -14,13 +14,16 @@ export default function ProfileDropdown({ onClose }) {
   const navigate = useNavigate();
   const isLight = theme === 'light';
 
-  const [userName, setUserName] = useState(() => user?.displayName || user?.username || localStorage.getItem('dos_profile_name') || 'Your Name');
-  const [avatarVal, setAvatarVal] = useState(() => (user?.avatarUrl !== undefined ? user.avatarUrl : localStorage.getItem('dos_profile_avatar')) || '');
+  const [userName, setUserName] = useState(() => user?.displayName || user?.username || (user?._id ? localStorage.getItem(`dos_profile_name_${user._id}`) : null) || 'Your Name');
+  const [avatarVal, setAvatarVal] = useState(() => (user?.avatarUrl !== undefined && user?.avatarUrl !== '' ? user.avatarUrl : (user?._id ? localStorage.getItem(`dos_profile_avatar_${user._id}`) : '')) || '');
 
   const loadProfile = () => {
     if (user) {
-      setUserName(user.displayName || user.username || localStorage.getItem('dos_profile_name') || user.email?.split('@')[0] || 'Developer');
-      setAvatarVal(user.avatarUrl !== undefined ? user.avatarUrl : (localStorage.getItem('dos_profile_avatar') || ''));
+      setUserName(user.displayName || user.username || (user._id ? localStorage.getItem(`dos_profile_name_${user._id}`) : null) || user.email?.split('@')[0] || 'Developer');
+      setAvatarVal(user.avatarUrl !== undefined && user.avatarUrl !== '' ? user.avatarUrl : (user._id ? localStorage.getItem(`dos_profile_avatar_${user._id}`) : '') || '');
+    } else {
+      setUserName('Your Name');
+      setAvatarVal('');
     }
   };
 

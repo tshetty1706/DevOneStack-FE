@@ -156,10 +156,20 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
     message.success('Request link copied to clipboard!');
   };
 
+  const isCloned = Boolean(space?.clonedFrom);
+  const allowCollaborators = !isCloned || space?.clonePermissions?.allowCollaborators !== false;
+  const allowOthersToClone = !isCloned || space?.clonePermissions?.allowOthersToClone !== false;
+  const allowPublishing = !isCloned || space?.clonePermissions?.allowPublishing !== false;
+
   const handleToggleVisibility = async (newVis) => {
     if (newVis === currentVisibility) return;
 
     if (newVis === 'public') {
+      if (!allowPublishing) {
+        message.warning('Publishing has been disabled for this cloned Space.');
+        return;
+      }
+
       Modal.confirm({
         title: 'Make Space Public?',
         icon: <RiAlertLine style={{ color: '#f59e0b' }} />,
@@ -239,8 +249,18 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
             ),
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
+                {!allowCollaborators && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Collaboration Disabled"
+                    description="Collaboration was disabled for this cloned Space by the original owner. You cannot invite collaborators."
+                    style={{ borderRadius: '10px' }}
+                  />
+                )}
+
                 {/* Invite Form */}
-                {isOwner && (
+                {isOwner && allowCollaborators && (
                   <div
                     style={{
                       display: 'flex',
@@ -281,7 +301,7 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                      Active Members ({collaborators.length}/5)
+                      Active Members ({collaborators.length}/10)
                     </div>
 
                     {collaborators.length === 0 ? (
@@ -386,6 +406,16 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
             ),
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
+                {!allowOthersToClone && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Further Cloning Disabled"
+                    description="Further cloning was disabled for this cloned Space by the original owner. You cannot enable a request link."
+                    style={{ borderRadius: '10px' }}
+                  />
+                )}
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-color)' }}>
@@ -396,6 +426,7 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
                     </div>
                   </div>
                   <Switch
+                    disabled={!allowOthersToClone}
                     checked={requestLinkEnabled}
                     loading={savingRequestLink}
                     onChange={(val) => {
@@ -405,7 +436,7 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
                   />
                 </div>
 
-                {requestLinkEnabled && (
+                {allowOthersToClone && requestLinkEnabled && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {/* Link display & copy */}
                     <div>
@@ -460,6 +491,16 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
             ),
             children: (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
+                {!allowPublishing && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Publishing Disabled"
+                    description="Publishing was disabled for this cloned Space by the original owner. This Space must remain private."
+                    style={{ borderRadius: '10px' }}
+                  />
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {/* Private Option */}
                   <div
@@ -487,7 +528,13 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
 
                   {/* Public Option */}
                   <div
-                    onClick={() => handleToggleVisibility('public')}
+                    onClick={() => {
+                      if (!allowPublishing) {
+                        message.warning('Publishing has been disabled for this cloned Space.');
+                        return;
+                      }
+                      handleToggleVisibility('public');
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -496,7 +543,8 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
                       borderRadius: '12px',
                       border: `2px solid ${currentVisibility === 'public' ? 'var(--accent-color)' : isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)'}`,
                       background: currentVisibility === 'public' ? (isLight ? 'rgba(99,102,241,0.04)' : 'rgba(99,102,241,0.1)') : 'transparent',
-                      cursor: 'pointer',
+                      cursor: allowPublishing ? 'pointer' : 'not-allowed',
+                      opacity: allowPublishing ? 1 : 0.5,
                       transition: 'all 0.2s',
                     }}
                   >
@@ -504,7 +552,9 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-color)' }}>Public</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Anyone can view, star, and discover this Space in the Community.
+                        {allowPublishing
+                          ? 'Anyone can view, star, and discover this Space in the Community.'
+                          : 'Publishing is disabled for this cloned Space.'}
                       </div>
                     </div>
                   </div>

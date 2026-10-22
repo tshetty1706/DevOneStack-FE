@@ -6,6 +6,7 @@ import {
   RiPlayLine, RiPauseLine, RiStopLine,
 } from 'react-icons/ri';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 const STACK_OPTIONS = [
   { value: 'react', label: 'React' },
@@ -24,6 +25,9 @@ function formatTime(secs) {
 
 export default function TodaysFocus() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const userId = user?._id || user?.id;
+
   const isLight = theme === 'light';
 
   // Colors
@@ -46,55 +50,75 @@ export default function TodaysFocus() {
     transition: 'border-color 0.15s ease, color 0.15s ease',
   };
 
+  const goalKey = userId ? `dos_focus_goal_${userId}` : 'dos_focus_goal';
+  const stackKey = userId ? `dos_focus_stack_${userId}` : 'dos_focus_stack';
+  const timerKey = userId ? `dos_timer_start_${userId}` : 'dos_timer_start';
+
   // Persisted state
-  const [goal, setGoal] = useState(() => localStorage.getItem('dos_focus_goal') || '');
-  const [stack, setStack] = useState(() => localStorage.getItem('dos_focus_stack') || 'react');
+  const [goal, setGoal] = useState(() => localStorage.getItem(goalKey) || '');
+  const [stack, setStack] = useState(() => localStorage.getItem(stackKey) || 'react');
 
   // Timer
   const [timerSecs, setTimerSecs] = useState(() => {
-    const ts = localStorage.getItem('dos_timer_start');
+    const ts = localStorage.getItem(timerKey);
     if (ts) return Math.floor((Date.now() - parseInt(ts)) / 1000);
     return 0;
   });
-  const [running, setRunning] = useState(() => !!localStorage.getItem('dos_timer_start'));
+  const [running, setRunning] = useState(() => !!localStorage.getItem(timerKey));
   const intervalRef = useRef(null);
+
+  // Sync state when authenticated user changes
+  useEffect(() => {
+    const currentGoal = localStorage.getItem(goalKey) || '';
+    const currentStack = localStorage.getItem(stackKey) || 'react';
+    const ts = localStorage.getItem(timerKey);
+    setGoal(currentGoal);
+    setStack(currentStack);
+    if (ts) {
+      setTimerSecs(Math.floor((Date.now() - parseInt(ts)) / 1000));
+      setRunning(true);
+    } else {
+      setTimerSecs(0);
+      setRunning(false);
+    }
+  }, [userId, goalKey, stackKey, timerKey]);
 
   useEffect(() => {
     if (running) {
       intervalRef.current = setInterval(() => {
-        const ts = localStorage.getItem('dos_timer_start');
+        const ts = localStorage.getItem(timerKey);
         if (ts) setTimerSecs(Math.floor((Date.now() - parseInt(ts)) / 1000));
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
     }
     return () => clearInterval(intervalRef.current);
-  }, [running]);
+  }, [running, timerKey]);
 
   const handleStart = () => {
     if (!running) {
       const now = Date.now() - timerSecs * 1000;
-      localStorage.setItem('dos_timer_start', String(now));
+      localStorage.setItem(timerKey, String(now));
       setRunning(true);
     } else {
       // Pause
       clearInterval(intervalRef.current);
-      localStorage.removeItem('dos_timer_start');
+      localStorage.removeItem(timerKey);
       setRunning(false);
     }
   };
 
   const handleStop = () => {
     clearInterval(intervalRef.current);
-    localStorage.removeItem('dos_timer_start');
+    localStorage.removeItem(timerKey);
     setRunning(false);
     setTimerSecs(0);
   };
 
-  const handleGoalBlur = (e) => localStorage.setItem('dos_focus_goal', e.target.value);
+  const handleGoalBlur = (e) => localStorage.setItem(goalKey, e.target.value);
   const handleStackChange = (val) => {
     setStack(val);
-    localStorage.setItem('dos_focus_stack', val);
+    localStorage.setItem(stackKey, val);
   };
 
   return (

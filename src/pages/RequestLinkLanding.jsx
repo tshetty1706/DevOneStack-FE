@@ -23,6 +23,26 @@ export default function RequestLinkLanding() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    let added = false;
+    if (!robotsMeta) {
+      robotsMeta = document.createElement('meta');
+      robotsMeta.name = 'robots';
+      robotsMeta.content = 'noindex, nofollow';
+      document.head.appendChild(robotsMeta);
+      added = true;
+    } else {
+      robotsMeta.setAttribute('content', 'noindex, nofollow');
+    }
+
+    return () => {
+      if (added && robotsMeta && robotsMeta.parentNode) {
+        robotsMeta.parentNode.removeChild(robotsMeta);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (token) {
       fetchRequestInfo();
     }
@@ -135,7 +155,7 @@ export default function RequestLinkLanding() {
               Request Sent!
             </h2>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Your clone request has been delivered to <strong>@{spaceInfo?.ownerUsername}</strong>. Once approved, you can create a private copy in your workspace via your Inbox.
+              Your clone request has been delivered to <strong>@{spaceInfo?.ownerUsername || spaceInfo?.owner?.username || 'Owner'}</strong>. Once approved, you can create a private copy in your workspace via your Inbox.
             </p>
             <Button
               type="primary"
@@ -170,7 +190,7 @@ export default function RequestLinkLanding() {
                   Private Space Request
                 </span>
                 <h1 style={{ margin: '2px 0 0', fontSize: '22px', fontWeight: 800, color: 'var(--text-color)', fontFamily: 'var(--font-display)' }}>
-                  {spaceInfo?.spaceName}
+                  {spaceInfo?.spaceName || spaceInfo?.name || 'Space'}
                 </h1>
               </div>
             </div>
@@ -189,7 +209,7 @@ export default function RequestLinkLanding() {
             >
               <RiShieldUserLine size={18} color="var(--text-secondary)" />
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Owner: <strong>@{spaceInfo?.ownerUsername}</strong>
+                Owner: <strong>@{spaceInfo?.ownerUsername || spaceInfo?.owner?.username || 'Owner'}</strong>
               </span>
             </div>
 

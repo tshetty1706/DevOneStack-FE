@@ -23,18 +23,7 @@ import NotFoundPage from './pages/NotFoundPage';
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-
-// High-efficiency TanStack QueryClient with reasonable staleTime and gcTime
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 3, // 3 minutes stale time to avoid duplicate requests
-      gcTime: 1000 * 60 * 10,   // 10 minutes cache retention
-      retry: 1,
-    },
-  },
-});
+import queryClient from './queryClient';
 
 function PageLoadingFallback() {
   return (

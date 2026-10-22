@@ -8,6 +8,7 @@ import { spacesApi } from '../api/spacesApi';
 import { inboxApi } from '../api/inboxApi';
 import CommunityPostCard from '../components/community/CommunityPostCard';
 import PublicSpaceCard from '../components/community/PublicSpaceCard';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import InboxModal from '../components/inbox/InboxModal';
 import UserMiniProfileModal from '../components/community/UserMiniProfileModal';
 import DashboardSidebar from '../components/dashboard/DashboardSidebar';
@@ -808,12 +809,13 @@ export default function Community() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                           {searchResults.posts.map((post) => (
-                            <CommunityPostCard
-                              key={post._id}
-                              post={post}
-                              onPostDeleted={handlePostDeleted}
-                              onPostUpdated={handlePostUpdated}
-                            />
+                            <ErrorBoundary key={post._id}>
+                              <CommunityPostCard
+                                post={post}
+                                onPostDeleted={handlePostDeleted}
+                                onPostUpdated={handlePostUpdated}
+                              />
+                            </ErrorBoundary>
                           ))}
                         </div>
                       </div>
@@ -945,13 +947,14 @@ export default function Community() {
                           value={newPostText}
                           onChange={(e) => setNewPostText(e.target.value)}
                           maxLength={500}
-                          rows={2}
+                          autoSize={{ minRows: 2, maxRows: 12 }}
                           style={{
                             background: 'transparent',
                             border: 'none',
                             boxShadow: 'none',
                             padding: '4px 0',
                             fontSize: '14.5px',
+                            lineHeight: 1.55,
                             color: isLight ? '#0f172a' : '#ffffff',
                             resize: 'none',
                           }}
@@ -1186,13 +1189,14 @@ export default function Community() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {filteredFeedPosts.map((post) => (
-                      <CommunityPostCard
-                        key={post._id}
-                        post={post}
-                        onPostDeleted={handlePostDeleted}
-                        onPostUpdated={handlePostUpdated}
-                        onFollowChange={() => fetchPosts(1, activeTab, true)}
-                      />
+                      <ErrorBoundary key={post._id}>
+                        <CommunityPostCard
+                          post={post}
+                          onPostDeleted={handlePostDeleted}
+                          onPostUpdated={handlePostUpdated}
+                          onFollowChange={() => fetchPosts(1, activeTab, true)}
+                        />
+                      </ErrorBoundary>
                     ))}
 
                     {/* Load More Button */}

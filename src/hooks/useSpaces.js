@@ -1,19 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import spacesApi from '../api/spacesApi';
+import { useAuth } from '../context/AuthContext';
 import { message } from 'antd';
 
 export const spaceKeys = {
   all: ['spaces'],
+  userAll: (userId) => ['spaces', userId || 'guest'],
+  userList: (userId, params) => ['spaces', userId || 'guest', 'list', params],
   list: (params) => ['spaces', 'list', params],
   detail: (id) => ['spaces', 'detail', id],
   history: (id) => ['spaces', 'history', id],
 };
 
 export function useSpaces(params) {
+  const { user } = useAuth();
+  const userId = user?._id || user?.id;
+
   return useQuery({
-    queryKey: params ? spaceKeys.list(params) : spaceKeys.all,
+    queryKey: params ? spaceKeys.userList(userId, params) : spaceKeys.userAll(userId),
     queryFn: () => spacesApi.getSpaces(params),
-    staleTime: 1000 * 60 * 5, // 5 min
+    staleTime: 1000 * 60 * 3, // 3 min
   });
 }
 

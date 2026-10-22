@@ -48,6 +48,8 @@ export default function SnippetsSection({
   selectedFolderId: propFolderId,
   onSelectFolder: propOnSelectFolder,
   onNavigateSection,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
@@ -205,6 +207,7 @@ export default function SnippetsSection({
 
   // Handle direct creation of new snippet
   const handleCreateNewSnippet = useCallback((targetFolderId) => {
+    if (!canEdit) return;
     const validFolderId = (targetFolderId !== undefined && targetFolderId !== 'undefined')
       ? (targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null)
       : (selectedFolderId && selectedFolderId !== 'root' && selectedFolderId !== 'null' ? selectedFolderId : null);
@@ -219,7 +222,7 @@ export default function SnippetsSection({
       code: '// Start writing your code here...\n\nfunction example() {\n  console.log("Hello from DevOneStack!");\n}',
       caption: '',
     });
-  }, [snippets.length, selectedFolderId, createSnippetMutation]);
+  }, [canEdit, snippets.length, selectedFolderId, createSnippetMutation]);
 
   // Handle save form
   const handleSaveSnippet = () => {
@@ -291,7 +294,8 @@ export default function SnippetsSection({
           setSelectedId(item._id);
           setIsEditing(false);
         }}
-        onAddItem={(folderId) => handleCreateNewSnippet(folderId)}
+        onAddItem={canEdit ? (folderId) => handleCreateNewSnippet(folderId) : undefined}
+        canEdit={canEdit}
         isLight={isLight}
         isSidebarCollapsed={isSidebarCollapsed}
         onCloseSidebar={() => setIsSidebarCollapsed(true)}
@@ -365,29 +369,31 @@ export default function SnippetsSection({
                   <span>{selectedItem.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
 
-                <Tooltip title="Move to folder">
-                  <button
-                    type="button"
-                    onClick={() => setMoveModalOpen(true)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      padding: '3px 6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
-                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
-                  >
-                    <RiFolderTransferLine size={13} />
-                    <span>Move</span>
-                  </button>
-                </Tooltip>
+                {canEdit && (
+                  <Tooltip title="Move to folder">
+                    <button
+                      type="button"
+                      onClick={() => setMoveModalOpen(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                      onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                    >
+                      <RiFolderTransferLine size={13} />
+                      <span>Move</span>
+                    </button>
+                  </Tooltip>
+                )}
               </div>
 
               {/* Right: Actions (Copy, Edit / Save, Pin, Delete) */}
@@ -410,61 +416,69 @@ export default function SnippetsSection({
                 </Button>
 
                 {/* Edit / Save Toggle */}
-                {isEditing ? (
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<RiSaveLine />}
-                    loading={updateSnippetMutation.isPending}
-                    onClick={handleSaveSnippet}
-                    style={{
-                      background: accent,
-                      borderColor: accent,
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                    }}
-                  >
-                    Save
-                  </Button>
+                {canEdit ? (
+                  isEditing ? (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<RiSaveLine />}
+                      loading={updateSnippetMutation.isPending}
+                      onClick={handleSaveSnippet}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                      }}
+                    >
+                      Save
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      icon={<RiEditLine />}
+                      onClick={() => setIsEditing(true)}
+                      style={{
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )
                 ) : (
-                  <Button
-                    size="small"
-                    icon={<RiEditLine />}
-                    onClick={() => setIsEditing(true)}
-                    style={{
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                    }}
-                  >
-                    Edit
-                  </Button>
+                  <Tag style={{ margin: 0, borderRadius: '4px', fontSize: '11px' }}>Read-Only</Tag>
                 )}
 
                 {/* Pin Button */}
-                <PinButton
-                  isPinned={selectedItem.isPinned}
-                  onToggle={() => pinMutation.mutate(selectedItem._id)}
-                  isLight={isLight}
-                />
+                {canEdit && (
+                  <PinButton
+                    isPinned={selectedItem.isPinned}
+                    onToggle={() => pinMutation.mutate(selectedItem._id)}
+                    isLight={isLight}
+                  />
+                )}
 
                 {/* Delete Button */}
-                <Popconfirm
-                  title="Delete Snippet"
-                  description="Are you sure you want to delete this snippet?"
-                  okText="Delete"
-                  okType="danger"
-                  cancelText="Cancel"
-                  onConfirm={() => deleteSnippetMutation.mutate(selectedItem._id)}
-                >
-                  <Button
-                    danger
-                    type="text"
-                    size="small"
-                    icon={<RiDeleteBinLine size={15} />}
-                    style={{ borderRadius: '6px' }}
-                  />
-                </Popconfirm>
+                {canEdit && (
+                  <Popconfirm
+                    title="Delete Snippet"
+                    description="Are you sure you want to delete this snippet?"
+                    okText="Delete"
+                    okType="danger"
+                    cancelText="Cancel"
+                    onConfirm={() => deleteSnippetMutation.mutate(selectedItem._id)}
+                  >
+                    <Button
+                      danger
+                      type="text"
+                      size="small"
+                      icon={<RiDeleteBinLine size={15} />}
+                      style={{ borderRadius: '6px' }}
+                    />
+                  </Popconfirm>
+                )}
               </div>
             </div>
 
@@ -763,20 +777,22 @@ export default function SnippetsSection({
             >
               Select a snippet from the folder tree on the left, or create a new snippet directly in {currentFolderPath}.
             </p>
-            <Button
-              type="primary"
-              icon={<RiAddLine />}
-              onClick={() => handleCreateNewSnippet(selectedFolderId)}
-              style={{
-                background: accent,
-                borderColor: accent,
-                borderRadius: '6px',
-                fontWeight: 600,
-                padding: '6px 18px',
-              }}
-            >
-              Create Snippet
-            </Button>
+            {canEdit && (
+              <Button
+                type="primary"
+                icon={<RiAddLine />}
+                onClick={() => handleCreateNewSnippet(selectedFolderId)}
+                style={{
+                  background: accent,
+                  borderColor: accent,
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  padding: '6px 18px',
+                }}
+              >
+                Create Snippet
+              </Button>
+            )}
           </div>
         )}
       </main>

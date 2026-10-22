@@ -24,6 +24,8 @@ export default function NotesSection({
   selectedFolderId: propFolderId,
   onSelectFolder: propOnSelectFolder,
   onNavigateSection,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
 
@@ -49,6 +51,7 @@ export default function NotesSection({
   const [noteContent, setNoteContent] = useState('');
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'unsaved'
   const [viewMode, setViewMode] = useState('write'); // 'write', 'preview', 'split'
+  const effectiveViewMode = !canEdit ? 'preview' : viewMode;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [localFolderId, setLocalFolderId] = useState(null);
   const selectedFolderId = propFolderId !== undefined ? propFolderId : localFolderId;
@@ -387,6 +390,7 @@ export default function NotesSection({
         onCloseSidebar={() => setIsSidebarCollapsed(true)}
         mobileSidebarVisible={mobileSidebarVisible}
         hasActiveItem={!!activeNote}
+        canEdit={canEdit}
       />
 
       {/* ── RIGHT COLUMN: MAIN EDITOR / EMPTY STATE AREA ── */}
@@ -492,55 +496,61 @@ export default function NotesSection({
               </p>
 
               {/* Action Buttons: [+ New Note] and [Upload Markdown] */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                flexWrap: 'wrap',
-                maxWidth: '100%',
-              }}>
-                <Button
-                  type="primary"
-                  icon={<RiAddLine />}
-                  onClick={() => handleCreateNewNote(selectedFolderId || null)}
-                  style={{
-                    background: accent,
-                    borderColor: accent,
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    height: '36px',
-                    padding: '0 16px',
-                  }}
-                >
-                  New Note
-                </Button>
+              {canEdit ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                  maxWidth: '100%',
+                }}>
+                  <Button
+                    type="primary"
+                    icon={<RiAddLine />}
+                    onClick={() => handleCreateNewNote(selectedFolderId || null)}
+                    style={{
+                      background: accent,
+                      borderColor: accent,
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      height: '36px',
+                      padding: '0 16px',
+                    }}
+                  >
+                    New Note
+                  </Button>
 
-                <Button
-                  icon={<RiUploadCloudLine />}
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
-                    borderColor: cardBorder,
-                    color: textColor,
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    height: '36px',
-                    padding: '0 16px',
-                  }}
-                >
-                  Upload Markdown
-                </Button>
+                  <Button
+                    icon={<RiUploadCloudLine />}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+                      borderColor: cardBorder,
+                      color: textColor,
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      height: '36px',
+                      padding: '0 16px',
+                    }}
+                  >
+                    Upload Markdown
+                  </Button>
 
-                {/* Hidden file input for Markdown Upload */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleMarkdownUpload}
-                  accept=".md,.markdown,.txt,text/markdown,text/plain"
-                  style={{ display: 'none' }}
-                />
-              </div>
+                  {/* Hidden file input for Markdown Upload */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleMarkdownUpload}
+                    accept=".md,.markdown,.txt,text/markdown,text/plain"
+                    style={{ display: 'none' }}
+                  />
+                </div>
+              ) : (
+                <p style={{ fontSize: '12px', color: textMuted, fontStyle: 'italic' }}>
+                  Select a note from the sidebar to view.
+                </p>
+              )}
             </div>
           ) : (
             /* ── Active Note Editor View ── */
@@ -641,79 +651,97 @@ export default function NotesSection({
 
                 {/* Status & Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  {/* Read-Only Indicator */}
+                  {!canEdit && (
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.06)',
+                      color: textMuted,
+                    }}>
+                      Read-Only
+                    </span>
+                  )}
+
                   {/* Save Status Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: textMuted }}>
-                    {saveStatus === 'saving' && (
-                      <>
-                        <RiLoader4Line size={13} className="animate-spin" style={{ color: accent }} />
-                        <span>Saving...</span>
-                      </>
-                    )}
-                    {saveStatus === 'saved' && (
-                      <>
-                        <RiCheckLine size={14} style={{ color: '#10b981' }} />
-                        <span style={{ color: '#10b981', fontWeight: 600 }}>Saved</span>
-                      </>
-                    )}
-                    {saveStatus === 'unsaved' && (
-                      <>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
-                        <span>Unsaved</span>
-                      </>
-                    )}
-                  </div>
+                  {canEdit && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: textMuted }}>
+                      {saveStatus === 'saving' && (
+                        <>
+                          <RiLoader4Line size={13} className="animate-spin" style={{ color: accent }} />
+                          <span>Saving...</span>
+                        </>
+                      )}
+                      {saveStatus === 'saved' && (
+                        <>
+                          <RiCheckLine size={14} style={{ color: '#10b981' }} />
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>Saved</span>
+                        </>
+                      )}
+                      {saveStatus === 'unsaved' && (
+                        <>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
+                          <span>Unsaved</span>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {/* View Mode Toggle: Write / Split / Preview */}
-                  <div style={{ display: 'flex', background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('write')}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        background: viewMode === 'write' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
-                        color: viewMode === 'write' ? textColor : textMuted,
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Write
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('split')}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        background: viewMode === 'split' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
-                        color: viewMode === 'split' ? textColor : textMuted,
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Split
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('preview')}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        background: viewMode === 'preview' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
-                        color: viewMode === 'preview' ? textColor : textMuted,
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Preview
-                    </button>
-                  </div>
+                  {canEdit && (
+                    <div style={{ display: 'flex', background: isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('write')}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          background: viewMode === 'write' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
+                          color: viewMode === 'write' ? textColor : textMuted,
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Write
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('split')}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          background: viewMode === 'split' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
+                          color: viewMode === 'split' ? textColor : textMuted,
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Split
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('preview')}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          background: viewMode === 'preview' ? (isLight ? '#fff' : '#1e1e2d') : 'transparent',
+                          color: viewMode === 'preview' ? textColor : textMuted,
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  )}
 
                   {/* Fullscreen Toggle */}
                   <button
@@ -726,35 +754,39 @@ export default function NotesSection({
                   </button>
 
                   {/* Pin Button */}
-                  <button
-                    type="button"
-                    onClick={() => togglePinMutation.mutate(activeNote._id)}
-                    style={{ background: 'transparent', border: 'none', color: activeNote.isPinned ? '#eab308' : textMuted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                    title="Pin Note"
-                  >
-                    {activeNote.isPinned ? <RiPushpinFill size={16} /> : <RiPushpinLine size={16} />}
-                  </button>
-
-                  {/* Delete Note */}
-                  <Popconfirm
-                    title="Delete this note?"
-                    onConfirm={() => deleteNoteMutation.mutate(activeNote._id)}
-                    okText="Delete"
-                    okButtonProps={{ danger: true }}
-                  >
+                  {canEdit && (
                     <button
                       type="button"
-                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                      title="Delete Note"
+                      onClick={() => togglePinMutation.mutate(activeNote._id)}
+                      style={{ background: 'transparent', border: 'none', color: activeNote.isPinned ? '#eab308' : textMuted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      title="Pin Note"
                     >
-                      <RiDeleteBinLine size={16} />
+                      {activeNote.isPinned ? <RiPushpinFill size={16} /> : <RiPushpinLine size={16} />}
                     </button>
-                  </Popconfirm>
+                  )}
+
+                  {/* Delete Note */}
+                  {canEdit && (
+                    <Popconfirm
+                      title="Delete this note?"
+                      onConfirm={() => deleteNoteMutation.mutate(activeNote._id)}
+                      okText="Delete"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <button
+                        type="button"
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                        title="Delete Note"
+                      >
+                        <RiDeleteBinLine size={16} />
+                      </button>
+                    </Popconfirm>
+                  )}
                 </div>
               </div>
 
               {/* Markdown Toolbar */}
-              {viewMode !== 'preview' && (
+              {canEdit && effectiveViewMode !== 'preview' && (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -845,9 +877,10 @@ export default function NotesSection({
               <div style={{ padding: '10px 18px 6px', borderBottom: `1px solid ${cardBorder}`, flexShrink: 0 }}>
                 <input
                   type="text"
-                  placeholder="Note title..."
+                  placeholder={canEdit ? "Note title..." : "Untitled"}
                   value={noteTitle}
-                  onChange={handleTitleChange}
+                  onChange={canEdit ? handleTitleChange : undefined}
+                  readOnly={!canEdit}
                   style={{
                     width: '100%',
                     fontSize: '18px',
@@ -858,6 +891,7 @@ export default function NotesSection({
                     border: 'none',
                     outline: 'none',
                     paddingBottom: '2px',
+                    cursor: canEdit ? 'text' : 'default',
                   }}
                 />
               </div>
@@ -865,7 +899,7 @@ export default function NotesSection({
               {/* Editor Workspace Content Area */}
               <div style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', overflow: 'hidden' }}>
                 {/* Textarea (Write Mode / Split Mode) */}
-                {(viewMode === 'write' || viewMode === 'split') && (
+                {(effectiveViewMode === 'write' || effectiveViewMode === 'split') && (
                   <div style={{
                     flex: 1,
                     minWidth: 0,
@@ -873,7 +907,7 @@ export default function NotesSection({
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRight: viewMode === 'split' ? `1px solid ${cardBorder}` : 'none',
+                    borderRight: effectiveViewMode === 'split' ? `1px solid ${cardBorder}` : 'none',
                   }}>
                     <textarea
                       ref={textareaRef}
@@ -903,7 +937,7 @@ export default function NotesSection({
                 )}
 
                 {/* Markdown Preview (Preview Mode / Split Mode) */}
-                {(viewMode === 'preview' || viewMode === 'split') && (
+                {(effectiveViewMode === 'preview' || effectiveViewMode === 'split') && (
                   <div style={{
                     flex: 1,
                     minWidth: 0,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dropdown, message, Input, Button, Modal } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -18,6 +18,7 @@ import {
   RiSendPlaneFill,
   RiUserFollowLine,
   RiUserUnfollowLine,
+  RiReplyLine,
 } from 'react-icons/ri';
 
 function formatRelativeTime(dateStr) {
@@ -34,6 +35,29 @@ function formatRelativeTime(dateStr) {
   if (diffDays < 30) return `${diffDays}d ago`;
   const diffMonths = Math.floor(diffDays / 30);
   return `${diffMonths}mo ago`;
+}
+
+function renderFormattedText(text) {
+  if (!text) return '';
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: '#6366f1', textDecoration: 'underline', wordBreak: 'break-all' }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
 }
 
 export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, onFollowChange }) {
@@ -55,14 +79,28 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
 
+  // Single-level reply state
+  const [replyingToCommentId, setReplyingToCommentId] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(post.text || '');
+  const [editText, setEditText] = useState(post.text || post.description || '');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isExpandedText, setIsExpandedText] = useState(false);
 
   const [profileModalUser, setProfileModalUser] = useState(null);
 
   const author = post.author || {};
   const isAuthor = user && (user._id === author._id || user.id === author._id || user.username === author.username);
+
+  // Sync state with post props
+  useEffect(() => {
+    if (post.isLiked !== undefined) setLiked(post.isLiked);
+    if (post.likesCount !== undefined) setLikesCount(post.likesCount);
+    if (post.commentsCount !== undefined) setCommentsCount(post.commentsCount);
+    if (post.author?.isFollowing !== undefined) setFollowingAuthor(post.author.isFollowing);
+  }, [post.isLiked, post.likesCount, post.commentsCount, post.author?.isFollowing]);
 
   const handleToggleLike = async () => {
     if (!user) {
@@ -74,14 +112,20 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
     // Optimistic update
     const prevLiked = liked;
     const prevCount = likesCount;
-    setLiked(!prevLiked);
-    setLikesCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+    const nextLiked = !prevLiked;
+    const nextCount = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1;
+
+    setLiked(nextLiked);
+    setLikesCount(nextCount);
 
     try {
       setLikeLoading(true);
       const res = await communityApi.toggleLikePost(post._id);
       setLiked(res.isLiked);
       setLikesCount(res.likesCount);
+      if (onPostUpdated) {
+        onPostUpdated({ ...post, isLiked: res.isLiked, likesCount: res.likesCount });
+      }
     } catch (err) {
       // Revert on error
       setLiked(prevLiked);
@@ -150,10 +194,13 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
     try {
       setSubmittingComment(true);
       const res = await communityApi.createPostComment(post._id, { text: trimmed });
-      setComments((prev) => [res.comment, ...prev]);
-      setCommentsCount((prev) => prev + 1);
-      setNewCommentText('');
-      message.success('Comment posted.');
+      const newComment = res?.comment || res;
+      if (newComment && (newComment._id || newComment.text)) {
+        setComments((prev) => [newComment, ...prev.filter(Boolean)]);
+        setCommentsCount((prev) => prev + 1);
+        setNewCommentText('');
+        message.success('Comment posted.');
+      }
     } catch (err) {
       message.error(err.response?.data?.message || 'Failed to post comment.');
     } finally {
@@ -161,11 +208,68 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
+  const handleAddReply = async (parentCommentId) => {
+    if (!user) {
+      message.info('Please log in to reply.');
+      return;
+    }
+    const trimmed = replyText.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 500) {
+      message.error('Reply must not exceed 500 characters.');
+      return;
+    }
+
+    try {
+      setSubmittingReply(true);
+      const res = await communityApi.createPostComment(post._id, { text: trimmed, parentCommentId });
+      const newReply = res?.comment || res;
+      if (newReply && (newReply._id || newReply.text)) {
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c._id === parentCommentId) {
+              return {
+                ...c,
+                replies: [...(c.replies || []), newReply],
+              };
+            }
+            return c;
+          })
+        );
+        setCommentsCount((prev) => prev + 1);
+        setReplyText('');
+        setReplyingToCommentId(null);
+        message.success('Reply posted.');
+      }
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to post reply.');
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId, parentCommentId = null) => {
     try {
       await communityApi.deletePostComment(commentId);
-      setComments((prev) => prev.filter((c) => c._id !== commentId));
-      setCommentsCount((prev) => Math.max(0, prev - 1));
+      if (parentCommentId) {
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c._id === parentCommentId) {
+              return {
+                ...c,
+                replies: (c.replies || []).filter((r) => r._id !== commentId),
+              };
+            }
+            return c;
+          })
+        );
+        setCommentsCount((prev) => Math.max(0, prev - 1));
+      } else {
+        const deletedComment = comments.find((c) => c._id === commentId);
+        const replyCount = (deletedComment?.replies || []).length;
+        setComments((prev) => prev.filter((c) => c._id !== commentId));
+        setCommentsCount((prev) => Math.max(0, prev - 1 - replyCount));
+      }
       message.success('Comment deleted.');
     } catch (err) {
       message.error(err.response?.data?.message || 'Failed to delete comment.');
@@ -375,13 +479,14 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             maxLength={500}
-            rows={3}
+            autoSize={{ minRows: 3, maxRows: 10 }}
             showCount
             style={{
               background: isLight ? '#f8fafc' : '#0a0b10',
               border: `1px solid ${isLight ? '#cbd5e1' : 'rgba(255,255,255,0.1)'}`,
               color: 'var(--text-color)',
               borderRadius: '10px',
+              lineHeight: 1.55,
             }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -393,20 +498,52 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
             </Button>
           </div>
         </div>
-      ) : (
-        <p
-          style={{
-            margin: 0,
-            fontSize: '14.5px',
-            lineHeight: 1.6,
-            color: isLight ? '#1e293b' : '#e2e8f0',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {post.text}
-        </p>
-      )}
+      ) : (() => {
+        const postContent = post.text || post.description || post.content || '';
+        const isLongText = postContent.length > 260 || (postContent.match(/\n/g) || []).length > 3;
+        const displayContent = (!isLongText || isExpandedText)
+          ? postContent
+          : postContent.slice(0, 240) + '...';
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                lineHeight: 1.6,
+                color: isLight ? '#1e293b' : '#e2e8f0',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+              }}
+            >
+              {renderFormattedText(displayContent)}
+            </p>
+            {isLongText && (
+              <button
+                type="button"
+                onClick={() => setIsExpandedText(!isExpandedText)}
+                style={{
+                  alignSelf: 'flex-start',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '2px 0',
+                  color: isLight ? '#4f46e5' : '#818cf8',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {isExpandedText ? 'Show less' : 'Read full post'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Attached Post Image */}
       {post.imageUrl && (
@@ -561,18 +698,18 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {comments.map((comment) => {
-                const commentAuthor = comment.author || {};
+              {comments.filter(Boolean).map((comment) => {
+                const commentAuthor = (comment && typeof comment.author === 'object' && comment.author) || {};
                 const canDelete =
                   user &&
                   (user._id === commentAuthor._id ||
                     user.id === commentAuthor._id ||
-                    user._id === author._id ||
-                    user.id === author._id);
+                    user._id === author?._id ||
+                    user.id === author?._id);
 
                 return (
                   <div
-                    key={comment._id}
+                    key={comment._id || Math.random()}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
@@ -603,7 +740,7 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontWeight: 600, fontSize: '12px', color: 'var(--text-color)' }}>
-                            {commentAuthor.displayName || commentAuthor.username}
+                            {commentAuthor.displayName || commentAuthor.username || 'Community Member'}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                             {formatRelativeTime(comment.createdAt)}
@@ -620,14 +757,164 @@ export default function CommunityPostCard({ post, onPostDeleted, onPostUpdated, 
                               cursor: 'pointer',
                               padding: '2px',
                             }}
+                            title="Delete comment"
                           >
                             <RiDeleteBinLine size={13} />
                           </button>
                         )}
                       </div>
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.45 }}>
-                        {comment.text}
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.45, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                        {renderFormattedText(comment.text)}
                       </p>
+
+                      {/* Reply button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                        {user && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (replyingToCommentId === comment._id) {
+                                setReplyingToCommentId(null);
+                                setReplyText('');
+                              } else {
+                                setReplyingToCommentId(comment._id);
+                                setReplyText('');
+                              }
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: isLight ? '#4f46e5' : '#818cf8',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              padding: 0,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <RiReplyLine size={13} />
+                            <span>{replyingToCommentId === comment._id ? 'Cancel' : 'Reply'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Active Reply Input */}
+                      {replyingToCommentId === comment._id && (
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                          <Input
+                            size="small"
+                            placeholder={`Reply to ${commentAuthor.displayName || commentAuthor.username || 'comment'}...`}
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            maxLength={500}
+                            onPressEnter={() => handleAddReply(comment._id)}
+                            style={{
+                              background: isLight ? '#ffffff' : '#14151d',
+                              border: `1px solid ${isLight ? '#cbd5e1' : 'rgba(255,255,255,0.12)'}`,
+                              color: 'var(--text-color)',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            type="primary"
+                            loading={submittingReply}
+                            onClick={() => handleAddReply(comment._id)}
+                            style={{ borderRadius: '6px', fontSize: '11.5px' }}
+                          >
+                            Reply
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* 1-level replies thread */}
+                      {comment.replies && comment.replies.length > 0 && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          marginTop: '10px',
+                          paddingLeft: '10px',
+                          borderLeft: `2px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)'}`,
+                        }}>
+                          {comment.replies.map((reply) => {
+                            const replyAuthor = (reply && typeof reply.author === 'object' && reply.author) || {};
+                            const canDeleteReply =
+                              user &&
+                              (user._id === replyAuthor._id ||
+                                user.id === replyAuthor._id ||
+                                user._id === author?._id ||
+                                user.id === author?._id);
+
+                            return (
+                              <div
+                                key={reply._id || Math.random()}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '8px',
+                                  padding: '6px 10px',
+                                  borderRadius: '8px',
+                                  background: isLight ? '#ffffff' : '#14151d',
+                                  border: `1px solid ${isLight ? '#edf2f7' : 'rgba(255,255,255,0.04)'}`,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #818cf8, #c084fc)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    color: '#fff',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {(replyAuthor.displayName?.[0] || replyAuthor.username?.[0] || 'U').toUpperCase()}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontWeight: 600, fontSize: '11.5px', color: 'var(--text-color)' }}>
+                                        {replyAuthor.displayName || replyAuthor.username || 'Community Member'}
+                                      </span>
+                                      <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
+                                        {formatRelativeTime(reply.createdAt)}
+                                      </span>
+                                    </div>
+                                    {canDeleteReply && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteComment(reply._id, comment._id)}
+                                        style={{
+                                          background: 'transparent',
+                                          border: 'none',
+                                          color: 'var(--text-secondary)',
+                                          cursor: 'pointer',
+                                          padding: '2px',
+                                        }}
+                                        title="Delete reply"
+                                      >
+                                        <RiDeleteBinLine size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: 'var(--text-color)', lineHeight: 1.45, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+                                    {renderFormattedText(reply.text)}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

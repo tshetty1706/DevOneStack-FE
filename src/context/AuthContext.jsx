@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentUser, logout as logoutApi } from '../api/auth';
 import GeneratedUsernameModal from '../components/auth/GeneratedUsernameModal';
+import queryClient from '../queryClient';
 
 const AuthContext = createContext(null);
 
@@ -8,6 +9,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generatedUsernameModal, setGeneratedUsernameModal] = useState(null);
+
+  const clearUserStorage = () => {
+    localStorage.removeItem('dos_access_token');
+    localStorage.removeItem('dos_profile_name');
+    localStorage.removeItem('dos_profile_avatar');
+    localStorage.removeItem('dos_focus_goal');
+    localStorage.removeItem('dos_focus_stack');
+    localStorage.removeItem('dos_timer_start');
+    sessionStorage.removeItem('dos_show_username_modal');
+  };
 
   const hydrateUser = async () => {
     const token = localStorage.getItem('dos_access_token');
@@ -20,7 +31,8 @@ export function AuthProvider({ children }) {
       const data = await getCurrentUser();
       setUser(data.user);
     } catch (err) {
-      localStorage.removeItem('dos_access_token');
+      clearUserStorage();
+      queryClient.clear();
       setUser(null);
     } finally {
       setLoading(false);
@@ -36,6 +48,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginUser = (token, userData, usernameGenerated = false) => {
+    // Purge any existing query cache from any prior account
+    queryClient.cancelQueries();
+    queryClient.clear();
+    clearUserStorage();
+
     localStorage.setItem('dos_access_token', token);
     setUser(userData);
     if ((usernameGenerated === true || usernameGenerated === 'true') && userData?.username) {
@@ -55,8 +72,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error("Logout API error:", err);
     } finally {
-      localStorage.removeItem('dos_access_token');
-      sessionStorage.removeItem('dos_show_username_modal');
+      queryClient.cancelQueries();
+      queryClient.clear();
+      clearUserStorage();
       setUser(null);
       setGeneratedUsernameModal(null);
     }

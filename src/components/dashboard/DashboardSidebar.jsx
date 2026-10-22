@@ -24,8 +24,6 @@ export default function DashboardSidebar({ activeView = 'community', setActiveVi
     { id: 'spaces', label: 'My Spaces', icon: RiFolder5Line },
     { id: 'my-posts', label: 'My Posts', icon: RiArticleLine },
     { id: 'starred', label: 'Starred Stacks', icon: RiStarLine },
-    { id: 'templates', label: 'Templates', icon: RiBookmarkLine },
-    { id: 'explore', label: 'Explore', icon: RiCompassLine },
     { id: 'settings', label: 'Settings', icon: RiSettingsLine }
   ];
 

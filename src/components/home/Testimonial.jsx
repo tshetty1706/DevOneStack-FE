@@ -27,7 +27,7 @@ export default function Testimonial() {
         </div>
 
         <p className="testimonial-quote-text">
-          "Every technology you learn becomes a collection of knowledge. DevOneStack gives that knowledge a home."
+          "Build your knowledge, share your Spaces, and learn from the developer community — all with DevOneStack."
         </p>
       </motion.div>
 
