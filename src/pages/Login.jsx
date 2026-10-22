@@ -9,6 +9,7 @@ import { login as loginApi, googleAuthUrl } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import AuthHeroLogin from '../components/auth/AuthHeroLogin';
 import AccountNotFoundModal from '../components/auth/AccountNotFoundModal';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import OnlyLogo from '../components/layout/OnlyLogo';
 import './auth.css';
 
@@ -29,6 +30,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [modalProvider, setModalProvider] = useState('credentials');
   const [modalCustomMsg, setModalCustomMsg] = useState('');
 
@@ -56,6 +58,11 @@ export default function Login() {
     const errParam = params.get('error');
     const providerParam = params.get('provider');
     const verifiedParam = params.get('verified');
+    const forgotParam = params.get('forgot');
+
+    if (forgotParam === 'true' || location.state?.openForgot) {
+      setShowForgotModal(true);
+    }
 
     if (verifiedParam === 'true' || location.state?.verified) {
       setSuccessMsg('Verification passed! Please log in with your email and password.');
@@ -290,11 +297,16 @@ export default function Login() {
                   )}
                 </div>
 
-                {/* Inline Forgot Password Link */}
+                {/* Inline Forgot Password Button */}
                 <div className="auth-inline-forgot-wrapper">
-                  <Link to="/forgot-password" className="auth-forgot-link">
+                  <button
+                    type="button"
+                    className="auth-forgot-link"
+                    onClick={() => setShowForgotModal(true)}
+                    id="login-forgot-password-btn"
+                  >
                     Forgot password?
-                  </Link>
+                  </button>
                 </div>
 
                 {/* Remember Me Checkbox */}
@@ -348,6 +360,13 @@ export default function Login() {
         email={emailValue}
         provider={modalProvider}
         customMessage={modalCustomMsg}
+      />
+
+      {/* Forgot Password In-Modal Experience */}
+      <ForgotPasswordModal
+        isOpen={showForgotModal}
+        onClose={() => setShowForgotModal(false)}
+        initialEmail={emailValue}
       />
     </div>
   );

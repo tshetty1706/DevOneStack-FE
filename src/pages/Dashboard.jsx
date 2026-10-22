@@ -14,6 +14,7 @@ import CommandPalette from '../components/dashboard/CommandPalette';
 import { useSpaces } from '../hooks/useSpaces';
 import ToolSpacesGrid from '../components/dashboard/ToolSpacesGrid';
 import CommunityPostCard from '../components/community/CommunityPostCard';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import DashboardSidebar from '../components/dashboard/DashboardSidebar';
 import { communityApi } from '../api/communityApi';
 import { spacesApi } from '../api/spacesApi';
@@ -42,7 +43,7 @@ function DashboardContent() {
     data: starredSpaces = [],
     isLoading: starredLoading,
   } = useQuery({
-    queryKey: ['spaces', 'starred'],
+    queryKey: ['spaces', user?._id || 'guest', 'starred'],
     queryFn: () => spacesApi.getSpaces({ tab: 'starred' }),
     enabled: activeView === 'starred' && !!user,
   });
@@ -52,7 +53,7 @@ function DashboardContent() {
     data: myPostsData,
     isLoading: myPostsLoading,
   } = useQuery({
-    queryKey: ['community', 'my-posts', myPostsPage],
+    queryKey: ['community', 'my-posts', user?._id || 'guest', myPostsPage],
     queryFn: () => communityApi.getMyPosts({ page: myPostsPage, limit: 10 }),
     enabled: activeView === 'my-posts' && !!user,
   });
@@ -61,7 +62,7 @@ function DashboardContent() {
   const bg = 'var(--bg-color)';
   const textMuted = 'var(--text-secondary)';
 
-  const userName = localStorage.getItem('dos_profile_name') || user?.displayName || user?.username || 'Developer';
+  const userName = user?.displayName || user?.username || (user?._id ? localStorage.getItem(`dos_profile_name_${user._id}`) : null) || 'Developer';
 
   // Keyboard shortcut: Cmd+K / Ctrl+K to open CommandPalette
   useEffect(() => {
@@ -418,13 +419,14 @@ function DashboardContent() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {myPostsData.posts.map((post) => (
-                    <CommunityPostCard
-                      key={post._id}
-                      post={post}
-                      onPostDeleted={handlePostDeleted}
-                      onPostUpdated={handlePostUpdated}
-                      onFollowChange={() => {}}
-                    />
+                    <ErrorBoundary key={post._id}>
+                      <CommunityPostCard
+                        post={post}
+                        onPostDeleted={handlePostDeleted}
+                        onPostUpdated={handlePostUpdated}
+                        onFollowChange={() => {}}
+                      />
+                    </ErrorBoundary>
                   ))}
 
                   {/* Pagination */}

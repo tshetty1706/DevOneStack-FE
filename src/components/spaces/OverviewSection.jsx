@@ -71,16 +71,17 @@ function getActivityIcon(action) {
   return { icon: RiSparklingLine, color: '#818cf8' };
 }
 
-export default function OverviewSection({ space, isLight, onNavigateSection }) {
-  // Fetch Space-specific activity (limit 5 for Overview)
+export default function OverviewSection({ space, isLight, onNavigateSection, canEdit, canManage }) {
+  // Fetch Space-specific activity (limit 5 for Overview) - strictly restricted to owner
+  const isOwner = canManage ?? true;
   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
     queryKey: ['history', 'space', space?._id, 5],
     queryFn: async () => {
-      if (!space?._id) return [];
+      if (!space?._id || !isOwner) return [];
       const res = await api.get(`/api/history?spaceId=${space._id}&limit=5`);
       return res.data || [];
     },
-    enabled: !!space?._id,
+    enabled: !!space?._id && !!isOwner,
   });
 
   const cardBg = 'var(--card-bg)';
@@ -338,165 +339,167 @@ export default function OverviewSection({ space, isLight, onNavigateSection }) {
         </div>
       </div>
 
-      {/* ── Recent Activity Feed ── */}
-      <div style={{
-        background: cardBg,
-        border: `1px solid ${cardBorder}`,
-        borderRadius: '16px',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <RiTimeLine size={18} style={{ color: accent }} />
-            <h2 style={{
-              fontSize: '16px',
-              fontWeight: 700,
-              color: textColor,
-              margin: 0,
-              letterSpacing: '-0.01em',
-            }}>
-              Recent Activity
-            </h2>
+      {/* ── Recent Activity Feed (Owner Only) ── */}
+      {isOwner && (
+        <div style={{
+          background: cardBg,
+          border: `1px solid ${cardBorder}`,
+          borderRadius: '16px',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RiTimeLine size={18} style={{ color: accent }} />
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: textColor,
+                margin: 0,
+                letterSpacing: '-0.01em',
+              }}>
+                Recent Activity
+              </h2>
+            </div>
+            {activities.length > 0 && (
+              <span style={{ fontSize: '11.5px', color: textMuted, fontWeight: 500 }}>
+                {activities.length} recent update{activities.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
-          {activities.length > 0 && (
-            <span style={{ fontSize: '11.5px', color: textMuted, fontWeight: 500 }}>
-              {activities.length} recent update{activities.length === 1 ? '' : 's'}
-            </span>
-          )}
-        </div>
 
-        {activitiesLoading ? (
-          <div style={{ padding: '24px 0', textAlign: 'center', color: textMuted, fontSize: '13px' }}>
-            Loading activity...
-          </div>
-        ) : activities.length === 0 ? (
-          <div style={{
-            padding: '36px 20px',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
+          {activitiesLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: textMuted, fontSize: '13px' }}>
+              Loading activity...
+            </div>
+          ) : activities.length === 0 ? (
             <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+              padding: '36px 20px',
+              textAlign: 'center',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: textMuted,
-              marginBottom: '4px',
+              gap: '8px',
             }}>
-              <RiTimeLine size={22} />
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: textMuted,
+                marginBottom: '4px',
+              }}>
+                <RiTimeLine size={22} />
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: textColor }}>
+                No activity yet
+              </div>
+              <div style={{ fontSize: '12.5px', color: textMuted, maxWidth: '320px' }}>
+                Changes you make in this Space will appear here.
+              </div>
             </div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: textColor }}>
-              No activity yet
-            </div>
-            <div style={{ fontSize: '12.5px', color: textMuted, maxWidth: '320px' }}>
-              Changes you make in this Space will appear here.
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {activities.map((act) => {
-              const { icon: ActIcon, color: actColor } = getActivityIcon(act.action);
-              const actorName = act.owner?.displayName || act.owner?.username || 'You';
-              const timeFormatted = formatRelativeTime(act.createdAt);
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {activities.map((act) => {
+                const { icon: ActIcon, color: actColor } = getActivityIcon(act.action);
+                const actorName = act.owner?.displayName || act.owner?.username || 'You';
+                const timeFormatted = formatRelativeTime(act.createdAt);
 
-              // Interactive click target if metadata points to an item or section
-              const targetSection = act.meta?.type ? `${act.meta.type}s` : (act.meta?.folderId ? 'explorer' : null);
-              const isClickable = !!(targetSection || act.meta?.folderId || act.meta?.itemId);
+                // Interactive click target if metadata points to an item or section
+                const targetSection = act.meta?.type ? `${act.meta.type}s` : (act.meta?.folderId ? 'explorer' : null);
+                const isClickable = !!(targetSection || act.meta?.folderId || act.meta?.itemId);
 
-              return (
-                <div
-                  key={act._id}
-                  onClick={() => {
-                    if (isClickable) {
-                      if (act.meta?.type === 'note' && act.meta?.itemId) {
-                        onNavigateSection('notes', act.meta.itemId);
-                      } else if (act.meta?.folderId) {
-                        onNavigateSection('explorer', null, act.meta.folderId);
-                      } else if (targetSection) {
-                        onNavigateSection(targetSection, act.meta?.itemId);
+                return (
+                  <div
+                    key={act._id}
+                    onClick={() => {
+                      if (isClickable) {
+                        if (act.meta?.type === 'note' && act.meta?.itemId) {
+                          onNavigateSection('notes', act.meta.itemId);
+                        } else if (act.meta?.folderId) {
+                          onNavigateSection('explorer', null, act.meta.folderId);
+                        } else if (targetSection) {
+                          onNavigateSection(targetSection, act.meta?.itemId);
+                        }
                       }
-                    }
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    background: isLight ? '#fbfcfe' : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${isLight ? '#f1f5f9' : 'rgba(255,255,255,0.03)'}`,
-                    cursor: isClickable ? 'pointer' : 'default',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isClickable) {
-                      e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)';
-                      e.currentTarget.style.borderColor = cardBorder;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (isClickable) {
-                      e.currentTarget.style.background = isLight ? '#fbfcfe' : 'rgba(255,255,255,0.02)';
-                      e.currentTarget.style.borderColor = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.03)';
-                    }
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                    <div style={{
-                      width: '30px',
-                      height: '30px',
-                      borderRadius: '8px',
-                      background: `${actColor}18`,
+                    }}
+                    style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      color: actColor,
-                      flexShrink: 0,
-                    }}>
-                      <ActIcon size={16} />
-                    </div>
-
-                    <div style={{ minWidth: 0, flex: 1 }}>
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      background: isLight ? '#fbfcfe' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${isLight ? '#f1f5f9' : 'rgba(255,255,255,0.03)'}`,
+                      cursor: isClickable ? 'pointer' : 'default',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isClickable) {
+                        e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)';
+                        e.currentTarget.style.borderColor = cardBorder;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isClickable) {
+                        e.currentTarget.style.background = isLight ? '#fbfcfe' : 'rgba(255,255,255,0.02)';
+                        e.currentTarget.style.borderColor = isLight ? '#f1f5f9' : 'rgba(255,255,255,0.03)';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                       <div style={{
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: textColor,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '8px',
+                        background: `${actColor}18`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: actColor,
+                        flexShrink: 0,
                       }}>
-                        {act.label || act.action}
+                        <ActIcon size={16} />
                       </div>
-                      <div style={{ fontSize: '11px', color: textMuted }}>
-                        by {actorName}
+
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          color: textColor,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {act.label || act.action}
+                        </div>
+                        <div style={{ fontSize: '11px', color: textMuted }}>
+                          by {actorName}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div style={{
-                    fontSize: '11.5px',
-                    color: textMuted,
-                    flexShrink: 0,
-                    fontWeight: 500,
-                  }}>
-                    {timeFormatted}
+                    <div style={{
+                      fontSize: '11.5px',
+                      color: textMuted,
+                      flexShrink: 0,
+                      fontWeight: 500,
+                    }}>
+                      {timeFormatted}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );

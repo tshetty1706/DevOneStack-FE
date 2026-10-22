@@ -49,6 +49,7 @@ export default function ModuleSidebar({
   mobileSidebarVisible = true,
   hasActiveItem = false,
   customHeaderRight = null,
+  canEdit = true,
 }) {
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'recent'
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,7 +128,7 @@ export default function ModuleSidebar({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {customHeaderRight ? (
             customHeaderRight
-          ) : (
+          ) : canEdit && (
             <Button
               type="primary"
               size="small"
@@ -303,13 +304,14 @@ export default function ModuleSidebar({
             selectedFolderId={selectedFolderId}
             onSelectFolder={onSelectFolder}
             onSelectItem={onSelectItem}
-            onAddItem={onAddItem}
+            onAddItem={canEdit ? onAddItem : undefined}
             selectedItemId={selectedItemId}
             filterItemType={itemType}
             isLight={isLight}
             showHeader={true}
             showSearch={false}
             searchQuery={searchQuery}
+            canEdit={canEdit}
           />
         )}
       </div>

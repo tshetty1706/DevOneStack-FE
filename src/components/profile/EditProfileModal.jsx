@@ -236,9 +236,11 @@ export default function EditProfileModal({ open, onClose, defaultTab = 'about' }
       const res = await api.put('/api/auth/profile', payload);
       if (res.data.user) {
         setUser(res.data.user);
-        // Update localStorage for other components
-        localStorage.setItem('dos_profile_name', res.data.user.displayName || res.data.user.username || '');
-        localStorage.setItem('dos_profile_avatar', res.data.user.avatarUrl || '');
+        // Update user-scoped localStorage for other components
+        if (res.data.user._id) {
+          localStorage.setItem(`dos_profile_name_${res.data.user._id}`, res.data.user.displayName || res.data.user.username || '');
+          localStorage.setItem(`dos_profile_avatar_${res.data.user._id}`, res.data.user.avatarUrl || '');
+        }
         // Notify other parts of app
         window.dispatchEvent(new Event('profile_update'));
       }

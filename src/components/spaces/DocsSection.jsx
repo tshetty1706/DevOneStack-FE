@@ -26,6 +26,8 @@ export default function DocsSection({
   selectedFolderId: propFolderId,
   onSelectFolder: propOnSelectFolder,
   onNavigateSection,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
 
@@ -212,6 +214,7 @@ export default function DocsSection({
 
   // Handle start adding/uploading doc
   const handleStartUpload = (targetFolderId) => {
+    if (!canEdit) return;
     if (targetFolderId !== undefined && targetFolderId !== 'undefined') {
       handleSelectFolder(targetFolderId && targetFolderId !== 'root' && targetFolderId !== 'null' ? targetFolderId : null);
     }
@@ -374,7 +377,8 @@ export default function DocsSection({
           setIsUploading(false);
           setIsEditing(false);
         }}
-        onAddItem={(folderId) => handleStartUpload(folderId)}
+        onAddItem={canEdit ? (folderId) => handleStartUpload(folderId) : undefined}
+        canEdit={canEdit}
         isLight={isLight}
         isSidebarCollapsed={isSidebarCollapsed}
         onCloseSidebar={() => setIsSidebarCollapsed(true)}
@@ -667,29 +671,31 @@ export default function DocsSection({
                   <span>{selectedDoc.folderPath || currentFolderPath || 'Space Root'}</span>
                 </div>
 
-                <Tooltip title="Move to folder">
-                  <button
-                    type="button"
-                    onClick={() => setMoveModalOpen(true)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      padding: '3px 6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '11px',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = accent)}
-                    onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
-                  >
-                    <RiFolderTransferLine size={13} />
-                    <span>Move</span>
-                  </button>
-                </Tooltip>
+                {canEdit && (
+                  <Tooltip title="Move to folder">
+                    <button
+                      type="button"
+                      onClick={() => setMoveModalOpen(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: textMuted,
+                        cursor: 'pointer',
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = accent)}
+                      onMouseLeave={e => (e.currentTarget.style.color = textMuted)}
+                    >
+                      <RiFolderTransferLine size={13} />
+                      <span>Move</span>
+                    </button>
+                  </Tooltip>
+                )}
 
                 <Tag
                   color={isPdfDoc(selectedDoc) ? 'red' : isImageDoc(selectedDoc) ? 'green' : 'blue'}
@@ -732,58 +738,66 @@ export default function DocsSection({
                 )}
 
                 {/* Edit / Save Button */}
-                {isEditing ? (
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<RiSaveLine />}
-                    loading={updateDocMutation.isPending}
-                    onClick={handleSaveEdit}
-                    style={{
-                      background: accent,
-                      borderColor: accent,
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                    }}
-                  >
-                    Save
-                  </Button>
+                {canEdit ? (
+                  isEditing ? (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<RiSaveLine />}
+                      loading={updateDocMutation.isPending}
+                      onClick={handleSaveEdit}
+                      style={{
+                        background: accent,
+                        borderColor: accent,
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                      }}
+                    >
+                      Save
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      icon={<RiEditLine />}
+                      onClick={() => setIsEditing(true)}
+                      style={{ borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      Edit
+                    </Button>
+                  )
                 ) : (
-                  <Button
-                    size="small"
-                    icon={<RiEditLine />}
-                    onClick={() => setIsEditing(true)}
-                    style={{ borderRadius: '6px', fontSize: '12px' }}
-                  >
-                    Edit
-                  </Button>
+                  <Tag style={{ margin: 0, borderRadius: '4px', fontSize: '11px' }}>Read-Only</Tag>
                 )}
 
                 {/* Pin Button */}
-                <PinButton
-                  isPinned={selectedDoc.isPinned}
-                  onToggle={() => togglePinMutation.mutate(selectedDoc._id)}
-                  isLight={isLight}
-                />
+                {canEdit && (
+                  <PinButton
+                    isPinned={selectedDoc.isPinned}
+                    onToggle={() => togglePinMutation.mutate(selectedDoc._id)}
+                    isLight={isLight}
+                  />
+                )}
 
                 {/* Delete Popconfirm */}
-                <Popconfirm
-                  title="Delete Document"
-                  description="Are you sure you want to delete this document?"
-                  okText="Delete"
-                  okType="danger"
-                  cancelText="Cancel"
-                  onConfirm={() => deleteMutation.mutate(selectedDoc._id)}
-                >
-                  <Button
-                    danger
-                    type="text"
-                    size="small"
-                    icon={<RiDeleteBinLine size={15} />}
-                    style={{ borderRadius: '6px' }}
-                  />
-                </Popconfirm>
+                {canEdit && (
+                  <Popconfirm
+                    title="Delete Document"
+                    description="Are you sure you want to delete this document?"
+                    okText="Delete"
+                    okType="danger"
+                    cancelText="Cancel"
+                    onConfirm={() => deleteMutation.mutate(selectedDoc._id)}
+                  >
+                    <Button
+                      danger
+                      type="text"
+                      size="small"
+                      icon={<RiDeleteBinLine size={15} />}
+                      style={{ borderRadius: '6px' }}
+                    />
+                  </Popconfirm>
+                )}
               </div>
             </div>
 
@@ -1073,22 +1087,24 @@ export default function DocsSection({
             >
               Select a document from the sidebar on the left, or upload a PDF, image, or link directly into {currentFolderPath}.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <Button
-                type="primary"
-                icon={<RiUploadCloudLine />}
-                onClick={() => handleStartUpload(selectedFolderId)}
-                style={{
-                  background: accent,
-                  borderColor: accent,
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  padding: '6px 18px',
-                }}
-              >
-                Upload Document
-              </Button>
-            </div>
+            {canEdit && (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <Button
+                  type="primary"
+                  icon={<RiUploadCloudLine />}
+                  onClick={() => handleStartUpload(selectedFolderId)}
+                  style={{
+                    background: accent,
+                    borderColor: accent,
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    padding: '6px 18px',
+                  }}
+                >
+                  Upload Document
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </main>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import queryClient from '../queryClient';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || 'http://localhost:5000',
@@ -56,8 +57,16 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         queue.forEach(p => p.reject(refreshErr));
         queue = [];
+        try {
+          queryClient.clear();
+        } catch (e) {}
         localStorage.removeItem('dos_access_token');
-        window.location.href = '/login';
+        localStorage.removeItem('dos_profile_name');
+        localStorage.removeItem('dos_profile_avatar');
+        sessionStorage.removeItem('dos_show_username_modal');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       } finally {
         refreshing = false;

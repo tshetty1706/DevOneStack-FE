@@ -51,6 +51,8 @@ export default function LearningsSection({
   selectedFolderId: propFolderId,
   onSelectFolder: propOnSelectFolder,
   onNavigateSection,
+  canEdit = true,
+  canManage = true,
 }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
@@ -163,6 +165,7 @@ export default function LearningsSection({
   });
 
   const handleCreateNewLearning = useCallback((folderId) => {
+    if (!canEdit) return;
     const existingTitles = new Set(
       learnings.map(l => (l.title || '').trim().toLowerCase())
     );
@@ -185,7 +188,7 @@ export default function LearningsSection({
       type: 'learning',
       content: 'Write what you learned, key takeaways, fixes, or gotchas here...'
     });
-  }, [learnings, selectedFolderId, createLearningMutation]);
+  }, [canEdit, learnings, selectedFolderId, createLearningMutation]);
 
   // Save / Update mutation
   const saveLearningMutation = useMutation({
@@ -307,7 +310,8 @@ export default function LearningsSection({
           setSelectedId(item._id);
           setIsEditing(false);
         }}
-        onAddItem={(folderId) => handleCreateNewLearning(folderId)}
+        onAddItem={canEdit ? (folderId) => handleCreateNewLearning(folderId) : undefined}
+        canEdit={canEdit}
         isLight={isLight}
         isMobile={false}
         isSidebarCollapsed={isSidebarCollapsed}
@@ -364,90 +368,94 @@ export default function LearningsSection({
                   </Tooltip>
                 )}
 
-                {isEditing ? (
-                  <>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<RiSaveLine />}
-                      loading={saveLearningMutation.isPending}
-                      onClick={handleSave}
-                      style={{
-                        background: themeAccent,
-                        borderColor: themeAccent,
-                        fontWeight: 600,
-                        fontSize: '12px'
-                      }}
-                    >
-                      Save Changes
-                    </Button>
-                    <Button
-                      size="small"
-                      icon={<RiEyeLine />}
-                      onClick={() => setIsEditing(false)}
-                      style={{
-                        background: 'transparent',
-                        border: `1px solid ${themeBorder}`,
-                        color: isLight ? '#111' : '#fff',
-                        fontSize: '12px'
-                      }}
-                    >
-                      View
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<RiEditLine />}
-                      onClick={() => setIsEditing(true)}
-                      style={{
-                        background: themeAccent,
-                        borderColor: themeAccent,
-                        fontWeight: 600,
-                        fontSize: '12px'
-                      }}
-                    >
-                      Edit Learning
-                    </Button>
-
-                    <Tooltip title={selectedItem.isPinned ? 'Unpin from Top' : 'Pin to Top'}>
+                {canEdit ? (
+                  isEditing ? (
+                    <>
                       <Button
-                        shape="circle"
+                        type="primary"
                         size="small"
-                        icon={selectedItem.isPinned ? <RiPushpinFill style={{ color: '#eab308' }} /> : <RiPushpinLine />}
-                        onClick={() => togglePinMutation.mutate({ id: selectedItem._id })}
-                        style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff' }}
-                      />
-                    </Tooltip>
-
-                    <Button
-                      size="small"
-                      icon={<RiFolderTransferLine />}
-                      onClick={() => setMoveModalOpen(true)}
-                      style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
-                    >
-                      Move
-                    </Button>
-
-                    <Popconfirm
-                      title="Delete this learning record?"
-                      onConfirm={() => deleteMutation.mutate(selectedItem._id)}
-                      okText="Delete"
-                      cancelText="Cancel"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Button
-                        size="small"
-                        danger
-                        icon={<RiDeleteBinLine />}
-                        style={{ background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.15)', fontSize: '12px' }}
+                        icon={<RiSaveLine />}
+                        loading={saveLearningMutation.isPending}
+                        onClick={handleSave}
+                        style={{
+                          background: themeAccent,
+                          borderColor: themeAccent,
+                          fontWeight: 600,
+                          fontSize: '12px'
+                        }}
                       >
-                        Delete
+                        Save Changes
                       </Button>
-                    </Popconfirm>
-                  </>
+                      <Button
+                        size="small"
+                        icon={<RiEyeLine />}
+                        onClick={() => setIsEditing(false)}
+                        style={{
+                          background: 'transparent',
+                          border: `1px solid ${themeBorder}`,
+                          color: isLight ? '#111' : '#fff',
+                          fontSize: '12px'
+                        }}
+                      >
+                        View
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<RiEditLine />}
+                        onClick={() => setIsEditing(true)}
+                        style={{
+                          background: themeAccent,
+                          borderColor: themeAccent,
+                          fontWeight: 600,
+                          fontSize: '12px'
+                        }}
+                      >
+                        Edit Learning
+                      </Button>
+
+                      <Tooltip title={selectedItem.isPinned ? 'Unpin from Top' : 'Pin to Top'}>
+                        <Button
+                          shape="circle"
+                          size="small"
+                          icon={selectedItem.isPinned ? <RiPushpinFill style={{ color: '#eab308' }} /> : <RiPushpinLine />}
+                          onClick={() => togglePinMutation.mutate({ id: selectedItem._id })}
+                          style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff' }}
+                        />
+                      </Tooltip>
+
+                      <Button
+                        size="small"
+                        icon={<RiFolderTransferLine />}
+                        onClick={() => setMoveModalOpen(true)}
+                        style={{ background: 'transparent', border: `1px solid ${themeBorder}`, color: isLight ? '#111' : '#fff', fontSize: '12px' }}
+                      >
+                        Move
+                      </Button>
+
+                      <Popconfirm
+                        title="Delete this learning record?"
+                        onConfirm={() => deleteMutation.mutate(selectedItem._id)}
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button
+                          size="small"
+                          danger
+                          icon={<RiDeleteBinLine />}
+                          style={{ background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.15)', fontSize: '12px' }}
+                        >
+                          Delete
+                        </Button>
+                      </Popconfirm>
+                    </>
+                  )
+                ) : (
+                  <Tag style={{ margin: 0, borderRadius: '4px', fontSize: '11px' }}>Read-Only</Tag>
                 )}
               </div>
 
@@ -937,21 +945,23 @@ export default function LearningsSection({
             />
             <p style={{ margin: '4px 0 2px', fontSize: '15px', color: themeTextColor, fontWeight: 700 }}>No learning selected</p>
             <p style={{ fontSize: '12px', margin: '0 0 16px', color: themeTextMuted }}>Current folder: {currentFolderPath}</p>
-            <Button
-              type="primary"
-              icon={<RiAddLine />}
-              onClick={() => handleCreateNewLearning(selectedFolderId)}
-              style={{
-                background: themeAccent,
-                borderColor: themeAccent,
-                fontWeight: 600,
-                borderRadius: '8px',
-                height: '36px',
-                padding: '0 18px'
-              }}
-            >
-              Log Learning
-            </Button>
+            {canEdit && (
+              <Button
+                type="primary"
+                icon={<RiAddLine />}
+                onClick={() => handleCreateNewLearning(selectedFolderId)}
+                style={{
+                  background: themeAccent,
+                  borderColor: themeAccent,
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  height: '36px',
+                  padding: '0 18px'
+                }}
+              >
+                Log Learning
+              </Button>
+            )}
           </div>
         )}
       </main>

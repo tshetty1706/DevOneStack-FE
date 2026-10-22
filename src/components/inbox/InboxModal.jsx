@@ -71,11 +71,11 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
     try {
       const res = await inboxApi.getUnreadCount();
       setUnreadCounts({
-        requests: res.requestsCount || 0,
-        invitations: res.invitationsCount || 0,
-        notifications: res.notificationsCount || 0,
+        requests: res.requestsCount ?? res.requests ?? 0,
+        invitations: res.invitationsCount ?? res.invitations ?? 0,
+        notifications: res.notificationsCount ?? res.notifications ?? 0,
       });
-      if (onUnreadCountChange) onUnreadCountChange(res.totalUnread || 0);
+      if (onUnreadCountChange) onUnreadCountChange(res.totalUnread ?? res.total ?? 0);
     } catch (e) {
       console.error('Failed to fetch unread counts', e);
     }
@@ -147,6 +147,28 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
     }
   };
 
+  const handleWithdrawRequest = async (reqId) => {
+    try {
+      await inboxApi.handleCloneRequestAction(reqId, { action: 'withdraw' });
+      message.success('Clone request withdrawn.');
+      fetchTabItems('requests');
+      fetchUnreadCounts();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to withdraw request.');
+    }
+  };
+
+  const handleRevokeApproval = async (reqId) => {
+    try {
+      await inboxApi.handleCloneRequestAction(reqId, { action: 'revoke' });
+      message.success('Clone approval revoked.');
+      fetchTabItems('requests');
+      fetchUnreadCounts();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Failed to revoke approval.');
+    }
+  };
+
   const handleInvitationAction = async (inviteId, action) => {
     try {
       const res = await inboxApi.handleCollaborationInviteAction(inviteId, { action });
@@ -178,17 +200,68 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
 
   const anyToggleOn = allowPublishing || allowCollaborators || allowOthersToClone;
 
+  const handleNotificationClick = async (notif) => {
+    const isUnread = notif.read !== undefined ? !notif.read : !notif.isRead;
+    if (isUnread) {
+      try {
+        await inboxApi.markRead('notifications', notif._id);
+        setItems((prev) =>
+          prev.map((item) => (item._id === notif._id ? { ...item, read: true, isRead: true } : item))
+        );
+        setUnreadCounts((prev) => {
+          const nextCount = Math.max(0, prev.notifications - 1);
+          if (onUnreadCountChange) onUnreadCountChange(prev.requests + prev.invitations + nextCount);
+          return { ...prev, notifications: nextCount };
+        });
+      } catch (e) {
+        console.error('Error marking notification read:', e);
+      }
+    }
+
+    onClose();
+
+    const cat = notif.category || notif.type;
+    const actor = notif.sender || notif.actor || {};
+    const data = notif.data || {};
+
+    if (data.postId || cat === 'post_like' || cat === 'post_comment' || cat === 'comment_reply') {
+      const postId = data.postId || notif.targetId;
+      if (postId) {
+        navigate(`/community?post=${postId}`);
+      } else {
+        navigate('/community');
+      }
+    } else if (data.spaceId || cat === 'space_star' || cat === 'clone_ready' || cat === 'clone_completed') {
+      const spaceId = data.clonedSpaceId || data.spaceId || notif.targetId;
+      if (spaceId) {
+        navigate(`/spaces/${spaceId}`);
+      } else {
+        navigate('/spaces');
+      }
+    } else if (cat === 'new_follower' || cat === 'follow') {
+      if (actor.username) {
+        setPreviewUsername(actor.username);
+      } else {
+        navigate('/community');
+      }
+    }
+  };
+
   const renderNotificationIcon = (type) => {
     switch (type) {
       case 'follow':
+      case 'new_follower':
         return <RiUserAddLine size={16} color="#3b82f6" />;
       case 'post_like':
         return <RiHeartFill size={16} color="#ef4444" />;
       case 'post_comment':
+      case 'comment_reply':
         return <RiChat1Line size={16} color="#10b981" />;
       case 'space_starred':
+      case 'space_star':
         return <RiStarFill size={16} color="#f59e0b" />;
       case 'clone_completed':
+      case 'clone_ready':
         return <RiGitBranchLine size={16} color="#8b5cf6" />;
       default:
         return <RiInboxLine size={16} color="var(--accent-color)" />;
@@ -499,6 +572,23 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
                           </div>
                         )}
 
+                        {isReceived && req.status === 'accepted' && (
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                            <Button size="small" danger onClick={() => handleRevokeApproval(req._id)}>
+                              Revoke Approval
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Actions for Requester if Pending */}
+                        {!isReceived && req.status === 'pending' && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                            <Button size="small" onClick={() => handleWithdrawRequest(req._id)}>
+                              Withdraw Request
+                            </Button>
+                          </div>
+                        )}
+
                         {/* Actions for Requester if Accepted */}
                         {!isReceived && req.status === 'accepted' && (
                           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
@@ -519,7 +609,7 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
 
                 {activeTab === 'invitations' &&
                   items.map((inv) => {
-                    const inviter = inv.invitedBy || {};
+                    const inviter = inv.inviter || inv.invitedBy || {};
                     const space = inv.space || {};
 
                     return (
@@ -585,11 +675,15 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
 
                 {activeTab === 'notifications' &&
                   items.map((notif) => {
-                    const actor = notif.actor || {};
+                    const actor = notif.sender || notif.actor || {};
+                    const messageText = notif.data?.text || notif.message || notif.title || '';
+                    const isUnread = notif.read !== undefined ? !notif.read : !notif.isRead;
+                    const notifType = notif.category || notif.type;
 
                     return (
                       <div
                         key={notif._id}
+                        onClick={() => handleNotificationClick(notif)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -598,6 +692,19 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
                           padding: '12px 14px',
                           borderBottom: `1px solid ${isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)'}`,
                           position: 'relative',
+                          cursor: 'pointer',
+                          background: isUnread
+                            ? (isLight ? 'rgba(99, 102, 241, 0.04)' : 'rgba(99, 102, 241, 0.08)')
+                            : 'transparent',
+                          transition: 'background 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = isUnread
+                            ? (isLight ? 'rgba(99, 102, 241, 0.04)' : 'rgba(99, 102, 241, 0.08)')
+                            : 'transparent';
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -613,11 +720,12 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
                               flexShrink: 0,
                             }}
                           >
-                            {renderNotificationIcon(notif.type)}
+                            {renderNotificationIcon(notifType)}
                           </div>
 
                           <div style={{ fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.4 }}>
-                            <strong>{actor.displayName || actor.username || 'Someone'}</strong> {notif.message}
+                            <strong>{actor.displayName || actor.username || 'Someone'}</strong>{' '}
+                            {messageText}
                           </div>
                         </div>
 
@@ -625,7 +733,7 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                             {formatCompactTime(notif.createdAt)}
                           </span>
-                          {!notif.isRead && (
+                          {isUnread && (
                             <span
                               style={{
                                 width: '6px',
@@ -688,8 +796,10 @@ export default function InboxModal({ visible, onClose, onUnreadCountChange }) {
               fontWeight: 500,
             }}
           >
-            <RiAlertLine size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>They will get a full copy of this Space. You can't take it back.</span>
+            <RiAlertLine size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span style={{ lineHeight: 1.45 }}>
+              They will receive their own full copy of this Space. You cannot take back a copy after it has been created. If you allow publishing or further cloning, the content may be shared with more people.
+            </span>
           </div>
 
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>

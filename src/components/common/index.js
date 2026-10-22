@@ -7,4 +7,4 @@ export { default as SearchInput } from './SearchInput';
 export { default as Spinner } from './Spinner';
 export { default as ThemeToggle } from './ThemeToggle';
 export { default as SpaceThumbnail } from './SpaceThumbnail';
-
+export { default as ErrorBoundary } from './ErrorBoundary';

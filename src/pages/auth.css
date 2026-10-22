@@ -1030,6 +1030,10 @@
 
 /* Forgot Password Link */
 .auth-forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
   font-size: 12px;
   color: var(--accent-color, #818cf8);
   font-weight: 500;
@@ -1250,10 +1254,18 @@
   color: #fca5a5;
 }
 
+.auth-alert-banner.error svg {
+  color: #ef4444;
+}
+
 .auth-alert-banner.success {
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #6ee7b7;
+}
+
+.auth-alert-banner.success svg {
+  color: #10b981;
 }
 
 .auth-alert-banner.info {
@@ -1262,14 +1274,18 @@
   color: #c7d2fe;
 }
 
+.auth-alert-banner.info svg {
+  color: #818cf8;
+}
+
 .auth-alert-action-btn {
-  margin-top: 4px;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #c7d2fe;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+  margin-top: 6px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #e0e7ff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -1279,7 +1295,7 @@
 }
 
 .auth-alert-action-btn:hover {
-  background: rgba(99, 102, 241, 0.28);
+  background: rgba(99, 102, 241, 0.35);
   color: #ffffff;
 }
 
@@ -2296,6 +2312,67 @@ body.light-mode .auth-terms-caption,
   color: #64748b;
 }
 
+/* Light Mode: Alert Banners & Action Buttons */
+body.light-mode .auth-alert-banner,
+[data-theme="light"] .auth-alert-banner {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+body.light-mode .auth-alert-banner.error,
+[data-theme="light"] .auth-alert-banner.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+body.light-mode .auth-alert-banner.error svg,
+[data-theme="light"] .auth-alert-banner.error svg {
+  color: #dc2626;
+}
+
+body.light-mode .auth-alert-banner.success,
+[data-theme="light"] .auth-alert-banner.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+body.light-mode .auth-alert-banner.success svg,
+[data-theme="light"] .auth-alert-banner.success svg {
+  color: #16a34a;
+}
+
+body.light-mode .auth-alert-banner.info,
+[data-theme="light"] .auth-alert-banner.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+body.light-mode .auth-alert-banner.info svg,
+[data-theme="light"] .auth-alert-banner.info svg {
+  color: #2563eb;
+}
+
+body.light-mode .auth-alert-action-btn,
+[data-theme="light"] .auth-alert-action-btn {
+  background: #4f46e5;
+  border: 1px solid #4338ca;
+  color: #ffffff !important;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2);
+}
+
+body.light-mode .auth-alert-action-btn:hover,
+[data-theme="light"] .auth-alert-action-btn:hover {
+  background: #4338ca;
+  border-color: #3730a3;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+
 body.light-mode .auth-terms-caption a,
 [data-theme="light"] .auth-terms-caption a {
   color: var(--accent-color, #4f46e5);
@@ -2527,8 +2604,41 @@ body.light-mode .auth-modal-title,
 }
 
 body.light-mode .auth-modal-desc,
-[data-theme="light"] .auth-modal-desc {
+body.light-mode .auth-modal-description,
+[data-theme="light"] .auth-modal-desc,
+[data-theme="light"] .auth-modal-description {
   color: #475569;
+}
+
+body.light-mode .auth-modal-close-btn,
+[data-theme="light"] .auth-modal-close-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+body.light-mode .auth-modal-close-btn:hover,
+[data-theme="light"] .auth-modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+body.light-mode .auth-modal-email-pill,
+[data-theme="light"] .auth-modal-email-pill {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+body.light-mode .auth-modal-email-pill .email-label,
+[data-theme="light"] .auth-modal-email-pill .email-label {
+  color: #64748b;
+}
+
+body.light-mode .auth-modal-email-pill .email-value,
+[data-theme="light"] .auth-modal-email-pill .email-value {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 body.light-mode .auth-modal-btn.primary,

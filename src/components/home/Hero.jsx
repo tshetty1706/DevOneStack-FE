@@ -36,13 +36,15 @@ export default function Hero() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            <span>Organize.Build.Learn</span>
+            <span>Organize.Build.Share</span>
           </div>
 
           <h1 className="hero-headline">
-            Every tool you learn.
+            Organize your knowledge.
             <br />
-            One place to keep it.
+            Build your collection.
+            <br />
+            Share what you create.
           </h1>
 
           <p className="hero-subheading">

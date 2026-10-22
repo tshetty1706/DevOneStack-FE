@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,9 +41,15 @@ export default function ResetPassword() {
   const hasNumber = /[0-9]/.test(passwordValue);
   const hasSpecialChar = /[^A-Za-z0-9]/.test(passwordValue);
 
+  useEffect(() => {
+    if (!token) {
+      setApiError('This password reset link is invalid or has expired. Please request a new one.');
+    }
+  }, [token]);
+
   const onSubmit = async (data) => {
     if (!token) {
-      setApiError('Reset token is missing or invalid. Please request a new password reset link.');
+      setApiError('This password reset link is invalid or has expired. Please request a new one.');
       return;
     }
 
@@ -51,10 +57,13 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      await api.post(`/api/auth/reset-password/${token}`, { password: data.password });
+      await api.post(`/api/auth/reset-password/${token}`, {
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+      });
       setSuccess(true);
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'This reset link has expired or already been used. Please request a new one.';
+      const errorMsg = err.response?.data?.error || 'This password reset link is invalid or has expired. Please request a new one.';
       setApiError(errorMsg);
     } finally {
       setLoading(false);
@@ -98,14 +107,23 @@ export default function ResetPassword() {
                 <FiAlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
                   <p style={{ margin: 0 }}>{apiError}</p>
-                  {(apiError.toLowerCase().includes('expired') || apiError.toLowerCase().includes('token') || apiError.toLowerCase().includes('used')) && (
-                    <Link
-                      to="/forgot-password"
-                      className="auth-alert-action-btn"
-                      style={{ display: 'inline-block', marginTop: '6px', textDecoration: 'none' }}
-                    >
-                      Request a new reset link &rarr;
-                    </Link>
+                  {(apiError.toLowerCase().includes('expired') || apiError.toLowerCase().includes('token') || apiError.toLowerCase().includes('used') || apiError.toLowerCase().includes('invalid')) && (
+                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <Link
+                        to="/login?forgot=true"
+                        className="auth-alert-action-btn"
+                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                      >
+                        Request a new reset link &rarr;
+                      </Link>
+                      <Link
+                        to="/login"
+                        className="auth-alert-action-btn"
+                        style={{ display: 'inline-block', textDecoration: 'none' }}
+                      >
+                        Back to Login
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>
@@ -128,14 +146,14 @@ export default function ResetPassword() {
                   <span style={{ fontWeight: 600 }}>Password Reset Successfully!</span>
                 </div>
                 <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.6, marginBottom: '22px' }}>
-                  Your password has been updated. You can now log in to your account using your new credentials.
+                  Your password has been reset successfully. Please sign in with your new password.
                 </p>
                 <Link
                   to="/login"
                   className="auth-cta-gradient-btn"
                   style={{ textDecoration: 'none', display: 'flex' }}
                 >
-                  <span className="auth-btn-text">Proceed to Login</span>
+                  <span className="auth-btn-text">Back to Login</span>
                   <FiArrowRight className="auth-btn-arrow-icon" size={16} />
                 </Link>
               </div>

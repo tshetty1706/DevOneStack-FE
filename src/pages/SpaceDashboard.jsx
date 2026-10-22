@@ -14,7 +14,8 @@ import {
   RiHome4Line, RiFileTextLine, RiLightbulbLine, RiCodeSSlashLine,
   RiGitRepositoryLine, RiRobot2Line, RiTeamLine, RiPriceTag3Line,
   RiSettings3Line, RiAddLine, RiHistoryLine, RiFlashlightLine, RiCloseLine,
-  RiCompass3Line, RiLoader4Line, RiStickyNoteLine
+  RiCompass3Line, RiLoader4Line, RiStickyNoteLine,
+  RiLockLine, RiGlobalLine, RiGitBranchLine, RiStarLine, RiStarFill
 } from 'react-icons/ri';
 import Logo from '../components/layout/Logo';
 import OnlyLogo from '../components/layout/OnlyLogo';
@@ -56,10 +57,10 @@ const SIDEBAR_ITEMS = [
 ];
 
 const SECTIONS = {
-  overview: ({ space, isLight, onNavigateSection, selectedFolderId, onSelectFolder }) => (
-    <OverviewSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} selectedFolderId={selectedFolderId} onSelectFolder={onSelectFolder} />
+  overview: ({ space, isLight, onNavigateSection, selectedFolderId, onSelectFolder, canEdit, canManage }) => (
+    <OverviewSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} selectedFolderId={selectedFolderId} onSelectFolder={onSelectFolder} canEdit={canEdit} canManage={canManage} />
   ),
-  explorer: ({ space, isLight, onNavigateSection, highlightId, highlightFolderId, selectedFolderId, onSelectFolder }) => (
+  explorer: ({ space, isLight, onNavigateSection, highlightId, highlightFolderId, selectedFolderId, onSelectFolder, canEdit, canManage }) => (
     <ExplorerSection
       space={space}
       isLight={isLight}
@@ -68,9 +69,11 @@ const SECTIONS = {
       highlightFolderId={highlightFolderId || selectedFolderId}
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  notes: ({ space, isLight, openNoteId, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  notes: ({ space, isLight, openNoteId, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <NotesSection
       space={space}
       isLight={isLight}
@@ -79,9 +82,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  docs: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  docs: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <DocsSection
       space={space}
       isLight={isLight}
@@ -89,9 +94,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  learnings: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  learnings: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <LearningsSection
       space={space}
       isLight={isLight}
@@ -99,9 +106,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  snippets: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  snippets: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <SnippetsSection
       space={space}
       isLight={isLight}
@@ -109,9 +118,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  repos: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  repos: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <ReposSection
       space={space}
       isLight={isLight}
@@ -119,9 +130,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  prompts: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  prompts: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <PromptsSection
       space={space}
       isLight={isLight}
@@ -129,9 +142,11 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  communities: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection }) => (
+  communities: ({ space, isLight, highlightId, selectedFolderId, onSelectFolder, onNavigateSection, canEdit, canManage }) => (
     <CommunitiesSection
       space={space}
       isLight={isLight}
@@ -139,13 +154,26 @@ const SECTIONS = {
       selectedFolderId={selectedFolderId}
       onSelectFolder={onSelectFolder}
       onNavigateSection={onNavigateSection}
+      canEdit={canEdit}
+      canManage={canManage}
     />
   ),
-  tags: ({ space, isLight, onNavigateSection }) => (
-    <TagsSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} />
+  tags: ({ space, isLight, onNavigateSection, canEdit, canManage }) => (
+    <TagsSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} canEdit={canEdit} canManage={canManage} />
   ),
-  settings: ({ space, isLight }) => (
-    <SettingsSection space={space} isLight={isLight} />
+  settings: ({ space, isLight, canManage }) => (
+    canManage ? (
+      <SettingsSection space={space} isLight={isLight} />
+    ) : (
+      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-color)', margin: '0 0 6px' }}>
+          Access Restricted
+        </p>
+        <p style={{ fontSize: '13px', margin: 0 }}>
+          Space settings and configuration are exclusively available to the space owner.
+        </p>
+      </div>
+    )
   ),
 };
 
@@ -192,9 +220,69 @@ export default function SpaceDashboard() {
     retry: false,
   });
 
+  // Canonical authorization & role resolution
+  const currentUserId = user?._id?.toString() || user?.id?.toString();
+  const ownerId = (space?.owner?._id || space?.owner)?.toString();
+  const isOwner = Boolean(currentUserId && ownerId && currentUserId === ownerId);
+  const userCollab = space?.collaborators?.find(c => {
+    const cId = (c?.user?._id || c?.user)?.toString();
+    return cId && currentUserId && cId === currentUserId;
+  });
+  const collabRole = userCollab?.role;
+  const isEditor = Boolean(collabRole === 'editor');
+  const isViewer = Boolean(collabRole === 'viewer');
+  const canEdit = Boolean(isOwner || isEditor);
+  const canManage = Boolean(isOwner);
+  const currentUserRole = isOwner ? 'owner' : (collabRole || 'visitor');
+
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [addingModuleId, setAddingModuleId] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isStarring, setIsStarring] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
+
+  const handleToggleStar = async () => {
+    if (!user) {
+      message.info('Please log in to star public spaces.');
+      return;
+    }
+    try {
+      setIsStarring(true);
+      const res = await api.post(`/api/spaces/${space._id}/star`);
+      queryClient.setQueryData(['space', spaceId], (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          starsCount: res.data.starsCount !== undefined ? res.data.starsCount : (res.data.isStarred ? (prev.starsCount || 0) + 1 : Math.max(0, (prev.starsCount || 1) - 1)),
+          isStarred: res.data.isStarred
+        };
+      });
+      message.success(res.data.message || 'Star updated');
+    } catch (err) {
+      message.error(err.response?.data?.error || 'Failed to update star');
+    } finally {
+      setIsStarring(false);
+    }
+  };
+
+  const handleClonePublicSpace = async () => {
+    if (!user) {
+      message.info('Please log in to clone spaces.');
+      return;
+    }
+    try {
+      setIsCloning(true);
+      const res = await api.post(`/api/clone/public/${space._id}`);
+      message.success('Space cloned successfully to your account!');
+      if (res.data?.space?._id) {
+        navigate(`/spaces/${res.data.space._id}`);
+      }
+    } catch (err) {
+      message.error(err.response?.data?.error || 'Failed to clone space');
+    } finally {
+      setIsCloning(false);
+    }
+  };
 
   // Compute enabled modules (Overview & Explorer are ALWAYS fixed as first two)
   const enabledModules = useMemo(() => {
@@ -244,7 +332,11 @@ export default function SpaceDashboard() {
     const folderId = searchParams.get('folderId');
 
     if (section) {
-      setActiveSection(section === 'home' ? 'overview' : section);
+      if (section === 'settings' && !canManage) {
+        setActiveSection('overview');
+      } else {
+        setActiveSection(section === 'home' ? 'overview' : section);
+      }
     } else {
       setActiveSection('overview');
     }
@@ -274,7 +366,7 @@ export default function SpaceDashboard() {
     setActiveSection(target);
     if (target === 'notes') setOpenNoteId(id);
     setHighlightId(id);
-    
+
     // If folderId is passed, use it; otherwise preserve current selectedFolderId
     const effectiveFolderId = folderId !== null ? folderId : selectedFolderId;
     if (folderId !== null) {
@@ -304,7 +396,7 @@ export default function SpaceDashboard() {
 
   useEffect(() => {
     if (user) {
-      setUserName(localStorage.getItem('dos_profile_name') || user.displayName || user.username || 'Developer');
+      setUserName(user.displayName || user.username || (user._id ? localStorage.getItem(`dos_profile_name_${user._id}`) : null) || 'Developer');
     }
   }, [user]);
 
@@ -519,8 +611,8 @@ export default function SpaceDashboard() {
           );
         })}
 
-        {/* Add Module Button */}
-        {availableToAddModules.length > 0 && (
+        {/* Add Module Button (Owner only) */}
+        {canManage && availableToAddModules.length > 0 && (
           <Tooltip title={!isHovered && !isMobile ? 'Add Module' : ''} placement="right">
             <button
               type="button"
@@ -553,7 +645,7 @@ export default function SpaceDashboard() {
               </div>
               {(isMobile || isHovered) && (
                 <span style={{ fontSize: '12px', fontWeight: 600, marginLeft: '12px' }}>
-                  + Add Module
+                  Add Module
                 </span>
               )}
             </button>
@@ -561,48 +653,50 @@ export default function SpaceDashboard() {
         )}
       </div>
 
-      {/* Footer */}
-      <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}` }}>
-        <Tooltip title={!isHovered && !isMobile ? 'Settings' : ''} placement="right">
-          <button
-            type="button"
-            onClick={() => handleSectionChange('settings')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeSection === 'settings' ? accentBg : 'transparent',
-              color: activeSection === 'settings' ? accentText : textMuted,
-              fontFamily: 'var(--font-body)',
-              fontSize: '13px',
-              fontWeight: activeSection === 'settings' ? 600 : 500,
-              cursor: 'pointer',
-              width: '100%',
-              whiteSpace: 'nowrap',
-              borderLeft: activeSection === 'settings' ? `3px solid ${accent}` : '3px solid transparent',
-              overflow: 'hidden',
-              minHeight: '40px',
-            }}
-            onMouseEnter={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
-            onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
-              <RiSettings3Line size={18} />
-            </div>
-            {(isMobile || isHovered) && (
-              <span style={{
+      {/* Footer (Owner Only Settings) */}
+      {canManage && (
+        <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}` }}>
+          <Tooltip title={!isHovered && !isMobile ? 'Settings' : ''} placement="right">
+            <button
+              type="button"
+              onClick={() => handleSectionChange('settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeSection === 'settings' ? accentBg : 'transparent',
+                color: activeSection === 'settings' ? accentText : textMuted,
+                fontFamily: 'var(--font-body)',
                 fontSize: '13px',
                 fontWeight: activeSection === 'settings' ? 600 : 500,
-                marginLeft: '12px',
-              }}>
-                Settings
-              </span>
-            )}
-          </button>
-        </Tooltip>
-      </div>
+                cursor: 'pointer',
+                width: '100%',
+                whiteSpace: 'nowrap',
+                borderLeft: activeSection === 'settings' ? `3px solid ${accent}` : '3px solid transparent',
+                overflow: 'hidden',
+                minHeight: '40px',
+              }}
+              onMouseEnter={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = textColor; } }}
+              onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
+                <RiSettings3Line size={18} />
+              </div>
+              {(isMobile || isHovered) && (
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: activeSection === 'settings' ? 600 : 500,
+                  marginLeft: '12px',
+                }}>
+                  Settings
+                </span>
+              )}
+            </button>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 
@@ -771,6 +865,53 @@ export default function SpaceDashboard() {
               </span>
             </div>
 
+            {/* Visibility Badge */}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '12px',
+                background: space.visibility === 'public' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                color: space.visibility === 'public' ? '#10b981' : 'var(--accent-color)',
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              {space.visibility === 'public' ? <RiGlobalLine size={12} /> : <RiLockLine size={12} />}
+              <span style={{ textTransform: 'capitalize' }}>{space.visibility || 'Private'}</span>
+            </span>
+
+            {/* Cloned Space Attribution (Phase 5.1) */}
+            {space.clonedAttribution && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11px',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  background: isLight ? '#f3f4f6' : '#1a1a24',
+                  border: `1px solid ${sidebarBrd}`,
+                  color: textMuted,
+                  fontWeight: 500,
+                  flexShrink: 0,
+                  cursor: (!space.clonedAttribution.isPrivate && space.clonedAttribution.username && space.clonedAttribution.spaceId) ? 'pointer' : 'default',
+                }}
+                onClick={() => {
+                  if (!space.clonedAttribution.isPrivate && space.clonedAttribution.username && space.clonedAttribution.spaceId) {
+                    navigate(`/u/${encodeURIComponent(space.clonedAttribution.username)}/spaces/${space.clonedAttribution.spaceId}`);
+                  }
+                }}
+              >
+                <RiGitBranchLine size={12} style={{ color: 'var(--accent-color)' }} />
+                <span>{space.clonedAttribution.label || 'Cloned Space'}</span>
+              </span>
+            )}
+
             {space.tags?.slice(0, 1).map(t => (
               <span
                 key={t}
@@ -844,37 +985,110 @@ export default function SpaceDashboard() {
 
           {/* Right Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${sidebarBrd}`,
-                background: 'transparent',
-                color: textMuted,
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-body)',
-                transition: 'all 0.15s ease',
-                minHeight: '34px',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = textColor;
-                e.currentTarget.style.borderColor = accent;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = textMuted;
-                e.currentTarget.style.borderColor = sidebarBrd;
-              }}
-            >
-              <RiShareLine size={14} />
-              <span className="space-share-btn-text">Share & Access</span>
-            </button>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${sidebarBrd}`,
+                  background: 'transparent',
+                  color: textMuted,
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-body)',
+                  transition: 'all 0.15s ease',
+                  minHeight: '34px',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = textColor;
+                  e.currentTarget.style.borderColor = accent;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = textMuted;
+                  e.currentTarget.style.borderColor = sidebarBrd;
+                }}
+              >
+                <RiShareLine size={14} />
+                <span className="space-share-btn-text">Share & Access</span>
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Role badge */}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    background: isEditor ? 'rgba(99, 102, 241, 0.12)' : (isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)'),
+                    color: isEditor ? 'var(--accent-color)' : textMuted,
+                    fontWeight: 600,
+                    border: `1px solid ${sidebarBrd}`,
+                  }}
+                >
+                  {isEditor ? 'Editor' : isViewer ? 'Viewer (Read-Only)' : 'Read-Only'}
+                </span>
+
+                {/* Star Button for public space */}
+                {space.visibility === 'public' && user && (
+                  <button
+                    type="button"
+                    disabled={isStarring}
+                    onClick={handleToggleStar}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      border: `1px solid ${sidebarBrd}`,
+                      background: space.isStarred ? 'rgba(234, 179, 8, 0.1)' : 'transparent',
+                      color: space.isStarred ? '#eab308' : textMuted,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {space.isStarred ? <RiStarFill size={14} /> : <RiStarLine size={14} />}
+                    <span>{space.starsCount || 0}</span>
+                  </button>
+                )}
+
+                {/* Direct Clone Button for public space if allowed */}
+                {space.visibility === 'public' && user && space.allowCloning !== false && (
+                  <button
+                    type="button"
+                    disabled={isCloning}
+                    onClick={handleClonePublicSpace}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: accent,
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: isCloning ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 2px 8px rgba(99,102,241,0.25)',
+                    }}
+                  >
+                    <RiGitBranchLine size={13} />
+                    <span>{isCloning ? 'Cloning…' : 'Clone Space'}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </header>
 
@@ -962,6 +1176,8 @@ export default function SpaceDashboard() {
                         selectedFolderId={selectedFolderId}
                         onSelectFolder={handleSelectFolder}
                         onNavigateSection={handleNavigateSection}
+                        canEdit={canEdit}
+                        canManage={canManage}
                       />
                     )}
                   </div>
@@ -975,8 +1191,8 @@ export default function SpaceDashboard() {
       <NewSpaceModal open={newSpaceOpen} onClose={() => setNewSpaceOpen(false)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      {/* ── Quick Add Modals ── */}
-      {space && (
+      {/* ── Quick Add Modals (Only rendered if user has write/edit permissions) ── */}
+      {canEdit && space && (
         <>
           <QuickAddNoteModal open={quickAddModal === 'notes'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
           <QuickAddLearningModal open={quickAddModal === 'learnings'} onClose={() => setQuickAddModal(null)} space={space} defaultFolderId={selectedFolderId} />
