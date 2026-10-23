@@ -8,6 +8,10 @@ export const collaborationApi = {
     api.patch(`/api/spaces/${spaceId}/collaborators/${userId}`, payload).then((r) => r.data),
   removeCollaborator: (spaceId, userId) =>
     api.delete(`/api/spaces/${spaceId}/collaborators/${userId}`).then((r) => r.data),
+  cancelInvite: (spaceId, inviteId) =>
+    api.delete(`/api/spaces/${spaceId}/collaborators/invites/${inviteId}`).then((r) => r.data),
+  leaveSpace: (spaceId, userId) =>
+    api.delete(`/api/spaces/${spaceId}/collaborators/${userId}`).then((r) => r.data),
 };
 
 export default collaborationApi;

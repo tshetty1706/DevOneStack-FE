@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import api from '../../api/axios';
 import SpaceThumbnail from '../common/SpaceThumbnail';
+import { spaceKeys } from '../../hooks/useSpaces';
 import {
   RiLockLine,
   RiGlobalLine,
@@ -156,20 +157,37 @@ export default function ToolSpaceCard({
     }
   };
 
-  // Delete Space Handler
+  // Delete Space Handler with optimistic cache update
+  const [isDeletingSpace, setIsDeletingSpace] = useState(false);
   const handleDeleteSpace = async (e) => {
     e.stopPropagation();
     setShowDropdown(false);
-    if (isPreview || !spaceId) return;
+    if (isPreview || !spaceId || isDeletingSpace) return;
 
     if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+      setIsDeletingSpace(true);
+
+      // Optimistically remove space from cache immediately
+      const userKey = spaceKeys.userAll(currentUserId);
+      const previousSpaces = queryClient.getQueryData(userKey);
+
+      if (Array.isArray(previousSpaces)) {
+        queryClient.setQueryData(userKey, previousSpaces.filter(s => (s._id || s.id) !== spaceId));
+      }
+
       try {
         await api.delete(`/api/spaces/${spaceId}`);
-        queryClient.invalidateQueries({ queryKey: ['spaces'] });
+        queryClient.invalidateQueries({ queryKey: spaceKeys.all });
         queryClient.invalidateQueries({ queryKey: ['history'] });
         message.success('Space deleted successfully');
       } catch (err) {
+        // Rollback on error
+        if (previousSpaces) {
+          queryClient.setQueryData(userKey, previousSpaces);
+        }
         message.error(err?.response?.data?.error || 'Failed to delete space');
+      } finally {
+        setIsDeletingSpace(false);
       }
     }
   };
@@ -511,6 +529,7 @@ export default function ToolSpaceCard({
                       <button
                         type="button"
                         onClick={handleDeleteSpace}
+                        disabled={isDeletingSpace}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -523,15 +542,18 @@ export default function ToolSpaceCard({
                           fontSize: '12.5px',
                           fontWeight: 500,
                           borderRadius: '6px',
-                          cursor: 'pointer',
+                          cursor: isDeletingSpace ? 'not-allowed' : 'pointer',
+                          opacity: isDeletingSpace ? 0.6 : 1,
                           textAlign: 'left',
                           fontFamily: 'var(--font-body)',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = isLight ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.1)'}
+                        onMouseEnter={e => {
+                          if (!isDeletingSpace) e.currentTarget.style.background = isLight ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.1)';
+                        }}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
                         <RiDeleteBinLine size={14} />
-                        Delete Space
+                        {isDeletingSpace ? 'Deleting...' : 'Delete Space'}
                       </button>
                     </div>
                   </>

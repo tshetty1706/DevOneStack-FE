@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Tabs, Input, Select, Button, Switch, message, Tooltip, Spin, Alert } from 'antd';
+import { Modal, Tabs, Input, Button, Switch, message, Tooltip, Alert } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { collaborationApi } from '../../api/collaborationApi';
 import { cloneApi } from '../../api/cloneApi';
 import { spacesApi } from '../../api/spacesApi';
+import CollaboratorsManager from './CollaboratorsManager';
 import {
-  RiUserAddLine,
   RiLinkM,
   RiLockLine,
   RiGlobalLine,
-  RiDeleteBinLine,
   RiRefreshLine,
   RiFileCopyLine,
-  RiShieldCheckLine,
   RiAlertLine,
+  RiTeamLine,
 } from 'react-icons/ri';
 
 export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpaceUpdated }) {
@@ -23,14 +21,6 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
   const isLight = theme === 'light';
 
   const [activeTab, setActiveTab] = useState('collaborators'); // 'collaborators' | 'requestLink' | 'visibility'
-
-  // Collaborators Tab State
-  const [collaborators, setCollaborators] = useState([]);
-  const [pendingInvites, setPendingInvites] = useState([]);
-  const [loadingCollabs, setLoadingCollabs] = useState(false);
-  const [inviteUsername, setInviteUsername] = useState('');
-  const [inviteRole, setInviteRole] = useState('editor');
-  const [inviting, setInviting] = useState(false);
 
   // Request Link Tab State
   const [requestLinkEnabled, setRequestLinkEnabled] = useState(space?.requestLinkEnabled || false);
@@ -49,66 +39,8 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
       setRequestLinkToken(space.requestLinkToken || '');
       setRequestDescription(space.requestDescription || '');
       setCurrentVisibility(space.visibility || 'private');
-      fetchCollaborators();
     }
   }, [visible, space]);
-
-  const fetchCollaborators = async () => {
-    if (!space?._id) return;
-    try {
-      setLoadingCollabs(true);
-      const res = await collaborationApi.getCollaborators(space._id);
-      setCollaborators(res.collaborators || []);
-      setPendingInvites(res.pendingInvites || []);
-    } catch (err) {
-      // If error, ignore silently or report
-    } finally {
-      setLoadingCollabs(false);
-    }
-  };
-
-  const handleSendInvite = async () => {
-    const trimmed = inviteUsername.trim();
-    if (!trimmed) {
-      message.warning('Please enter an exact username.');
-      return;
-    }
-
-    try {
-      setInviting(true);
-      const res = await collaborationApi.inviteCollaborator(space._id, {
-        username: trimmed,
-        role: inviteRole,
-      });
-      message.success(res.message || 'Invitation sent successfully.');
-      setInviteUsername('');
-      fetchCollaborators();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to send invitation.');
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await collaborationApi.updateCollaboratorRole(space._id, userId, { role: newRole });
-      message.success('Collaborator role updated.');
-      fetchCollaborators();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to update role.');
-    }
-  };
-
-  const handleRemoveCollaborator = async (userId) => {
-    try {
-      await collaborationApi.removeCollaborator(space._id, userId);
-      message.success('Collaborator removed.');
-      fetchCollaborators();
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to remove collaborator.');
-    }
-  };
 
   const handleSaveRequestLinkSettings = async (enabledVal, descVal) => {
     try {
@@ -218,194 +150,40 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
     }
   };
 
-  const isOwner = user && (user._id === (space?.owner?._id || space?.owner) || user.id === (space?.owner?._id || space?.owner));
+  const currentUserId = (user?._id || user?.id)?.toString();
+  const ownerId = (space?.owner?._id || space?.owner)?.toString();
+  const isOwner = Boolean(currentUserId && ownerId && currentUserId === ownerId);
 
-  return (
-    <Modal
-      open={visible}
-      onCancel={onClose}
-      footer={null}
-      centered
-      width={560}
-      title="Space Access & Collaboration"
-      destroyOnClose
-      styles={{
-        content: {
-          background: isLight ? '#ffffff' : '#111116',
-          borderRadius: '16px',
-        },
-      }}
-    >
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={[
-          {
-            key: 'collaborators',
-            label: (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <RiUserAddLine /> Collaborators
-              </span>
-            ),
-            children: (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
-                {!allowCollaborators && (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    message="Collaboration Disabled"
-                    description="Collaboration was disabled for this cloned Space by the original owner. You cannot invite collaborators."
-                    style={{ borderRadius: '10px' }}
-                  />
-                )}
-
-                {/* Invite Form */}
-                {isOwner && allowCollaborators && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '8px',
-                      padding: '14px',
-                      borderRadius: '12px',
-                      background: isLight ? '#f9fafb' : '#0a0a0f',
-                      border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.06)'}`,
-                    }}
-                  >
-                    <Input
-                      placeholder="Enter exact username..."
-                      value={inviteUsername}
-                      onChange={(e) => setInviteUsername(e.target.value)}
-                      onPressEnter={handleSendInvite}
-                      style={{ flex: 1 }}
-                    />
-                    <Select
-                      value={inviteRole}
-                      onChange={setInviteRole}
-                      options={[
-                        { value: 'editor', label: 'Editor' },
-                        { value: 'viewer', label: 'Viewer' },
-                      ]}
-                      style={{ width: '100px' }}
-                    />
-                    <Button type="primary" loading={inviting} onClick={handleSendInvite}>
-                      Invite
-                    </Button>
-                  </div>
-                )}
-
-                {/* Collaborators List */}
-                {loadingCollabs ? (
-                  <div style={{ padding: '24px 0', textAlign: 'center' }}>
-                    <Spin size="small" />
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                      Active Members ({collaborators.length}/10)
-                    </div>
-
-                    {collaborators.length === 0 ? (
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0' }}>
-                        No collaborators added yet.
-                      </p>
-                    ) : (
-                      collaborators.map((c) => {
-                        const colUser = c.user || {};
-                        return (
-                          <div
-                            key={colUser._id || colUser.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '10px 12px',
-                              borderRadius: '8px',
-                              background: isLight ? '#f9fafb' : '#0e0e14',
-                              border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.04)'}`,
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-color)' }}>
-                                @{colUser.username}
-                              </span>
-                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                ({colUser.displayName})
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              {isOwner ? (
-                                <Select
-                                  value={c.role}
-                                  onChange={(val) => handleRoleChange(colUser._id || colUser.id, val)}
-                                  size="small"
-                                  options={[
-                                    { value: 'editor', label: 'Editor' },
-                                    { value: 'viewer', label: 'Viewer' },
-                                  ]}
-                                  style={{ width: '90px' }}
-                                />
-                              ) : (
-                                <span style={{ fontSize: '12px', textTransform: 'capitalize' }}>{c.role}</span>
-                              )}
-
-                              {isOwner && (
-                                <Button
-                                  type="text"
-                                  danger
-                                  size="small"
-                                  icon={<RiDeleteBinLine />}
-                                  onClick={() => handleRemoveCollaborator(colUser._id || colUser.id)}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-
-                    {/* Pending Invites */}
-                    {pendingInvites.length > 0 && (
-                      <div style={{ marginTop: '12px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                          Pending Invites
-                        </div>
-                        {pendingInvites.map((inv) => (
-                          <div
-                            key={inv._id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              background: isLight ? '#f3f4f6' : '#14141d',
-                              fontSize: '13px',
-                              marginBottom: '4px',
-                            }}
-                          >
-                            <span>
-                              @{inv.inviteeUsername} (<em>{inv.role}</em>)
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 600 }}>Invited</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ),
-          },
-          {
-            key: 'requestLink',
-            label: (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <RiLinkM /> Request Link
-              </span>
-            ),
-            children: (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
+  const tabItems = [
+    {
+      key: 'collaborators',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <RiTeamLine /> Collaborators
+        </span>
+      ),
+      children: (
+        <div style={{ paddingTop: '8px' }}>
+          <CollaboratorsManager
+            space={space}
+            isLight={isLight}
+            currentUser={user}
+            onCloseModal={onClose}
+            onSpaceUpdated={onSpaceUpdated}
+          />
+        </div>
+      ),
+    },
+    ...(isOwner ? [
+      {
+        key: 'requestLink',
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <RiLinkM /> Request Link
+          </span>
+        ),
+        children: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '8px' }}>
                 {!allowOthersToClone && (
                   <Alert
                     type="warning"
@@ -562,7 +340,29 @@ export default function SpaceCollaboratorsModal({ space, visible, onClose, onSpa
               </div>
             ),
           },
-        ]}
+        ] : []),
+  ];
+
+  return (
+    <Modal
+      open={visible}
+      onCancel={onClose}
+      footer={null}
+      centered
+      width={600}
+      title={isOwner ? "Space Access & Collaboration" : "Space Collaborators"}
+      destroyOnClose
+      styles={{
+        content: {
+          background: isLight ? '#ffffff' : '#111116',
+          borderRadius: '16px',
+        },
+      }}
+    >
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
       />
     </Modal>
   );
