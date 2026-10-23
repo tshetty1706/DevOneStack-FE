@@ -9,7 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { timeAgo } from '../../utils/dateUtils';
 
 export default function ContinueWorking() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const { data: activeSpaces = [], isLoading } = useSpaces();
@@ -18,8 +18,7 @@ export default function ContinueWorking() {
   const textMuted = 'var(--text-secondary)';
 
   const displayedSpaces = useMemo(() => {
-    if (isLoading || !activeSpaces.length) return [];
-    if (!user?._id) return activeSpaces.slice(0, 3); // simple fallback
+    if (authLoading || isLoading || !activeSpaces.length || !user?._id) return [];
 
     try {
       const key = `dos_recent_spaces_${user._id}`;
@@ -54,7 +53,7 @@ export default function ContinueWorking() {
     }
   }, [activeSpaces, user, isLoading]);
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return null; 
   }
 

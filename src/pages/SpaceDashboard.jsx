@@ -162,18 +162,7 @@ const SECTIONS = {
     <TagsSection space={space} isLight={isLight} onNavigateSection={onNavigateSection} canEdit={canEdit} canManage={canManage} />
   ),
   settings: ({ space, isLight, canManage }) => (
-    canManage ? (
-      <SettingsSection space={space} isLight={isLight} />
-    ) : (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-color)', margin: '0 0 6px' }}>
-          Access Restricted
-        </p>
-        <p style={{ fontSize: '13px', margin: 0 }}>
-          Space settings and configuration are exclusively available to the space owner.
-        </p>
-      </div>
-    )
+    <SettingsSection space={space} isLight={isLight} canManage={canManage} />
   ),
 };
 
@@ -332,11 +321,7 @@ export default function SpaceDashboard() {
     const folderId = searchParams.get('folderId');
 
     if (section) {
-      if (section === 'settings' && !canManage) {
-        setActiveSection('overview');
-      } else {
-        setActiveSection(section === 'home' ? 'overview' : section);
-      }
+      setActiveSection(section === 'home' ? 'overview' : section);
     } else {
       setActiveSection('overview');
     }
@@ -653,10 +638,10 @@ export default function SpaceDashboard() {
         )}
       </div>
 
-      {/* Footer (Owner Only Settings) */}
-      {canManage && (
+      {/* Footer (Settings for owner, Collaborators & Settings for members) */}
+      {(canManage || isEditor || isViewer) && (
         <div style={{ padding: '8px', borderTop: `1px solid ${sidebarBrd}` }}>
-          <Tooltip title={!isHovered && !isMobile ? 'Settings' : ''} placement="right">
+          <Tooltip title={!isHovered && !isMobile ? (canManage ? 'Settings' : 'Collaborators') : ''} placement="right">
             <button
               type="button"
               onClick={() => handleSectionChange('settings')}
@@ -682,7 +667,7 @@ export default function SpaceDashboard() {
               onMouseLeave={e => { if (activeSection !== 'settings') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = textMuted; } }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', flexShrink: 0 }}>
-                <RiSettings3Line size={18} />
+                {canManage ? <RiSettings3Line size={18} /> : <RiTeamLine size={18} />}
               </div>
               {(isMobile || isHovered) && (
                 <span style={{
@@ -690,7 +675,7 @@ export default function SpaceDashboard() {
                   fontWeight: activeSection === 'settings' ? 600 : 500,
                   marginLeft: '12px',
                 }}>
-                  Settings
+                  {canManage ? 'Settings' : 'Collaborators'}
                 </span>
               )}
             </button>
@@ -1036,6 +1021,41 @@ export default function SpaceDashboard() {
                 >
                   {isEditor ? 'Editor' : isViewer ? 'Viewer (Read-Only)' : 'Read-Only'}
                 </span>
+
+                {/* Collaborators Button for active collaborators */}
+                {(isEditor || isViewer) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowShareModal(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${sidebarBrd}`,
+                      background: 'transparent',
+                      color: textMuted,
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-body)',
+                      transition: 'all 0.15s ease',
+                      minHeight: '34px',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.color = textColor;
+                      e.currentTarget.style.borderColor = accent;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.color = textMuted;
+                      e.currentTarget.style.borderColor = sidebarBrd;
+                    }}
+                  >
+                    <RiTeamLine size={14} />
+                    <span className="space-share-btn-text">Collaborators</span>
+                  </button>
+                )}
 
                 {/* Star Button for public space */}
                 {space.visibility === 'public' && user && (

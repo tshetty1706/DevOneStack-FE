@@ -28,7 +28,7 @@ import {
 
 function DashboardContent() {
   const { theme } = useTheme();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,6 +37,7 @@ function DashboardContent() {
   const [myPostsPage, setMyPostsPage] = useState(1);
 
   const { data: spaces = [], isLoading: spacesLoading } = useSpaces();
+  const isSpacesLoading = authLoading || spacesLoading;
 
   // Query for Starred Spaces
   const {
@@ -245,7 +246,7 @@ function DashboardContent() {
             </>
           ) : activeView === 'spaces' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-              {spacesLoading ? (
+              {isSpacesLoading ? (
                 <div style={{ color: textMuted, fontSize: '14px', padding: '40px 0', textAlign: 'center' }}>
                   Loading spaces...
                 </div>

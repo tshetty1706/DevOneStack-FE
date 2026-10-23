@@ -13,21 +13,25 @@ export const spaceKeys = {
 };
 
 export function useSpaces(params) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?._id || user?.id;
 
   return useQuery({
     queryKey: params ? spaceKeys.userList(userId, params) : spaceKeys.userAll(userId),
     queryFn: () => spacesApi.getSpaces(params),
+    enabled: !authLoading && Boolean(userId),
     staleTime: 1000 * 60 * 3, // 3 min
   });
 }
 
 export function useSpace(spaceId) {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?._id || user?.id;
+
   return useQuery({
-    queryKey: spaceKeys.detail(spaceId),
+    queryKey: ['spaces', userId || 'guest', 'detail', spaceId],
     queryFn: () => spacesApi.getSpaceById(spaceId),
-    enabled: Boolean(spaceId),
+    enabled: !authLoading && Boolean(spaceId),
     staleTime: 1000 * 60 * 3,
   });
 }
@@ -43,6 +47,8 @@ export function useSpaceHistory(spaceId) {
 
 export function useSpaceMutations() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?._id || user?.id;
 
   const createSpace = useMutation({
     mutationFn: spacesApi.createSpace,
@@ -79,12 +85,27 @@ export function useSpaceMutations() {
 
   const deleteSpace = useMutation({
     mutationFn: (spaceId) => spacesApi.deleteSpace(spaceId),
+    onMutate: async (spaceId) => {
+      await queryClient.cancelQueries({ queryKey: spaceKeys.all });
+      const userKey = spaceKeys.userAll(userId);
+      const previousSpaces = queryClient.getQueryData(userKey);
+
+      if (Array.isArray(previousSpaces)) {
+        queryClient.setQueryData(userKey, previousSpaces.filter(s => (s._id || s.id) !== spaceId));
+      }
+
+      return { previousSpaces, userKey };
+    },
+    onError: (err, spaceId, context) => {
+      if (context?.previousSpaces && context?.userKey) {
+        queryClient.setQueryData(context.userKey, context.previousSpaces);
+      }
+      message.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to delete space');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: spaceKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['history'] });
       message.success('Space deleted');
-    },
-    onError: (err) => {
-      message.error(err?.response?.data?.error || err?.response?.data?.message || 'Failed to delete space');
     },
   });
 

@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Input, Select, Button, Switch, message } from 'antd';
-import { RiSearchLine, RiFolder5Line, RiArrowUpSLine, RiArrowDownSLine, RiRefreshLine } from 'react-icons/ri';
+import { RiSearchLine, RiFolder5Line, RiArrowUpSLine, RiArrowDownSLine, RiRefreshLine, RiInformationLine } from 'react-icons/ri';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import SpaceIcon from './SpaceIcon';
 import { ALL_MODULES } from '../../constants/templates';
+import CollaboratorsManager from './CollaboratorsManager';
 
-export default function SettingsSection({ space, isLight }) {
+export default function SettingsSection({ space, isLight, canManage = true }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const isOwner = Boolean(canManage);
 
   // Rename states
   const [name, setName] = useState(space.name || '');
@@ -96,147 +98,206 @@ export default function SettingsSection({ space, isLight }) {
   };
 
   return (
-    <div style={{ maxWidth: '520px', padding: '8px 0' }}>
+    <div style={{ maxWidth: '640px', padding: '8px 0' }}>
       <h3 style={{ fontSize: '15px', fontWeight: 700, color: isLight ? '#111' : '#fff', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Space Settings
+        {isOwner ? 'Space Settings' : 'Space Collaborators & Settings'}
       </h3>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Name Input */}
-        <div>
-          <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
-            Space Name
-          </label>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '13px', flex: 1 }}
-            />
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '8px',
-              border: `1px solid ${isLight ? '#d9d9d9' : '#3f3f46'}`,
-              background: isLight ? '#ffffff' : '#18181b',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: isLight ? '#111' : '#fff', flexShrink: 0
-            }}>
-              <SpaceIcon iconKey={iconKey} size={22} />
+      {!isOwner && (
+        <div style={{
+          padding: '14px 16px',
+          borderRadius: '12px',
+          background: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+          border: `1px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)'}`,
+          marginBottom: '20px',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'flex-start'
+        }}>
+          <RiInformationLine size={20} style={{ color: isLight ? '#4f46e5' : '#818cf8', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ fontSize: '13px', color: isLight ? '#334155' : '#cbd5e1', lineHeight: 1.5 }}>
+            <strong style={{ display: 'block', marginBottom: '2px', color: isLight ? '#0f172a' : '#f8fafc' }}>
+              Collaborator View
+            </strong>
+            You are viewing this Space as an authorized collaborator. General configuration, modules, and deletion are managed by the Space Owner (@{space?.owner?.username || 'owner'}). You can view all team members and manage your membership below.
+          </div>
+        </div>
+      )}
+
+      {isOwner ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Name Input */}
+          <div>
+            <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
+              Space Name
+            </label>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '13px', flex: 1 }}
+              />
+              <div style={{
+                width: '36px', height: '36px', borderRadius: '8px',
+                border: `1px solid ${isLight ? '#d9d9d9' : '#3f3f46'}`,
+                background: isLight ? '#ffffff' : '#18181b',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: isLight ? '#111' : '#fff', flexShrink: 0
+              }}>
+                <SpaceIcon iconKey={iconKey} size={22} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Tags Select */}
-        <div>
-          <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
-            Space tags
-          </label>
-          <Select
-            mode="tags"
-            style={{ width: '100%', minHeight: '38px' }}
-            placeholder="Type tag and hit Enter"
-            value={tags}
-            onChange={(val) => setTags(val)}
-          />
-        </div>
+          {/* Tags Select */}
+          <div>
+            <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
+              Space tags
+            </label>
+            <Select
+              mode="tags"
+              style={{ width: '100%', minHeight: '38px' }}
+              placeholder="Type tag and hit Enter"
+              value={tags}
+              onChange={(val) => setTags(val)}
+            />
+          </div>
 
-        {/* Enabled Modules */}
-        <div>
-          <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
-            Active Modules
-          </label>
-          <p style={{ fontSize: '12px', color: '#888', margin: '0 0 10px' }}>
-            Enable or disable workspace modules in your sidebar.
-          </p>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            background: isLight ? '#f9fafb' : '#14141e',
-            padding: '12px',
-            borderRadius: '10px',
-            border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)'}`,
-          }}>
-            {ALL_MODULES.map(mod => {
-              const isFixed = mod.isFixed;
-              const isEnabled = isFixed || enabledModules.includes(mod.id);
-              const ModIcon = mod.icon;
-              return (
-                <div
-                  key={mod.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    background: isLight ? '#ffffff' : '#1a1a24',
-                    border: `1px solid ${isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)'}`,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ModIcon size={16} style={{ color: isLight ? '#4f46e5' : '#818cf8' }} />
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: isLight ? '#111' : '#fff' }}>
-                      {mod.label}
-                    </span>
-                    {isFixed && (
-                      <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: isLight ? '#e5e7eb' : '#27272a', color: '#888' }}>
-                        Fixed
-                      </span>
-                    )}
-                  </div>
-                  <Switch
-                    size="small"
-                    disabled={isFixed}
-                    checked={isEnabled}
-                    onChange={(checked) => {
-                      if (isFixed) return;
-                      if (checked) {
-                        setEnabledModules(prev => [...prev.filter(m => m !== mod.id), mod.id]);
-                      } else {
-                        setEnabledModules(prev => prev.filter(m => m !== mod.id));
-                      }
+          {/* Enabled Modules */}
+          <div>
+            <label style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 600, display: 'block', marginBottom: '6px', letterSpacing: '0.05em' }}>
+              Active Modules
+            </label>
+            <p style={{ fontSize: '12px', color: '#888', margin: '0 0 10px' }}>
+              Enable or disable workspace modules in your sidebar.
+            </p>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              background: isLight ? '#f9fafb' : '#14141e',
+              padding: '12px',
+              borderRadius: '10px',
+              border: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)'}`,
+            }}>
+              {ALL_MODULES.map(mod => {
+                const isFixed = mod.isFixed;
+                const isEnabled = isFixed || enabledModules.includes(mod.id);
+                const ModIcon = mod.icon;
+                return (
+                  <div
+                    key={mod.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      background: isLight ? '#ffffff' : '#1a1a24',
+                      border: `1px solid ${isLight ? '#f3f4f6' : 'rgba(255,255,255,0.04)'}`,
                     }}
-                  />
-                </div>
-              );
-            })}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ModIcon size={16} style={{ color: isLight ? '#4f46e5' : '#818cf8' }} />
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: isLight ? '#111' : '#fff' }}>
+                        {mod.label}
+                      </span>
+                      {isFixed && (
+                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: isLight ? '#e5e7eb' : '#27272a', color: '#888' }}>
+                          Fixed
+                        </span>
+                      )}
+                    </div>
+                    <Switch
+                      size="small"
+                      disabled={isFixed}
+                      checked={isEnabled}
+                      onChange={(checked) => {
+                        if (isFixed) return;
+                        if (checked) {
+                          setEnabledModules(prev => [...prev.filter(m => m !== mod.id), mod.id]);
+                        } else {
+                          setEnabledModules(prev => prev.filter(m => m !== mod.id));
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Save button */}
+          <Button
+            type="primary"
+            onClick={handleSave}
+            loading={isSaving}
+            style={{
+              alignSelf: 'flex-start',
+              background: isLight ? '#4f46e5' : '#6366f1',
+              borderColor: isLight ? '#4f46e5' : '#6366f1',
+              borderRadius: '8px', fontWeight: 600
+            }}
+          >
+            Save Changes
+          </Button>
+
+          {/* Collaborators Section */}
+          <div style={{
+            marginTop: '20px',
+            paddingTop: '20px',
+            borderTop: `1px solid ${isLight ? '#e5e7eb' : 'rgba(255,255,255,0.08)'}`
+          }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#111' : '#fff', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Space Collaborators & Permissions
+            </h4>
+            <p style={{ fontSize: '12px', color: '#888', margin: '0 0 16px' }}>
+              Manage team members, roles, and pending invitations for this space.
+            </p>
+            <CollaboratorsManager
+              space={space}
+              isLight={isLight}
+              currentUser={user}
+              onSpaceUpdated={() => {
+                queryClient.invalidateQueries(['space', space._id]);
+                queryClient.invalidateQueries(['spaces']);
+              }}
+            />
+          </div>
+
+          {/* Danger Zone */}
+          <div style={{
+            marginTop: '24px', padding: '16px', borderRadius: '12px',
+            border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)'
+          }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#ef4444', margin: '0 0 6px' }}>Danger Zone</p>
+            <p style={{ fontSize: '12px', color: '#888', margin: '0 0 16px', lineHeight: 1.4 }}>
+              Deleting this space is permanent and will delete all associated Notes, Snippets, Docs, Repos, Prompts, and Communities.
+            </p>
+            <Button
+              danger
+              type="primary"
+              onClick={() => setDeleteModalOpen(true)}
+              style={{ borderRadius: '8px', fontWeight: 600 }}
+            >
+              Delete this space
+            </Button>
           </div>
         </div>
-
-        {/* Save button */}
-        <Button
-          type="primary"
-          onClick={handleSave}
-          loading={isSaving}
-          style={{
-            alignSelf: 'flex-start',
-            background: isLight ? '#4f46e5' : '#6366f1',
-            borderColor: isLight ? '#4f46e5' : '#6366f1',
-            borderRadius: '8px', fontWeight: 600
-          }}
-        >
-          Save Changes
-        </Button>
-
-        {/* Danger Zone */}
-        <div style={{
-          marginTop: '24px', padding: '16px', borderRadius: '12px',
-          border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)'
-        }}>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: '#ef4444', margin: '0 0 6px' }}>Danger Zone</p>
-          <p style={{ fontSize: '12px', color: '#888', margin: '0 0 16px', lineHeight: 1.4 }}>
-            Deleting this space is permanent and will delete all associated Notes, Snippets, Docs, Repos, Prompts, and Communities.
-          </p>
-          <Button
-            danger
-            type="primary"
-            onClick={() => setDeleteModalOpen(true)}
-            style={{ borderRadius: '8px', fontWeight: 600 }}
-          >
-            Delete this space
-          </Button>
+      ) : (
+        /* Collaborator Section for non-owners */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <CollaboratorsManager
+            space={space}
+            isLight={isLight}
+            currentUser={user}
+            onSpaceUpdated={() => {
+              queryClient.invalidateQueries(['space', space._id]);
+              queryClient.invalidateQueries(['spaces']);
+            }}
+          />
         </div>
-      </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal

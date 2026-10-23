@@ -15,6 +15,7 @@ import api from '../../api/axios';
 import MarkdownRenderer from '../common/MarkdownRenderer';
 import ModuleSidebar from './ModuleSidebar';
 import notesIllustration from '../../assets/editor/notes.svg';
+import { timeAgo } from '../../utils/dateUtils';
 
 export default function NotesSection({
   space,
@@ -64,6 +65,12 @@ export default function NotesSection({
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const autosaveTimerRef = useRef(null);
+  const loadedNoteIdRef = useRef(null);
+  const pendingEditRef = useRef({ noteId: null, title: '', content: '' });
+  const saveStatusRef = useRef(saveStatus);
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
 
   // Fetch folders
   const { data: folderData } = useQuery({
@@ -92,15 +99,31 @@ export default function NotesSection({
     return notes.find(n => n._id === selectedNoteId) || null;
   }, [notes, selectedNoteId]);
 
-  // When activeNote changes, populate editor
+  // When activeNote changes, populate editor ONLY when switching to a different note or on initial selection
   useEffect(() => {
     if (activeNote) {
-      setNoteTitle(activeNote.title || '');
-      setNoteContent(activeNote.content || '');
-      setSaveStatus('saved');
+      if (loadedNoteIdRef.current !== activeNote._id) {
+        loadedNoteIdRef.current = activeNote._id;
+        setNoteTitle(activeNote.title || '');
+        setNoteContent(activeNote.content || '');
+        setSaveStatus('saved');
+        pendingEditRef.current = {
+          noteId: activeNote._id,
+          title: activeNote.title || '',
+          content: activeNote.content || '',
+        };
+      }
     } else if (notes.length > 0 && !selectedNoteId && (openNoteId || highlightId)) {
       const target = notes.find(n => n._id === (openNoteId || highlightId));
-      if (target) setSelectedNoteId(target._id);
+      if (target) {
+        setSelectedNoteId(target._id);
+      }
+    } else if (!activeNote && selectedNoteId) {
+      loadedNoteIdRef.current = null;
+      setNoteTitle('');
+      setNoteContent('');
+      setSaveStatus('saved');
+      pendingEditRef.current = { noteId: null, title: '', content: '' };
     }
   }, [activeNote, openNoteId, highlightId, notes, selectedNoteId]);
 
@@ -121,10 +144,16 @@ export default function NotesSection({
       queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
       queryClient.invalidateQueries({ queryKey: ['space', space._id] });
       if (data?.item?._id) {
+        loadedNoteIdRef.current = data.item._id;
         setSelectedNoteId(data.item._id);
         setNoteTitle(data.item.title || '');
         setNoteContent(data.item.content || '');
         setSaveStatus('saved');
+        pendingEditRef.current = {
+          noteId: data.item._id,
+          title: data.item.title || '',
+          content: data.item.content || '',
+        };
       }
       if (isMobile) {
         setMobileSidebarVisible(false);
@@ -167,9 +196,14 @@ export default function NotesSection({
       });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setSaveStatus('saved');
-      queryClient.invalidateQueries({ queryKey: ['items', space._id] });
+      // Update local query cache immediately without disruptive refetch
+      if (data?.item) {
+        queryClient.setQueryData(['items', space._id, 'note'], (old = []) => {
+          return old.map(item => item._id === data.item._id ? { ...item, ...data.item } : item);
+        });
+      }
     },
     onError: () => {
       setSaveStatus('unsaved');
@@ -186,7 +220,12 @@ export default function NotesSection({
       queryClient.invalidateQueries({ queryKey: ['items', space._id] });
       queryClient.invalidateQueries({ queryKey: ['folders', space._id] });
       queryClient.invalidateQueries({ queryKey: ['space', space._id] });
+      loadedNoteIdRef.current = null;
       setSelectedNoteId(null);
+      setNoteTitle('');
+      setNoteContent('');
+      setSaveStatus('saved');
+      pendingEditRef.current = { noteId: null, title: '', content: '' };
     },
     onError: (err) => {
       message.error(err.response?.data?.error || 'Failed to delete note');
@@ -207,6 +246,11 @@ export default function NotesSection({
   const triggerAutosave = useCallback((newTitle, newContent) => {
     if (!selectedNoteId) return;
     setSaveStatus('unsaved');
+    pendingEditRef.current = {
+      noteId: selectedNoteId,
+      title: newTitle || 'Untitled Note',
+      content: newContent,
+    };
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
 
     autosaveTimerRef.current = setTimeout(() => {
@@ -218,6 +262,19 @@ export default function NotesSection({
       });
     }, 800);
   }, [selectedNoteId, saveNoteMutation]);
+
+  // Flush pending save on unmount so no keystrokes are lost
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        const { noteId, title, content } = pendingEditRef.current;
+        if (noteId && saveStatusRef.current === 'unsaved') {
+          api.patch(`/api/spaces/${space._id}/items/${noteId}`, { title, content }).catch(() => {});
+        }
+      }
+    };
+  }, [space._id]);
 
   const handleTitleChange = (e) => {
     const val = e.target.value;
@@ -350,6 +407,15 @@ export default function NotesSection({
   const accent = isLight ? '#4f46e5' : '#6366f1';
 
   const handleSelectNote = (id) => {
+    // If there's an unsaved pending debounce on current note, flush it before switching
+    if (selectedNoteId && autosaveTimerRef.current && saveStatus === 'unsaved') {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+      const { noteId, title, content } = pendingEditRef.current;
+      if (noteId) {
+        saveNoteMutation.mutate({ noteId, title, content });
+      }
+    }
     setSelectedNoteId(id);
     if (isMobile) {
       setMobileSidebarVisible(false);
@@ -665,26 +731,31 @@ export default function NotesSection({
                     </span>
                   )}
 
-                  {/* Save Status Badge */}
+                  {/* Save Status Badge & Edit Timestamp */}
                   {canEdit && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: textMuted }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', color: textMuted }}>
                       {saveStatus === 'saving' && (
-                        <>
-                          <RiLoader4Line size={13} className="animate-spin" style={{ color: accent }} />
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: accent }}>
+                          <RiLoader4Line size={13} className="animate-spin" />
                           <span>Saving...</span>
-                        </>
+                        </span>
                       )}
                       {saveStatus === 'saved' && (
-                        <>
-                          <RiCheckLine size={14} style={{ color: '#10b981' }} />
-                          <span style={{ color: '#10b981', fontWeight: 600 }}>Saved</span>
-                        </>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontWeight: 600 }}>
+                          <RiCheckLine size={14} />
+                          <span>Saved</span>
+                        </span>
                       )}
                       {saveStatus === 'unsaved' && (
-                        <>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}>
                           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
                           <span>Unsaved</span>
-                        </>
+                        </span>
+                      )}
+                      {activeNote?.updatedAt && (
+                        <span style={{ color: textMuted, fontSize: '11px', opacity: 0.85 }}>
+                          • Edited {timeAgo(activeNote.updatedAt)}
+                        </span>
                       )}
                     </div>
                   )}
